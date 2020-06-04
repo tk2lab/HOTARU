@@ -1,40 +1,65 @@
-# -*- coding: utf-8 -*-
-
 import tensorflow as tf
 
-from ..util.module import Module
+
+def get_prox(var):
+    if hasattr(var, 'regularizer') and hasattr(var.regularizer, 'prox'):
+        return var.regularizer.prox
+    else:
+        return lambda x, _: x
 
 
-class L1(Module):
+def get_penalty(var):
+    if hasattr(var, 'regularizer'):
+        return var.regularizer(var)
+    else:
+        return 0.0
 
-    def __init__(self, l=None, rank=2, name='MaxNormL1'):
-        super().__init__(name=name)
+
+class ProxOp(tf.keras.regularizers.Regularizer):
+
+    def prox(self, y, eta):
+        return y
+
+    def get_config(self):
+        return dict()
+
+
+class NonNegativeL1(ProxOp):
+
+    def __init__(self, l=None):
+        super().__init__()
         self.l = l
-        self.axis = lambda: tf.range(1, rank)
 
-    def loss(self, x):
-        x = tf.math.abs(x)
-        return self.l * tf.reduce_sum(tf.math.abs(x), axis=self.axis())
+    def __call__(self, x):
+        return self.l * tf.reduce_sum(tf.nn.relu(x))
 
     def prox(self, y, eta):
         return tf.nn.relu(y - eta * self.l)
 
+    def get_config(self):
+        return dict(l=self.l)
 
-class MaxNormL1(Module):
 
-    def __init__(self, l=None, rank=2, name='MaxNormL1'):
-        super().__init__(name=name)
+class MaxNormNonNegativeL1(ProxOp):
+
+    def __init__(self, l=None, axis=-1):
+        super().__init__()
         self.l = l
-        self.axis = lambda: tf.range(1, rank)
+        self.axis = axis
 
-    def loss(self, x):
-        x = tf.math.abs(x)
-        m = tf.reduce_max(x, axis=self.axis())
-        s = tf.reduce_sum(x, axis=self.axis())
-        cond = tf.where(m > 0.0)
-        return self.l * tf.reduce_sum(tf.gather(s, cond) / tf.gather(m, cond))
+    def __call__(self, x):
+        x = tf.nn.relu(x)
+        s = tf.reduce_sum(x, axis=self.axis)
+        m = tf.reduce_max(x, axis=self.axis)
+        cond = m > 0.0
+        s = tf.boolean_mask(s, cond)
+        m = tf.boolean_mask(m, cond)
+        return self.l * tf.reduce_sum(s / m)
 
     def prox(self, y, eta):
         y = tf.nn.relu(y)
-        m = tf.reduce_max(y, axis=self.axis(), keepdims=True)
+        m = tf.reduce_max(y, axis=self.axis, keepdims=True)
         return tf.nn.relu(tf.where(tf.equal(y, m), y, y - eta * self.l / m))
+
+    def get_config(self):
+        return dict(l=self.l, axis=self.axis)

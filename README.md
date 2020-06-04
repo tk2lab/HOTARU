@@ -12,6 +12,8 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ## Install
 
 ### Download
+donwload `hotaru-2.0.1-py3-none-any.whl`
+from
 https://github.com/tk2lab/HOTARU/releases
 
 ### Require

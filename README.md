@@ -2,11 +2,12 @@
 
 High performance Optimizer to extract spike Timing And cell location from calcium imaging data via lineaR impUlse
 
+### Author
+TAKEKAWA Takashi <takekawa@tk2lab.org>
+
 ### Reference
 - Takekawa., T, et. al., Automatic sorting system for large scale calcium imaging data, bioRxiv,  https://doi.org/10.1101/215145 (2017).
 
-### Author
-TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ## Install
 
@@ -20,6 +21,7 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
   - `source hotaru/bin/activate`
 - Install to hotaru
   - `pip intall hotaru-2.0.1-py3-none-any.whl`
+
 
 ## Simple Usage
 - (in hotaru venv)

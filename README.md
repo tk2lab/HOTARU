@@ -29,6 +29,11 @@ https://github.com/tk2lab/HOTARU/releases
 
 
 ## Simple Usage
+
+### Sample Data
+https://github.com/tk2lab/HOTARU/releases/download/v2.0.1/sample_data.tif
+
+### Procedures
 - (in hotaru venv)
 - `mkdir work`
 - `cd work`

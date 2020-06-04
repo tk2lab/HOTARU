@@ -11,6 +11,9 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ## Install
 
+### Download
+https://github.com/tk2lab/HOTARU/releases
+
 ### Require
 - python >= 3.6.1
 

@@ -12,7 +12,7 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ## Install
 
 ### Download
-donwload `hotaru-2.0.1-py3-none-any.whl`
+donwload `hotaru-2.1.0-py3-none-any.whl`
 from
 https://github.com/tk2lab/HOTARU/releases
 
@@ -25,7 +25,7 @@ https://github.com/tk2lab/HOTARU/releases
 - Activate hotaru environment
   - `source hotaru/bin/activate`
 - Install to hotaru
-  - `pip intall hotaru-2.0.1-py3-none-any.whl`
+  - `pip intall hotaru-2.1.0-py3-none-any.whl`
 
 
 ## Simple Usage

@@ -1,14 +1,19 @@
-HOTARU
-------
+# HOTARU
 
 High performance Optimizer to extract spike Timing And cell location from calcium imaging data via lineaR impUlse
+
+### Reference
+- Takekawa., T, et. al., Automatic sorting system for large scale calcium imaging data, bioRxiv,  https://doi.org/10.1101/215145 (2017).
+
+### Author
+TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ## Install
 
 ### Require
 - python >= 3.6.1
 
-### Install (using venv)
+### Install Procedure (using venv)
 - Create venv environment for hotaru
   - `python3.x -m venv hotaru`
 - Activate hotaru environment
@@ -23,7 +28,4 @@ High performance Optimizer to extract spike Timing And cell location from calciu
 - `cp somewhere/TARGET.tif imgs.tif`
 - `hotaru`
 - (see out directory)
-
-## Author
-TAKEKAWA Takashi <takekawa@tk2lab.org>
 

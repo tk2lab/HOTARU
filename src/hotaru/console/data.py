@@ -48,9 +48,9 @@ class DataCommand(Command):
                     yield tf.convert_to_tensor(x[y0:y1, x0:x1], tf.float32)
 
             data = tf.data.Dataset.from_generator(_gen, tf.float32)
-            std, avgt, avgx = calc_std(data, mask, nt, batch)
+            avgt, avgx, std = calc_std(data, mask, nt, batch)
             averaged_data = normalized(data, avgt, avgx, std)
-            masked_data = masked(data, mask)
+            masked_data = masked(averaged_data, mask)
             prog = tf.keras.utils.Progbar(nt)
             make_tfrecord(data_file, masked_data, prog=prog)
             make_maskfile(mask_file, mask)

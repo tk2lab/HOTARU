@@ -14,7 +14,7 @@ class CleanCommand(Command):
     name = 'clean'
     options = [
         option('job-dir', flag=False, value_required=False),
-        option('name', flag=False, default='init'),
+        option('name', flag=False, default='default'),
         option('batch', flag=False, default=100),
     ]
 

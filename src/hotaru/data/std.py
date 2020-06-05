@@ -17,9 +17,9 @@ def calc_std(data, mask, nt, batch):
     nt = tf.cast(nt, tf.float32)
     nx = tf.cast(tf.math.count_nonzero(mask), tf.float32)
     avg_t, sum_x, sumsq = _calc(data.batch(batch), mask, prog=prog)
+    avg_x = sum_x / nt
     avg_0 = tf.reduce_mean(avg_t)
     avg_t -= avg_0
-    avg_x = sum_x / nt
     avgxm = tf.boolean_mask(avg_x - avg_0, mask)
     std = tf.sqrt(sumsq / nt / nx - tf.reduce_mean(tf.square(avgxm)))
-    return std, avg_t, avg_x
+    return avg_t, avg_x, std

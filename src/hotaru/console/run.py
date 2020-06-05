@@ -22,9 +22,7 @@ class RunCommand(Command):
         start = self.option('start')
         if start:
             footprint_key = {v: k for k, v in self.status['footprint'].items()}[start]
-            spike_key = {v: k for k, v in self.status['spike'].items()}[start]
             self.status['footprint_current'] = footprint_key
-            self.status['spike_current'] = spike_key
             self.save_status()
         elif self.status['footprint_current'] is None:
             self._call('data', 'imgs-file', 'mask-type', 'batch')

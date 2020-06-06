@@ -90,11 +90,9 @@ class VarianceLayer(tf.keras.layers.Layer):
 
     def _cache_footprint(self, footprint): 
         adat = tf.TensorArray(tf.float32, 0, True)
-        data = tf.data.TFRecordDataset(self.data)
-        data = data.map(lambda x: tf.io.parse_tensor(x, tf.float32))
-        data = data.enumerate().batch(self.batch)
+        data = self.data.batch(self.batch)
         prog = tf.keras.utils.Progbar(self.nt)
-        for _, d in data:
+        for d in data:
             adat_p = tf.matmul(footprint, d, False, True)
             for a in tf.transpose(adat_p):
                 adat = adat.write(adat.size(), a)
@@ -105,15 +103,16 @@ class VarianceLayer(tf.keras.layers.Layer):
     def _cache_spike(self, spike): 
         calcium = self.spike_to_calcium(spike)
         nk = tf.shape(calcium)[0]
-        data = tf.data.TFRecordDataset(self.data)
-        data = data.map(lambda x: tf.io.parse_tensor(x, tf.float32))
-        data = data.enumerate().batch(self.batch)
+        data = self.data.batch(self.batch)
         vdat = tf.constant(0.0)
         prog = tf.keras.utils.Progbar(self.nt)
-        for t, d in data:
-            c_p = tf.gather(calcium, t, axis=1)
+        e = tf.constant(0)
+        for d in data:
+            n = tf.shape(d)[0]
+            s, e = e, e + n
+            c_p = tf.slice(calcium, [0, s], [nk, n])
             vdat += tf.matmul(c_p, d)
-            prog.add(tf.size(t).numpy())
+            prog.add(n.numpy())
         return tf.group(self._cache(2, calcium, vdat))
 
     def _cache(self, mode, yval, dat):

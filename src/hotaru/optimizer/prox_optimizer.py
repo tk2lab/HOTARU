@@ -12,7 +12,7 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
 
     _HAS_AGGREGATE_GRAD = True
 
-    def __init__(self, learning_rate=0.01, name='Prox', **kwargs):
+    def __init__(self, learning_rate=1000.0, name='Prox', **kwargs):
         super().__init__(name, **kwargs)
         self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
     

@@ -16,6 +16,7 @@ class CleanCommand(Command):
         option('job-dir', flag=False, value_required=False),
         option('name', flag=False, default='default'),
         option('batch', flag=False, default=100),
+        option('force', 'f', 'overwrite previous result'),
     ]
 
     def handle(self):

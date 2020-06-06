@@ -14,21 +14,21 @@ class HotaruModel(tf.keras.Model):
                  la=0.0, lu=0.0, bx=0.0, bt=0.0, batch=100, *args, **kwargs):
         super().__init__(*args, **kwargs)
         variance = VarianceLayer(data, tau1, tau2, hz, tscale, bx, bt, batch)
-        footprint_regularizer = MaxNormNonNegativeL1(la, 1)
-        spike_regularizer = MaxNormNonNegativeL1(lu, 1)
+        footprint_regularizer = MaxNormNonNegativeL1(la / nx / nt, 1)
+        spike_regularizer = MaxNormNonNegativeL1(lu / nx / nt, 1)
         nu = nt + variance.calcium_to_spike.pad
 
         self.footprint = InputLayer(nk, nx, footprint_regularizer)
         self.spike = InputLayer(nk, nu, spike_regularizer)
         self.variance = variance
 
-    # numpy functions
-
     def update_spike(self, *args, **kwargs):
         nk = self.footprint.val.shape[0]
         nu = self.spike.val.shape[1]
         self.spike.val =  np.zeros((nk, nu), np.float32)
         self.fit(self.variance.SPIKE_MODE, *args, **kwargs)
+        scale = self.spike.val.max(axis=1)
+        self.spike.val = self.spike.val[scale > 0.1]
 
     def update_footprint(self, *args, **kwargs):
         self.spike.val = self.spike.val / self.spike.val.max(axis=1, keepdims=True)
@@ -36,15 +36,14 @@ class HotaruModel(tf.keras.Model):
         nx = self.footprint.val.shape[1]
         self.footprint.val = np.zeros((nk, nx), np.float32)
         self.fit(self.variance.FOOTPRINT_MODE, *args, **kwargs)
-        scale = self.footprint.val.max(axis=1, keepdims=True)
-        self.spike.val = self.spike.val * scale
-        self.footprint.val = self.footprint.val / scale
+        scale = self.footprint.val.max(axis=1)
+        cond = scale > 0.1
+        self.spike.val = self.spike.val[cond] * scale[cond, None]
+        self.footprint.val = self.footprint.val[cond] / scale[cond, None]
 
     def select(self, ids):
         self.footprint.val = self.footprint.val[ids]
         self.spike.val = self.spike.val[ids]
-
-    # tf functions
 
     def call(self, mode):
         _dummy = tf.zeros((1, 1))

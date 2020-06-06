@@ -1,9 +1,10 @@
 import os
 
 import tensorflow as tf
+import numpy as np
 
 from .base import Command, option
-from ..data.load import load_data
+from ..data.load import get_shape, load_data
 from ..data.mask import get_mask, get_mask_range, make_maskfile, load_maskfile
 from ..data.std import calc_std
 from ..data.dataset import normalized, masked
@@ -20,6 +21,7 @@ class DataCommand(Command):
         option('imgs-file', flag=False, value_required=False),
         option('mask-type', flag=False, value_required=False),
         option('batch', flag=False, default=100),
+        option('force', 'f', 'overwrite previous result'),
     ]
 
     def handle(self):
@@ -35,30 +37,32 @@ class DataCommand(Command):
         imgs_file_path = os.path.join(self.application.job_dir, imgs_file)
         data_file = os.path.join(self.work_dir, 'data.tfrecord')
         mask_file = os.path.join(self.work_dir, 'mask.npy')
+        avgt_file = os.path.join(self.work_dir, 'avgt.npy')
+        avgx_file = os.path.join(self.work_dir, 'avgx.npy')
 
-        if not tf.io.gfile.exists(mask_file):
+        if self.option('force') or not tf.io.gfile.exists(mask_file):
             self.line('data')
-            gen, nt, h, w = load_data(imgs_file_path)
+            nt, h, w = get_shape(imgs_file_path)
+            self.status['root']['nt'] = nt
+
             mask = get_mask(mask_type, h, w, self.work_dir)
             y0, y1, x0, x1 = get_mask_range(mask)
             mask = mask[y0:y1, x0:x1]
-
-            def _gen():
-                for x in gen():
-                    yield tf.convert_to_tensor(x[y0:y1, x0:x1], tf.float32)
-
-            data = tf.data.Dataset.from_generator(_gen, tf.float32)
-            avgt, avgx, std = calc_std(data, mask, nt, batch)
-            averaged_data = normalized(data, avgt, avgx, std)
-            masked_data = masked(averaged_data, mask)
-            prog = tf.keras.utils.Progbar(nt)
-            make_tfrecord(data_file, masked_data, prog=prog)
             make_maskfile(mask_file, mask)
-
-            self.status['root']['nt'] = nt
-            self.status['root']['nx'] = tf.math.count_nonzero(mask).numpy()
+            self.status['root']['rect'] = y0, y1, x0, x1
+            self.status['root']['nx'] = np.count_nonzero(mask)
             self.status['root']['h'] = y1 - y0
             self.status['root']['w'] = x1 - x0
+
+            avgt, avgx, std = calc_std(self.imgs, mask, nt, batch)
+            make_maskfile(avgt_file, avgt.numpy())
+            make_maskfile(avgx_file, avgx.numpy())
+            self.status['root']['std'] = std.numpy()
+
+            prog = tf.keras.utils.Progbar(nt)
+            masked_data = masked(self.normalized_imgs, mask)
+            make_tfrecord(data_file, masked_data, prog=prog)
+
             self.save_status()
 
     def status_value(self, name, default_val=None, dtype=str):

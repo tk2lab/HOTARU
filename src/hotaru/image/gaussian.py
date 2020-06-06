@@ -3,7 +3,6 @@ from numpy import pi as PI
 
 
 def gaussian(imgs, r):
-    r = tf.convert_to_tensor(r, tf.float32)
     mr = tf.math.ceil(r)
     d = tf.square(tf.range(-4.0 * mr, 4.0 * mr + 1.0, 1.0))
     r2 = tf.square(r)

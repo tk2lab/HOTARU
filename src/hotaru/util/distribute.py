@@ -8,7 +8,7 @@ class ReduceOp(Enum):
     MAX = 2
 
 
-def distributed(*types):
+def distributed(*types, loop=True):
 
     def make_init(t):
         if t == ReduceOp.SUM:
@@ -20,7 +20,7 @@ def distributed(*types):
         else:
             raise NotImplementedError()
 
-    def dist_finish(x, t):
+    def sirialize(x, t):
         if t == ReduceOp.SUM:
             return strategy.reduce(tf.distribute.ReduceOp.SUM, x, axis=None)
         elif t == ReduceOp.MAX:
@@ -30,7 +30,7 @@ def distributed(*types):
         else:
             raise NotImplementedError()
 
-    def loop_finish(o, t):
+    def finish(o, t):
         if t == ReduceOp.SUM:
             return o
         elif t == ReduceOp.MAX:
@@ -45,7 +45,7 @@ def distributed(*types):
         @tf.function
         def dist_run(*args, **kwargs):
             xs = strategy.run(func, args, kwargs)
-            return tuple(dist_finish(x, t) for x, t in zip(xs, types))
+            return tuple(serialize(x, t) for x, t in zip(xs, types))
 
         def loop_run(data, *args, prog=None, **kwargs):
             os = tuple(make_init(t) for t in types)
@@ -57,9 +57,13 @@ def distributed(*types):
                         prog.add(tf.shape(d[0])[0].numpy())
                     else:
                         prog.add(tf.shape(d)[0].numpy())
-            return tuple(loop_finish(o, t) for o, t in zip(os, types))
+            return tuple(finish(o, t) for o, t in zip(os, types))
 
-        return loop_run
+        def single_run(*args, **kwargs):
+            xs = dist_ruN(*args, **kwargs)
+            return tuple(finish(x, t) for x, t in zip(xs, types))
+
+        return loop_run if loop else single_run
 
     strategy = tf.distribute.get_strategy()
     return decorator

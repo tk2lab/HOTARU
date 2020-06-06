@@ -1,7 +1,6 @@
 import numpy as np
 
 from .base import Command, option
-from ..train.model import HotaruModel
 
 
 class FootprintCommand(Command):
@@ -13,6 +12,7 @@ class FootprintCommand(Command):
         option('job-dir'),
         option('name', flag=False, default='default'),
         option('batch', flag=False, default=100),
+        option('force', 'f', 'overwrite previous result'),
     ]
 
     def handle(self):
@@ -27,21 +27,10 @@ class FootprintCommand(Command):
 
     def create(self):
         print('footprint')
-        spike = self.spike
-        nk = spike.shape[0]
-        nx = self.status['root']['nx']
-        nt = self.status['root']['nt']
-        tau1, tau2, hz, tauscale = self.key[-3][:4]
-        la, lu, bx, bt = self.key[-1]
-        batch = int(self.option('batch'))
-        self.model = HotaruModel(
-            self.data_file, nk, nx, nt,
-            tau1, tau2, hz, tauscale, la, lu, bx, bt, batch,
-        )
-        self.model.compile()
-        self.model.spike.val = spike
-        self.model.update_footprint()
-        return self.model.footprint.val
+        model = self.model
+        model.spike.val = self.spike
+        model.update_footprint()
+        return model.footprint.val
 
     def save(self, base, val):
         np.save(base + '.npy', val)

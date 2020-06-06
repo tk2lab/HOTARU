@@ -1,54 +1,57 @@
+import time
+
 import tensorflow as tf
 
+from ..data.dataset import unmasked
 from ..image.gaussian import gaussian
 from ..image.laplace import gaussian_laplace_multi
 from .segment import get_segment_index
 from .util import get_normalized_val, get_magnitude, ToDense
 
 
-def make_footprint(dataset, mask, gauss, ts, rs, ys, xs, batch):
+def make_footprint(dataset, mask, gauss, radius, ts, rs, ys, xs, batch):
 
-    @tf.function
-    def _prepare(times, data, gauss, ts, rs, ys, xs):
-        times = tf.cast(times, tf.int32)
-        ts = tf.cast(ts, tf.int32)
-        cond = (times[0] <= ts) & (ts <= times[-1])
-        ts, tsi = tf.unique(tf.boolean_mask(ts, cond) - times[0])
-        rs, rsi = tf.unique(tf.boolean_mask(rs, cond))
-        ys = tf.boolean_mask(ys, cond)
-        xs = tf.boolean_mask(xs, cond)
-
-        imgs = tf.gather(data, ts)
-        if gauss > 0.0:
-            imgs = gaussian(imgs, gauss)
-        gls = gaussian_laplace_multi(imgs, rs) 
-        return gls, tf.stack((tsi, rsi, ys, xs), axis=1)
-
-
-    def _finish_prepare(gls, peaks):
-        gls = tf.concat(strategy.experimental_local_results(gls), axis=0)
-        peaks = tf.concat(strategy.experimental_local_results(peaks), axis=0)
-        return gls, peaks
-
-    @tf.function
-    def _get_footprint(gl, y, x):
-        pos = get_segment_index(gl, y, x, mask)
-        val = get_normalized_val(gl, pos)
-        mag = get_magnitude(gl, pos)
-        return to_dense(pos, val), mag
+    def _select(start, end, ts, rs, ys, xs):
+        cond = (start <= ts) & (ts < end)
+        ids = tf.cast(tf.where(cond)[:, 0], tf.int32)
+        tl = tf.gather(ts, ids) - start
+        rl = tf.gather(rs, ids)
+        yl = tf.gather(ys, ids)
+        xl = tf.gather(xs, ids)
+        return tl, rl, yl, xl
 
     strategy = tf.distribute.get_strategy()
-    dataset = dataset.enumerate().batch(batch)
+
+    dataset = unmasked(dataset, mask).batch(batch)
+    mask = tf.convert_to_tensor(mask, tf.float32)
     to_dense = ToDense(mask)
-    out = []
+    gauss = tf.convert_to_tensor(gauss, tf.float32)
+    radius = tf.convert_to_tensor(radius, tf.float32)
+    ts = tf.convert_to_tensor(ts, tf.int32)
+    rs = tf.convert_to_tensor(rs, tf.int32)
+    ys = tf.convert_to_tensor(ys, tf.int32)
+    xs = tf.convert_to_tensor(xs, tf.int32)
+
     prog = tf.keras.utils.Progbar(tf.size(ts).numpy())
-    for times, data in strategy.experimental_distribute_dataset(dataset):
-        local_gls, local_peaks = _finish_prepare(*strategy.run(
-            _prepare, (times, data, gauss, ts, rs, ys, xs),
-        ))
-        for t, r, y, x in local_peaks:
-            gl = local_gls[t, :, :, r]
-            out.append(_get_footprint(gl, y, x))
+    fps = tf.TensorArray(tf.float32, 0, True)
+    mgs = tf.TensorArray(tf.float32, 0, True)
+    e = tf.constant(0)
+    for imgs in dataset:
+        s, e = e, e + tf.shape(imgs)[0]
+        tl, rl, yl, xl = _select(s, e, ts, rs, ys, xs)
+        if gauss > 0.0:
+            img = gaussian(imgs, gauss)
+        gls = gaussian_laplace_multi(imgs, radius)
+
+        nk = tf.size(tl)
+        for k in tf.range(nk):
+            t, r, y, x = tl[k], rl[k], yl[k], xl[k]
+            gl = gls[t, :, :, r]
+            pos = get_segment_index(gl, y, x, mask)
+            val = get_normalized_val(gl, pos)
+            mag = get_magnitude(gl, pos)
+            footprint = to_dense(pos, val)
+            mgs = mgs.write(mgs.size(), mag)
+            fps = fps.write(fps.size(), footprint)
             prog.add(1)
-    footprints, mags = zip(*out)
-    return tf.stack(footprints), tf.stack(mags)
+    return fps.stack(), mgs.stack()

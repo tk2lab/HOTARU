@@ -2,11 +2,12 @@ import tensorflow as tf
 import numpy as np
 
 from ..util.distribute import distributed, ReduceOp
+from ..data.dataset import unmasked
 from ..image.gaussian import gaussian
 from ..image.laplace import gaussian_laplace_multi
 
 
-def find_peak(data, mask, gauss, radius, thr_gl, batch, nt=None):
+def find_peak(data, mask, gauss, radius, thr_gl, batch, prog=None):
 
     @distributed(*[ReduceOp.CONCAT]*5)
     def _find(data, mask, gauss, radius, thr_gl):
@@ -26,9 +27,12 @@ def find_peak(data, mask, gauss, radius, thr_gl, batch, nt=None):
         gs = tf.gather_nd(gl, posr)
         return ts, rs, ys, xs, gs
 
+    data = unmasked(data, mask)
     data = data.enumerate().batch(batch)
+    mask = tf.convert_to_tensor(mask)
+    gauss = tf.convert_to_tensor(gauss)
     radius = tf.convert_to_tensor(radius)
-    prog = tf.keras.utils.Progbar(nt)
+    thr_gl = tf.convert_to_tensor(thr_gl)
     peak = _find(data, mask, gauss, radius, thr_gl, prog=prog)
     idx = tf.argsort(peak[-1])[::-1]
-    return tuple(tf.gather(v, idx) for v in peak)
+    return tuple(tf.gather(v, idx).numpy() for v in peak)

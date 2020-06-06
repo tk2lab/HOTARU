@@ -20,6 +20,7 @@ class PeakCommand(Command):
         option('thr-dist', flag=False, default=1.8),
         option('name', flag=False, default='default'),
         option('batch', flag=False, default=100),
+        option('force', 'f', 'overwrite previous result'),
     ]
 
     def handle(self):
@@ -33,33 +34,32 @@ class PeakCommand(Command):
 
     def create(self):
         self.line('peak')
-        gauss, radius, thr_gl, thr_dist = self.key[1]
         name = self.option('name')
-        peak_base = os.path.join(self.work_dir, 'peak', name)
-        peak = self.create0(gauss, radius, thr_gl)
+        base = os.path.join(self.work_dir, 'peak', name)
+        gauss, radius, thr_gl, thr_dist = self.key[1]
+        peak = self.handle0(gauss, radius, thr_gl)
         peak = reduce_peak(peak, thr_dist)
         return peak
 
-    def create0(self, gauss, radius, thr_gl):
+    def handle0(self, gauss, radius, thr_gl):
         status = self.status['peak']
         key = 'peak', (gauss, radius, thr_gl)
         name = self.option('name') + '0'
         base = os.path.join(self.work_dir, 'peak', name)
-        if key not in status:
-            data = unmasked(self.data, self.mask)
-            nt = self.status['root']['nt']
+        if self.option('force') or key not in status:
             batch = int(self.option('batch'))
-            peak = find_peak(data, self.mask, gauss, radius, thr_gl, batch, nt)
+            nt = self.status['root']['nt']
+            prog = tf.keras.utils.Progbar(nt)
+            peak = find_peak(self.data, self.mask, gauss, radius, thr_gl, batch, prog)
             self.save(base, peak)
             status[key] = name
             self.save_status()
         else:
-            name = status[key]
             peak = self.load_peak(base)
         return peak
 
     def save(self, base, peak):
         _peak_name = 'ts', 'rs', 'xs', 'ys', 'gs'
-        peak_dict = {k: v.numpy() for k, v in zip(_peak_name, peak)}
+        peak_dict = {k: v for k, v in zip(_peak_name, peak)}
         with tf.io.gfile.GFile(base + '.csv', 'w') as fp:
             pd.DataFrame(peak_dict).to_csv(fp)

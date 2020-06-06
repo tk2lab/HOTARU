@@ -4,11 +4,11 @@ import tensorflow as tf
 from .base import Command, option
 
 
-class ParameterCommand(Command):
+class ConfigCommand(Command):
 
     description = 'Update parameter'
 
-    name = 'parameter'
+    name = 'config'
     options = [
         option('job-dir', 'j', 'target directory', flag=False, value_required=False),
         option('hz', 'z', 'sampling rate of data (1/sec)', flag=False, value_required=False),
@@ -29,8 +29,8 @@ class ParameterCommand(Command):
         self._update_parameter('tau-rise', 0.08)
         self._update_parameter('tau-fall', 0.16)
         self._update_parameter('tau-scale', 6.0)
-        self._update_parameter('gauss', 0.0)
-        self._update_parameter('diameter', [3.0, 4.0, 5.0, 6.0, 7.0])
+        self._update_parameter('gauss', 2.0)
+        self._update_parameter('diameter', [2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
         self._update_parameter('la', 0.0)
         self._update_parameter('lu', 0.0)
         self._update_parameter('bx', 0.0)

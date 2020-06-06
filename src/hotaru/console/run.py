@@ -18,7 +18,7 @@ class RunCommand(Command):
 
     def handle(self):
         self.set_job_dir()
-        self._call('parameter', 'gauss', 'radius', 'tau1', 'tau2', 'hz', 'tauscale', 'la', 'lu', 'bx', 'bt')
+        self._call('config', 'gauss', 'radius', 'tau1', 'tau2', 'hz', 'tauscale', 'la', 'lu', 'bx', 'bt')
         start = self.option('start')
         if start:
             footprint_key = {v: k for k, v in self.status['footprint'].items()}[start]

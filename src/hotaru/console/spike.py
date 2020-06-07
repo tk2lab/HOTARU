@@ -10,6 +10,7 @@ class SpikeCommand(Command):
     name = 'spike'
     options = [
         option('job-dir'),
+        option('prev', flag=False, value_required=False),
         option('name', flag=False, default='default'),
         option('batch', flag=False, default=100),
         option('force', 'f', 'overwrite previous result'),
@@ -26,6 +27,8 @@ class SpikeCommand(Command):
         bx = self.status['root']['bx']
         bt = self.status['root']['bt']
         prev_key = self.status['footprint_current']
+        if self.option('prev'):
+            prev_key = {v: k for k, v in self.status['footprint'].items()}[self.option('prev')]
         self.key = prev_key + ('spike', (tau1, tau2, hz, tauscale, la, lu, bx, bt))
         self._handle('spike')
 

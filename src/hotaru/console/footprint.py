@@ -10,6 +10,7 @@ class FootprintCommand(Command):
     name = 'footprint'
     options = [
         option('job-dir'),
+        option('prev', flag=False, value_required=False),
         option('name', flag=False, default='default'),
         option('batch', flag=False, default=100),
         option('force', 'f', 'overwrite previous result'),
@@ -22,6 +23,8 @@ class FootprintCommand(Command):
         bx = self.status['root']['bx']
         bt = self.status['root']['bt']
         prev_key = self.status['spike_current']
+        if self.option('prev'):
+            prev_key = {v: k for k, v in self.status['spike'].items()}[self.option('prev')]
         self.key = prev_key + ('footprint', (la, lu, bx, bt))
         self._handle('footprint')
 

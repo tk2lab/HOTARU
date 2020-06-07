@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow.keras.backend as K
 
 
 def get_prox(var):
@@ -31,10 +32,10 @@ class NonNegativeL1(ProxOp):
         self.l = l
 
     def __call__(self, x):
-        return self.l * tf.reduce_sum(tf.nn.relu(x))
+        return self.l * K.sum(K.relu(x))
 
     def prox(self, y, eta):
-        return tf.nn.relu(y - eta * self.l)
+        return K.relu(y - eta * self.l)
 
     def get_config(self):
         return dict(l=self.l)
@@ -48,18 +49,18 @@ class MaxNormNonNegativeL1(ProxOp):
         self.axis = axis
 
     def __call__(self, x):
-        x = tf.nn.relu(x)
-        s = tf.reduce_sum(x, axis=self.axis)
-        m = tf.reduce_max(x, axis=self.axis)
+        x = K.relu(x)
+        s = K.sum(x, axis=self.axis)
+        m = K.max(x, axis=self.axis)
         cond = m > 0.0
         s = tf.boolean_mask(s, cond)
         m = tf.boolean_mask(m, cond)
-        return self.l * tf.reduce_sum(s / m)
+        return self.l * K.sum(s / m)
 
     def prox(self, y, eta):
-        y = tf.nn.relu(y)
-        m = tf.reduce_max(y, axis=self.axis, keepdims=True)
-        return tf.nn.relu(tf.where(tf.equal(y, m), y, y - eta * self.l / m))
+        y = K.relu(y)
+        m = K.max(y, axis=self.axis, keepdims=True)
+        return K.relu(tf.where(K.equal(y, m), y, y - eta * self.l / m))
 
     def get_config(self):
         return dict(l=self.l, axis=self.axis)

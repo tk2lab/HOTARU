@@ -11,7 +11,7 @@ from .run import RunCommand
 from .status import StatusCommand
 from .data import DataCommand
 from .peak import PeakCommand
-from .make import MakeCommand
+from .segment import SegmentCommand
 from .spike import SpikeCommand
 from .footprint import FootprintCommand
 from .clean import CleanCommand
@@ -32,7 +32,7 @@ class Application(ApplicationBase):
             StatusCommand(),
             DataCommand(),
             PeakCommand(),
-            MakeCommand(),
+            SegmentCommand(),
             SpikeCommand(),
             FootprintCommand(),
             CleanCommand(),

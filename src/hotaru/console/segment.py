@@ -7,11 +7,11 @@ from .base import Command, option
 from ..footprint.make import make_footprint
 
 
-class MakeCommand(Command):
+class SegmentCommand(Command):
 
     description = 'Make segment'
 
-    name = 'make'
+    name = 'segment'
     options = [
         option('job-dir', 'j', '', flag=False, value_required=False),
         option('name', None, '', flag=False, default='init'),

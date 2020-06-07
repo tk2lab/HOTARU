@@ -20,7 +20,7 @@ def distributed(*types, loop=True):
         else:
             raise NotImplementedError()
 
-    def sirialize(x, t):
+    def serialize(x, t):
         if t == ReduceOp.SUM:
             return strategy.reduce(tf.distribute.ReduceOp.SUM, x, axis=None)
         elif t == ReduceOp.MAX:

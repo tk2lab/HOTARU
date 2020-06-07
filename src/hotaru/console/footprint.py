@@ -29,7 +29,7 @@ class FootprintCommand(Command):
         print('footprint')
         model = self.model
         model.spike.val = self.spike
-        model.update_footprint()
+        model.update_footprint(batch=int(self.option('batch')))
         return model.footprint.val
 
     def save(self, base, val):

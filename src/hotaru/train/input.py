@@ -17,7 +17,10 @@ class InputLayer(tf.keras.layers.Layer):
 
     @property
     def val(self):
-        return K.get_value(self.val_tensor())
+        nk = self._nk
+        nx = tf.shape(self._val)[1]
+        val = tf.slice(self._val, (0, 0), (nk, nx))
+        return K.get_value(val)
 
     @val.setter
     def val(self, val):
@@ -27,12 +30,4 @@ class InputLayer(tf.keras.layers.Layer):
         K.set_value(self._val, val)
 
     def call(self, dummy):
-        val = self.val_tensor()
-        penalty = self._val.regularizer(val)
-        return val, penalty
-
-    def val_tensor(self):
-        nk = self._nk
-        nx = tf.shape(self._val)[1]
-        val = tf.slice(self._val, (0, 0), (nk, nx))
-        return val
+        return self._val

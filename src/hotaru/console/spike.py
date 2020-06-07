@@ -33,7 +33,7 @@ class SpikeCommand(Command):
         self.line('spike')
         model = self.model
         model.footprint.val = self.footprint
-        model.update_spike()
+        model.update_spike(batch=int(self.option('batch')))
         return model.spike.val
 
     def save(self, base, val):

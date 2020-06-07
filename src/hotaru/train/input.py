@@ -7,8 +7,8 @@ from ..optimizer.regularizer import ProxOp
 
 class InputLayer(tf.keras.layers.Layer):
 
-    def __init__(self, nk, nx, regularizer=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, nk, nx, regularizer=None, name='Input', *args, **kwargs):
+        super().__init__(name=name, *args, **kwargs)
         regularizer = regularizer or ProxOp()
         self.max_nk = nk
         self._nk = self.add_weight('nk', (), tf.int32, trainable=False)
@@ -17,10 +17,7 @@ class InputLayer(tf.keras.layers.Layer):
 
     @property
     def val(self):
-        nk = self._nk
-        nx = tf.shape(self._val)[1]
-        val = tf.slice(self._val, (0, 0), (nk, nx))
-        return K.get_value(val)
+        return K.get_value(self.val_tensor())
 
     @val.setter
     def val(self, val):
@@ -28,6 +25,18 @@ class InputLayer(tf.keras.layers.Layer):
         val = np.pad(val, ((0, self.max_nk - nk), (0, 0)))
         K.set_value(self._nk, nk)
         K.set_value(self._val, val)
+
+    def val_tensor(self):
+        nk = self._nk
+        nx = tf.shape(self._val)[1]
+        return tf.slice(self._val, (0, 0), (nk, nx))
+
+    def penalty(self, x=None):
+        if x is None:
+            x = self.val_tensor()
+        p = self._val.regularizer(x)
+        self.add_metric(p, 'mean', self.name)
+        return p
 
     def call(self, dummy):
         return self._val

@@ -1,11 +1,11 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 import tensorflow.keras.backend as K
 
 from ..optimizer.prox_nesterov import ProxNesterov
 from ..optimizer.regularizer import MaxNormNonNegativeL1
 from .input import InputLayer
-from .variance import VarianceLoss
+from .variance import Extract, Variance
 
 
 class HotaruModel(tf.keras.Model):
@@ -13,13 +13,13 @@ class HotaruModel(tf.keras.Model):
     def __init__(self, data, nk, nx, nt, tau1, tau2, hz, tscale,
                  la, lu, bx, bt, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        variance = VarianceLoss(data, nk, nx, nt, tau1, tau2, hz, tscale, bx, bt)
+        variance = Variance(data, nk, nx, nt, tau1, tau2, hz, tscale, bx, bt)
         footprint_regularizer = MaxNormNonNegativeL1(la / nx / nt, 1)
         spike_regularizer = MaxNormNonNegativeL1(lu / nx / nt, 1)
         nu = variance.nu
 
-        self.footprint = InputLayer(nk, nx, footprint_regularizer)
-        self.spike = InputLayer(nk, nu, spike_regularizer)
+        self.footprint = InputLayer(nk, nx, footprint_regularizer, 'footprint')
+        self.spike = InputLayer(nk, nu, spike_regularizer, 'spike')
         self.variance = variance
         self.status_shape = nk, nx, nu
 
@@ -29,7 +29,6 @@ class HotaruModel(tf.keras.Model):
         nk = self.footprint.val.shape[0]
         nu = self.spike.val.shape[1]
         self.spike.val = np.zeros((nk, nu), np.float32)
-
         self.fit(*args, **kwargs)
 
         scale = self.spike.val.max(axis=1)
@@ -59,13 +58,19 @@ class HotaruModel(tf.keras.Model):
         _dummy = tf.zeros((1, 1))
         footprint = self.footprint(_dummy)
         spike = self.spike(_dummy)
-        return tf.concat((footprint, spike), axis=1)
+        out = tf.concat((footprint, spike), axis=1)
+        footprint, spike = self.variance.extract(out)
+        variance = self.variance((footprint, spike))
+        footprint_penalty = self.footprint.penalty(footprint)
+        spike_penalty = self.spike.penalty(spike)
+        me = hotaru_loss(variance) + footprint_penalty + spike_penalty
+        self.add_metric(me, 'mean', 'score')
+        return out
 
     def compile(self, *args, **kwargs):
         super().compile(
             optimizer=ProxNesterov(),
-            loss=self.variance,
-            #metrics=[HotaruMetric(pos) for pos in [1, 2, 3, 4]],
+            loss=HotaruLoss(self.variance),
             *args, **kwargs,
         )
 
@@ -84,13 +89,17 @@ class HotaruModel(tf.keras.Model):
         )
 
 
-class HotaruMetric(tf.python.keras.metrics.MeanMetricWrapper):
-
-    def __init__(self, pos, dtype=None):
-        names = ['ll', 'me', 'sigma', 'pa', 'pu']
-        super().__init__(hotaru_metric(pos), name=names[pos], dtype=dtype)
-        self._pos = pos
+def hotaru_loss(variance):
+    return 0.5 * K.log(variance)
 
 
-def hotaru_metric(pos):
-    return lambda y_true, y_pred: y_pred[pos]
+class HotaruLoss(tf.keras.losses.Loss):
+
+    def __init__(self, variance, name='Variance'):
+        super().__init__(name=name)
+        self._variance = variance
+
+    def call(self, y_true, y_pred):
+        footprint, spike = self._variance.extract(y_pred)
+        variance = self._variance((footprint, spike))
+        return hotaru_loss(variance)

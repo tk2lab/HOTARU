@@ -1,14 +1,29 @@
 import tensorflow as tf
+import tensorflow.keras.backend as K
 
 from hotaru.train.dynamics import SpikeToCalciumDefault
 from hotaru.train.dynamics import CalciumToSpikeDefault
 
 
-class VarianceLoss(tf.keras.losses.Loss):
+class Extract(tf.keras.layers.Layer):
 
-    def __init__(self, data, nk, nx, nt, tau1, tau2, hz, tscale, bx, bt,
-                 name='Variance', *args, **kwargs):
-        super().__init__(name=name, *args, **kwargs)
+    def __init__(self, nx, nu, name='Extract'):
+        super().__init__(name=name, dtype=tf.float32)
+        self.nk = self.add_weight('nk', (), tf.int32, trainable=False)
+        self.nx = nx
+        self.nu = nu
+
+    def call(self, inputs):
+        nk, nx, nu = self.nk, self.nx, self.nu
+        inputs = tf.slice(inputs, [0, 0], [nk, nx + nu])
+        return tf.split(inputs, [nx, nu], axis=1)
+
+
+class Variance(tf.keras.layers.Layer):
+
+    def __init__(self, data, nk, nx, nt,
+                 tau1, tau2, hz, tscale, bx, bt, name='Variance'):
+        super().__init__(name=name, dtype=tf.float32)
         self.data = data
         self.spike_to_calcium = SpikeToCalciumDefault(
             tau1, tau2, hz, tscale, name='to_cal'
@@ -36,12 +51,12 @@ class VarianceLoss(tf.keras.losses.Loss):
         self.nt = nt
         self.nu = nu
 
-        self.mode = tf.Variable(tf.constant(0, tf.int32), False)
-        self.nk = tf.Variable(tf.constant(nk, tf.int32), False)
+        self.mode = self.add_weight('mode', (), tf.int32, trainable=False)
+        self.extract = Extract(nx, nu)
         self.scale = nn / nm
-        self.dat = tf.Variable(tf.zeros((nk, nmax), tf.float32), False)
-        self.cov = tf.Variable(tf.zeros((nk, nk), tf.float32), False)
-        self.out = tf.Variable(tf.zeros((nk, nk), tf.float32), False)
+        self.dat = self.add_weight('dat', (nk, nmax), tf.float32, trainable=False)
+        self.cov = self.add_weight('cov', (nk, nk), tf.float32, trainable=False)
+        self.out = self.add_weight('out', (nk, nk), tf.float32, trainable=False)
 
     def start_spike_mode(self, footprint, batch): 
         data = self.data.batch(batch)
@@ -74,11 +89,11 @@ class VarianceLoss(tf.keras.losses.Loss):
             prog.add(n.numpy())
         self._cache(2, calcium, vdat)
 
-    def call(self, y_true, y_pred):
-        nk, nx, nt, nu = self.nk, self.nx, self.nt, self.nu
-        inputs = tf.slice(y_pred, [0, 0], [nk, nx + nu])
-        footprint, spike = tf.split(inputs, [nx, nu], axis=1)
+    def call(self, inputs):
+        footprint, spike = inputs
 
+        nk = tf.shape(footprint)[0]
+        nx, nt = self.nx, self.nt
         nz, xdat = tf.cond(
             self.mode == 1,
             lambda: (nt, self.spike_to_calcium(spike)),
@@ -98,6 +113,7 @@ class VarianceLoss(tf.keras.losses.Loss):
             + tf.reduce_sum(ycov * xcov)
             + tf.reduce_sum(yout * xout)
         )
+        self.add_metric(K.sqrt(variance), 'mean', 'sigma')
         return variance
 
     def _cache(self, mode, yval, dat):
@@ -120,8 +136,8 @@ class VarianceLoss(tf.keras.losses.Loss):
         cov = tf.pad(cov, [[0, dk], [0, dk]]) 
         out = tf.pad(out, [[0, dk], [0, dk]]) 
 
-        self.mode.assign(mode)
-        self.nk.assign(nk)
-        self.dat.assign(dat)
-        self.cov.assign(cov)
-        self.out.assign(out)
+        K.set_value(self.mode, mode)
+        K.set_value(self.extract.nk, nk)
+        K.set_value(self.dat, dat)
+        K.set_value(self.cov, cov)
+        K.set_value(self.out, out)

@@ -29,6 +29,7 @@ class HotaruModel(tf.keras.Model):
         nk = self.footprint.val.shape[0]
         nu = self.spike.val.shape[1]
         self.spike.val = np.zeros((nk, nu), np.float32)
+
         self.fit(*args, **kwargs)
 
         scale = self.spike.val.max(axis=1)
@@ -54,11 +55,10 @@ class HotaruModel(tf.keras.Model):
         self.footprint.val = self.footprint.val[ids]
         self.spike.val = self.spike.val[ids]
 
-    def call(self, mode):
+    def call(self, inputs):
         # output
-        _dummy = tf.zeros((1, 1))
-        footprint = self.footprint(_dummy)
-        spike = self.spike(_dummy)
+        footprint = self.footprint(inputs)
+        spike = self.spike(inputs)
         out = tf.concat((footprint, spike), axis=1)
 
         # metrics
@@ -67,11 +67,7 @@ class HotaruModel(tf.keras.Model):
         footprint_penalty = self.footprint.penalty(footprint)
         spike_penalty = self.spike.penalty(spike)
         me = hotaru_loss(variance) + footprint_penalty + spike_penalty
-        mag = K.max(out, axis=1)
         self.add_metric(me, 'mean', 'score')
-        self.add_metric(tf.shape(footprint)[0], 'mean', 'nk')
-        self.add_metric(K.min(mag), 'mean', 'min')
-        self.add_metric(K.max(mag), 'mean', 'max')
 
         return out
 

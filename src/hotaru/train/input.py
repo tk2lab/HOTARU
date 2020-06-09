@@ -37,8 +37,10 @@ class InputLayer(tf.keras.layers.Layer):
         m = K.max(x, axis=1)
         p = self._val.regularizer(x)
         self.add_metric(p, 'mean', self.name)
-        self.add_metric(K.min(m), 'mean', f'{self.name}_min')
-        self.add_metric(K.max(m), 'mean', f'{self.name}_max')
+        #self.add_metric(K.min(m), 'mean', f'{self.name}_min')
+        #self.add_metric(K.max(m), 'mean', f'{self.name}_max')
+        #self.add_metric(m, 'mean', f'{self.name}_dist')
+        tf.summary.histogram(self.name, m)
         return p
 
     def call(self, dummy):

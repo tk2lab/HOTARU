@@ -1,3 +1,7 @@
+from datetime import datetime
+import os
+
+import tensorflow as tf
 import numpy as np
 
 from .base import Command, option
@@ -36,7 +40,13 @@ class SpikeCommand(Command):
         self.line('spike')
         model = self.model
         model.footprint.val = self.footprint
-        model.update_spike(batch=int(self.option('batch')))
+        log_dir = os.path.join(self.application.job_dir, 'logs', datetime.now().strftime('%Y%m%d-%H%M%S'))
+        model.update_spike(
+            batch=int(self.option('batch')),
+            callbacks=[
+                tf.keras.callbacks.TensorBoard(log_dir, update_freq='batch'),
+            ],
+        )
         return model.spike.val
 
     def save(self, base, val):

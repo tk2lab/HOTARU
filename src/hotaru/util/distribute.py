@@ -60,7 +60,7 @@ def distributed(*types, loop=True):
             return tuple(finish(o, t) for o, t in zip(os, types))
 
         def single_run(*args, **kwargs):
-            xs = dist_ruN(*args, **kwargs)
+            xs = dist_run(*args, **kwargs)
             return tuple(finish(x, t) for x, t in zip(xs, types))
 
         return loop_run if loop else single_run

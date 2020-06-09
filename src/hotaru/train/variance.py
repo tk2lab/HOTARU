@@ -110,8 +110,8 @@ class Variance(tf.keras.layers.Layer):
         ycov = tf.matmul(yval, yval, False, True)
         ysum = K.sum(yval, axis=1)
         yout = ysum[:, None] * ysum / ny
-        cx = 1.0 + K.square(bx)
-        cy = 1.0 + K.square(by)
+        cx = 1.0 - K.square(bx)
+        cy = 1.0 - K.square(by)
         dat = -2.0 * dat
         cov = ycov - cx * yout
         out = yout - cy * ycov

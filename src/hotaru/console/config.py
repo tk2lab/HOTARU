@@ -39,10 +39,10 @@ class ConfigCommand(Command):
 
     def _update_parameter(self, name, default=None):
         curr_val = self.status['root'].get(name, False)
-        val = curr_val or self.option(name) or default
+        val = self.option(name) or curr_val or default
         if val is None:
             self.error('missing: {name}')
-        elif val is not curr_val:
+        elif val != curr_val:
             if isinstance(val, list):
                 self.status['root'][name] = tuple(float(v) for v in sorted(val))
             else:

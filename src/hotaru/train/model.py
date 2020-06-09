@@ -4,6 +4,7 @@ import tensorflow.keras.backend as K
 
 #from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
 from ..optimizer.prox_nesterov import ProxNesterov as Optimizer
+from ..optimizer.callback import Callback
 from ..optimizer.regularizer import MaxNormNonNegativeL1
 from .input import InputLayer
 from .extract import Extract
@@ -15,7 +16,7 @@ class HotaruModel(tf.keras.Model):
     def __init__(self, data, nk, nx, nt, tau1, tau2, hz, tscale,
                  la, lu, bx, bt, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        footprint_regularizer = MaxNormNonNegativeL1(la / nx / nt, 1)
+        footprint_regularizer = MaxNormNonNegativeL1(la / nx / nx / nt, 1)
         spike_regularizer = MaxNormNonNegativeL1(lu / nx / nt, 1)
         variance = Variance(data, nk, nx, nt, tau1, tau2, hz, tscale, bx, bt)
         nu = variance.nu
@@ -35,7 +36,6 @@ class HotaruModel(tf.keras.Model):
         self.variance.start_spike_mode(self.footprint.val, batch)
 
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz
-        self.optimizer.start = self.optimizer.iterations
         self.fit(*args, **kwargs)
 
         scale = self.spike.val.max(axis=1)
@@ -51,8 +51,7 @@ class HotaruModel(tf.keras.Model):
         K.set_value(self.extract.nk, nk)
         self.variance.start_footprint_mode(self.spike.val, batch)
 
-        self.optimizer.lr_t = lr * 2.0 / self.variance.lipschitz
-        self.optimizer.start = self.optimizer.iterations
+        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz
         self.fit(*args, **kwargs)
 
         scale = self.footprint.val.max(axis=1)
@@ -87,10 +86,18 @@ class HotaruModel(tf.keras.Model):
             *args, **kwargs,
         )
 
-    def fit(self, steps_per_epoch=100, *args, **kwargs):
+    def fit(self, steps_per_epoch=100, epochs=10, min_delta=1e-5,
+            callbacks=None, *args, **kwargs):
         def _gen_data():
             while True:
                 yield x, y
+
+        if callbacks is None:
+            callbacks = []
+        callbacks += [
+            Callback(),
+            tf.keras.callbacks.EarlyStopping('score', min_delta=min_delta),
+        ]
 
         nk, nx, nu = self.status_shape
         x = tf.zeros((1, 1))
@@ -98,6 +105,8 @@ class HotaruModel(tf.keras.Model):
         super().fit(
             _gen_data(),
             steps_per_epoch=steps_per_epoch,
+            epochs=epochs,
+            callbacks=callbacks,
             *args, **kwargs,
         )
 

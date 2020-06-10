@@ -5,26 +5,19 @@ import tensorflow as tf
 from ..data.dataset import unmasked
 from ..image.gaussian import gaussian
 from ..image.laplace import gaussian_laplace_multi
+from ..util.distribute import distributed, ReduceOp
 from .segment import get_segment_index
 from .util import get_normalized_val, get_magnitude, ToDense
 
 
 def make_footprint(dataset, mask, gauss, radius, ts, rs, ys, xs, batch):
-
-    def _select(start, end, ts, rs, ys, xs):
-        cond = (start <= ts) & (ts < end)
-        ids = tf.cast(tf.where(cond)[:, 0], tf.int32)
-        tl = tf.gather(ts, ids) - start
-        rl = tf.gather(rs, ids)
-        yl = tf.gather(ys, ids)
-        xl = tf.gather(xs, ids)
-        return tl, rl, yl, xl
-
     strategy = tf.distribute.get_strategy()
 
-    dataset = unmasked(dataset, mask).batch(batch)
-    mask = tf.convert_to_tensor(mask, tf.float32)
+    mask = tf.convert_to_tensor(mask, tf.bool)
+    dataset = unmasked(dataset, mask)
+    dataset = dataset.batch(batch)
     to_dense = ToDense(mask)
+
     gauss = tf.convert_to_tensor(gauss, tf.float32)
     radius = tf.convert_to_tensor(radius, tf.float32)
     ts = tf.convert_to_tensor(ts, tf.int32)
@@ -36,13 +29,11 @@ def make_footprint(dataset, mask, gauss, radius, ts, rs, ys, xs, batch):
     fps = tf.TensorArray(tf.float32, 0, True)
     mgs = tf.TensorArray(tf.float32, 0, True)
     e = tf.constant(0)
-    for imgs in dataset:
+    for imgs in strategy.experimental_distribute_dataset(dataset):
         s, e = e, e + tf.shape(imgs)[0]
-        tl, rl, yl, xl = _select(s, e, ts, rs, ys, xs)
-        if gauss > 0.0:
-            img = gaussian(imgs, gauss)
-        gls = gaussian_laplace_multi(imgs, radius)
-
+        gls, tl, rl, yl, xl = _prepare(
+            imgs, s, e, ts, rs, ys, xs, gauss, radius,
+        )
         nk = tf.size(tl)
         for k in tf.range(nk):
             t, r, y, x = tl[k], rl[k], yl[k], xl[k]
@@ -55,3 +46,17 @@ def make_footprint(dataset, mask, gauss, radius, ts, rs, ys, xs, batch):
             fps = fps.write(fps.size(), footprint)
             prog.add(1)
     return fps.stack(), mgs.stack()
+
+
+@distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)
+def _prepare(imgs, start, end, ts, rs, ys, xs, gauss, radius):
+    cond = (start <= ts) & (ts < end)
+    ids = tf.cast(tf.where(cond)[:, 0], tf.int32)
+    tl = tf.gather(ts, ids) - start
+    rl = tf.gather(rs, ids)
+    yl = tf.gather(ys, ids)
+    xl = tf.gather(xs, ids)
+    if gauss > 0.0:
+        imgs = gaussian(imgs, gauss)
+    gls = gaussian_laplace_multi(imgs, radius)
+    return gls, tl, rl, yl, xl

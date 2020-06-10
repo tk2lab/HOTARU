@@ -50,11 +50,13 @@ class Variance(tf.keras.layers.Layer):
         footprint = tf.convert_to_tensor(footprint)
 
         prog = tf.keras.utils.Progbar(self.nt)
-        adat = tf.TensorArray(tf.float32, 0, True)
+        adat = tf.TensorArray(tf.float32, self.nt)
+        i = tf.constant(0)
         for d in data:
             adat_p = tf.matmul(footprint, d, False, True)
             for a in tf.transpose(adat_p):
-                adat = adat.write(adat.size(), a)
+                adat = adat.write(i, a)
+                i += 1
                 prog.add(1)
         adat = tf.transpose(adat.stack())
         self._cache(0, footprint, adat)

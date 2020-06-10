@@ -29,7 +29,7 @@ class Command(CommandBase):
 
         def _gen():
             for x in imgs:
-                yield tf.convert_to_tensor(wrap(x[y0:y1, x0:x1]), tf.float32)
+                yield tf.convert_to_tensor(wrap(x)[y0:y1, x0:x1], tf.float32)
 
         imgs_file = self.status['root']['imgs-file']
         imgs_file = os.path.join(self.application.job_dir, imgs_file)

@@ -11,7 +11,7 @@ def get_mask(masktype, h, w, job_dir='.'):
         mask = np.zeros([h, w], bool)
         mask[pad:h-pad,pad:w-pad] = True
     else:
-        with GFile(os.path.join(job_dir, masktype), 'rb') as fp:
+        with tf.io.gfile.GFile(os.path.join(job_dir, masktype), 'rb') as fp:
             if masktype[-4:] == '.tif':
                 mask = tifffile.imread(fp)
             elif masktype[-4:] == '.npy':

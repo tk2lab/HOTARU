@@ -27,7 +27,7 @@ class RunCommand(Command):
         elif self.status['footprint_current'] is None:
             self._call('data', 'imgs-file', 'mask-type', 'batch')
             self._call('peak', 'thr-gl', 'thr-dist', 'batch')
-            self._call('make', 'batch')
+            self._call('segment', 'batch')
         for i in range(int(self.option('epochs') or 3)):
             self._call('spike', 'batch')
             self._call('footprint', 'batch')

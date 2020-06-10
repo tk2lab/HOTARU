@@ -16,7 +16,7 @@ class HotaruModel(tf.keras.Model):
     def __init__(self, data, mask, nk, nx, nt, tau1, tau2, hz, tscale,
                  la, lu, bx, bt, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        footprint_regularizer = MaxNormNonNegativeL1(la / nx / nx / nt, 1)
+        footprint_regularizer = MaxNormNonNegativeL1(la / nx / nt, 1)
         spike_regularizer = MaxNormNonNegativeL1(lu / nx / nt, 1)
         variance = Variance(data, nk, nx, nt, tau1, tau2, hz, tscale, bx, bt)
         nu = variance.nu

@@ -92,7 +92,7 @@ class HotaruModel(tf.keras.Model):
             *args, **kwargs,
         )
 
-    def fit(self, steps_per_epoch=100, epochs=10, min_delta=1e-5,
+    def fit(self, steps_per_epoch=100, epochs=100, min_delta=1e-3,
             log_dir=None, callbacks=None, *args, **kwargs):
         def _gen_data():
             while True:

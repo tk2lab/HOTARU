@@ -9,6 +9,7 @@ from ..optimizer.regularizer import MaxNormNonNegativeL1
 from .input import InputLayer
 from .extract import Extract
 from .variance import Variance
+from .callback import HotaruCallback
 
 
 class HotaruModel(tf.keras.Model):
@@ -100,6 +101,7 @@ class HotaruModel(tf.keras.Model):
 
         if callbacks is None:
             callbacks = []
+
         callbacks += [
             Callback(),
             tf.keras.callbacks.EarlyStopping(
@@ -139,28 +141,3 @@ class HotaruLoss(tf.keras.losses.Loss):
         footprint, spike = self._extract(y_pred)
         variance = self._variance((footprint, spike))
         return hotaru_loss(variance)
-
-
-class HotaruCallback(tf.keras.callbacks.TensorBoard):
-
-    def on_epoch_end(self, epoch, logs=None):
-        super().on_epoch_end(epoch, logs)
-
-        mode = K.get_value(self.model.variance._mode)
-        writer = self._get_writer(self._train_run_name)
-        with writer.as_default():
-            if mode == 0:
-                m = self.model.spike.val.max(axis=1)
-                tf.summary.histogram('spike/magnitude', m, step=epoch)
-            else:
-                m = self.model.footprint.val.max(axis=1)
-                tf.summary.histogram('footprint/magnitude', m, step=epoch)
-                footprint = self.model.footprint.val
-                footprint /= footprint.max(axis=1, keepdims=True)
-                mask = self.model.mask
-                nk, nx = footprint.shape
-                h, w = mask.shape
-                imgs = np.zeros((nk, h, w, 1))
-                imgs[:, mask, 0] = footprint
-                tf.summary.image('footprint/max', imgs.max(axis=0, keepdims=True), step=epoch)
-                tf.summary.image('footprint', imgs, step=epoch)

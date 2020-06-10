@@ -102,7 +102,10 @@ class HotaruModel(tf.keras.Model):
             callbacks = []
         callbacks += [
             Callback(),
-            tf.keras.callbacks.EarlyStopping('score', min_delta=min_delta),
+            tf.keras.callbacks.EarlyStopping(
+                'score', min_delta=min_delta, patience=3,
+                restore_best_weights=True, verbose=1,
+            ),
         ]
         if log_dir is not None:
             callbacks += [

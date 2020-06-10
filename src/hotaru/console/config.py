@@ -38,7 +38,7 @@ class ConfigCommand(Command):
         self.save_status()
 
     def _update_parameter(self, name, default=None):
-        curr_val = self.status['root'].get(name, False)
+        curr_val = self.status['root'].get(name, None)
         val = self.option(name) or curr_val or default
         if val is None:
             self.error('missing: {name}')

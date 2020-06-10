@@ -109,9 +109,10 @@ class HotaruModel(tf.keras.Model):
                 restore_best_weights=True, verbose=1,
             ),
         ]
+
         if log_dir is not None:
             callbacks += [
-                HotaruCallback(log_dir, update_freq='epoch'),
+                HotaruCallback(log_dir, update_freq='batch'),
             ]
 
         nk, nx, nu = self.status_shape

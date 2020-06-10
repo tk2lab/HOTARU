@@ -40,7 +40,7 @@ class HotaruModel(tf.keras.Model):
         self.fit(*args, **kwargs)
 
         scale = self.spike.val.max(axis=1)
-        self.spike.val = self.spike.val[scale > 0.1]
+        self.spike.val = self.spike.val[scale > 0.0]
 
     def update_footprint(self, batch, lr=0.01, *args, **kwargs):
         nk = self.spike.val.shape[0]
@@ -56,7 +56,7 @@ class HotaruModel(tf.keras.Model):
         self.fit(*args, **kwargs)
 
         scale = self.footprint.val.max(axis=1)
-        cond = scale > 0.1
+        cond = scale > 0.0
         self.spike.val = self.spike.val[cond] * scale[cond, None]
         self.footprint.val = self.footprint.val[cond] / scale[cond, None]
 

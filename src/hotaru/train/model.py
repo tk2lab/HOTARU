@@ -65,12 +65,13 @@ class HotaruModel(tf.keras.Model):
         self.spike.val = self.spike.val[ids]
 
     def call(self, inputs):
-        # output
         footprint = self.footprint(inputs)
         spike = self.spike(inputs)
         out = tf.concat((footprint, spike), axis=1)
+        self.calc_metrics(out)
+        return out
 
-        # metrics
+    def calc_metrics(self, out):
         footprint, spike = self.extract(out)
         variance = self.variance((footprint, spike))
         footprint_penalty = self.footprint.penalty(footprint)
@@ -83,8 +84,6 @@ class HotaruModel(tf.keras.Model):
         )
         self.add_metric(me, 'mean', 'score')
         self.add_metric(penalty, 'mean', 'penalty')
-
-        return out
 
     def compile(self, *args, **kwargs):
         super().compile(

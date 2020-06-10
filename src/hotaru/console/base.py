@@ -70,7 +70,7 @@ class Command(CommandBase):
             args = 'nx', 'nt', 'tau-fall', 'tau-rise', 'hz', 'tau-scale', 'la', 'lu', 'bx', 'bt'
             nk = self.footprint.shape[0]
             args = tuple(self.status['root'][k] for k in args)
-            model = HotaruModel(self.data, nk, *args)
+            model = HotaruModel(self.data, self.mask, nk, *args)
             model.compile()
             self.application.model = model
         return model

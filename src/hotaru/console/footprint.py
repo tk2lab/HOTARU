@@ -36,12 +36,10 @@ class FootprintCommand(Command):
         print('footprint')
         model = self.model
         model.spike.val = self.spike
-        log_dir = os.path.join(self.application.job_dir, 'logs', datetime.now().strftime('%Y%m%d-%H%M%S'))
+        log_dir = os.path.join(self.application.job_dir, 'logs', 'footprint', datetime.now().strftime('%Y%m%d-%H%M%S'))
         model.update_footprint(
             batch=int(self.option('batch')),
-            callbacks=[
-                tf.keras.callbacks.TensorBoard(log_dir, update_freq='batch'),
-            ],
+            log_dir=log_dir,
         )
         return model.footprint.val
 

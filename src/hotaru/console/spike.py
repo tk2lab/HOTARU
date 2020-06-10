@@ -40,12 +40,10 @@ class SpikeCommand(Command):
         self.line('spike')
         model = self.model
         model.footprint.val = self.footprint
-        log_dir = os.path.join(self.application.job_dir, 'logs', datetime.now().strftime('%Y%m%d-%H%M%S'))
+        log_dir = os.path.join(self.application.job_dir, 'logs', 'spike', datetime.now().strftime('%Y%m%d-%H%M%S'))
         model.update_spike(
             batch=int(self.option('batch')),
-            callbacks=[
-                tf.keras.callbacks.TensorBoard(log_dir, update_freq='batch'),
-            ],
+            log_dir=log_dir,
         )
         return model.spike.val
 

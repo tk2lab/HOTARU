@@ -25,7 +25,7 @@ class SegmentCommand(Command):
         self._handle('footprint')
 
     def create(self):
-        self.line('make')
+        self.line('segment')
         gauss = self.key[1][0]
         batch = int(self.option('batch'))
         ts, rs, ys, xs, gs = self.peak

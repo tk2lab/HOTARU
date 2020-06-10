@@ -45,7 +45,7 @@ class DataCommand(Command):
             nt, h, w = get_shape(imgs_file_path)
             self.status['root']['nt'] = nt
 
-            mask = get_mask(mask_type, h, w, self.work_dir)
+            mask = get_mask(mask_type, h, w, self.application.job_dir)
             y0, y1, x0, x1 = get_mask_range(mask)
             mask = mask[y0:y1, x0:x1]
             make_maskfile(mask_file, mask)

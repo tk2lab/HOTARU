@@ -45,7 +45,7 @@ def make_footprint(dataset, mask, gauss, radius, ts, rs, ys, xs, batch):
             mgs = mgs.write(mgs.size(), mag)
             fps = fps.write(fps.size(), footprint)
             prog.add(1)
-    return fps.stack(), mgs.stack()
+    return fps.stack(), mgs.concat()
 
 
 @distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)

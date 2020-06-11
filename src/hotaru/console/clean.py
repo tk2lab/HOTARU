@@ -36,11 +36,18 @@ class CleanCommand(Command):
         self.line('clean')
         gauss, radius = self.key[-1]
         batch = int(self.option('batch'))
-        footprint, score = clean_footprint(self.footprint, self.mask, gauss, radius, batch)
-        log_dir = os.path.join(self.application.job_dir, 'logs', 'clean', datetime.now().strftime('%Y%m%d-%H%M%S'))
+        footprint, score = clean_footprint(
+            self.footprint, self.mask, gauss, radius, batch,
+        )
+        log_dir = os.path.join(
+            self.application.job_dir, 'logs', 'clean',
+            datetime.now().strftime('%Y%m%d-%H%M%S'),
+        )
         writer = tf.summary.create_file_writer(log_dir)
         with writer.as_default():
-            footprint_summary(footprint.numpy(), self.mask, score.numpy(), 'clean')
+            footprint_summary(
+                footprint.numpy(), self.mask, score.numpy(), 'clean',
+            )
         writer.close()
         footprint *= score[:, None]
         return footprint.numpy()

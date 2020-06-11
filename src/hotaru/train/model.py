@@ -40,9 +40,6 @@ class HotaruModel(tf.keras.Model):
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
         self.fit(*args, **kwargs)
 
-        scale = self.spike.val.max(axis=1)
-        self.spike.val = self.spike.val[scale > 0.0]
-
     def update_footprint(self, batch, lr=0.01, *args, **kwargs):
         nk = self.spike.val.shape[0]
         nx = self.footprint.val.shape[1]
@@ -57,13 +54,8 @@ class HotaruModel(tf.keras.Model):
         self.fit(*args, **kwargs)
 
         scale = self.footprint.val.max(axis=1)
-        cond = scale > 0.0
-        self.spike.val = self.spike.val[cond] * scale[cond, None]
-        self.footprint.val = self.footprint.val[cond] / scale[cond, None]
-
-    def select(self, ids):
-        self.footprint.val = self.footprint.val[ids]
-        self.spike.val = self.spike.val[ids]
+        self.spike.val = self.spike.val * scale[:, None]
+        self.footprint.val = self.footprint.val / scale[:, None]
 
     def call(self, inputs):
         footprint = self.footprint(inputs)

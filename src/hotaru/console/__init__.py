@@ -6,8 +6,14 @@ def main():
     tf.get_logger().setLevel('ERROR')
 
     devs = tf.config.list_physical_devices('GPU')
-    for d in devs:
-        tf.config.experimental.set_memory_growth(d, True)
+    #for d in devs:
+    #    tf.config.experimental.set_memory_growth(d, True)
+
+    tf.config.set_logical_device_configuration(
+        devs[0], [
+            tf.config.LogicalDeviceConfiguration(memory_limit=1024*7),
+        ],
+    )
 
     #tf.config.experimental_run_functions_eagerly(True)
     #tf.autograph.set_verbosity(1, True)

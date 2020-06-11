@@ -1,16 +1,17 @@
 import tensorflow as tf
+import tensorflow.keras.backend as K
 
 
 def get_normalized_val(img, pos):
     val = tf.gather_nd(img, pos)
-    min_val = tf.reduce_min(val)
-    max_val = tf.reduce_max(val)
+    min_val = K.min(val)
+    max_val = K.max(val)
     return (val - min_val) / (max_val - min_val)
 
 
 def get_magnitude(img, pos):
     val = tf.gather_nd(img, pos)
-    return tf.reduce_max(val) - tf.reduce_min(val)
+    return K.max(val) - K.min(val)
 
 
 class ToDense(object):

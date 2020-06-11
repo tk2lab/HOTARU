@@ -17,7 +17,7 @@ class PeakCommand(Command):
     options = [
         option('job-dir', flag=False, value_required=False),
         option('thr-gl', flag=False, default=0.4),
-        option('thr-dist', flag=False, default=1.8),
+        option('thr-dist', flag=False, default=1.6),
         option('name', flag=False, default='default'),
         option('batch', flag=False, default=100),
         option('force', 'f', 'overwrite previous result'),

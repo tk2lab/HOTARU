@@ -25,10 +25,10 @@ class PeakCommand(Command):
 
     def handle(self):
         self.set_job_dir()
-        gauss = self.status['root']['gauss']
-        radius = self.status['root']['diameter']
-        thr_gl = self.option('thr-gl')
-        thr_dist = self.option('thr-dist')
+        gauss = float(self.status['root']['gauss'])
+        radius = tuple(float(x) for x in self.status['root']['diameter'])
+        thr_gl = float(self.option('thr-gl'))
+        thr_dist = float(self.option('thr-dist'))
         self.key = 'peak', (gauss, radius, thr_gl, thr_dist)
         self._handle('peak')
 

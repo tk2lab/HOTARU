@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 import tensorflow as tf
@@ -5,6 +6,7 @@ import numpy as np
 
 from .base import Command, option
 from ..footprint.clean import clean_footprint
+from ..train.callback import footprint_summary
 
 
 class CleanCommand(Command):
@@ -35,6 +37,11 @@ class CleanCommand(Command):
         gauss, radius = self.key[-1]
         batch = int(self.option('batch'))
         footprint, score = clean_footprint(self.footprint, self.mask, gauss, radius, batch)
+        log_dir = os.path.join(self.application.job_dir, 'logs', 'clean', datetime.now().strftime('%Y%m%d-%H%M%S'))
+        writer = tf.summary.create_file_writer(log_dir)
+        with writer.as_default():
+            footprint_summary(footprint.numpy(), self.mask, score.numpy(), 'clean')
+        writer.close()
         self._score = score
         return footprint
 

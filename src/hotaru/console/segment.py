@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 import tensorflow as tf
@@ -5,6 +6,7 @@ import numpy as np
 
 from .base import Command, option
 from ..footprint.make import make_footprint
+from ..train.callback import footprint_summary
 
 
 class SegmentCommand(Command):
@@ -35,6 +37,11 @@ class SegmentCommand(Command):
         footprint, score = make_footprint(
             self.data, self.mask, gauss, radius, ts, rs, ys, xs, batch,
         )
+        log_dir = os.path.join(self.application.job_dir, 'logs', 'segment', datetime.now().strftime('%Y%m%d-%H%M%S'))
+        writer = tf.summary.create_file_writer(log_dir)
+        with writer.as_default():
+            footprint_summary(footprint.numpy(), self.mask, score.numpy(), 'segment')
+        writer.close()
         self._score = score
         return footprint
 

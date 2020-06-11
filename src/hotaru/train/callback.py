@@ -28,8 +28,8 @@ def spike_summary(val, step=0):
     val, mag = normalized_and_sort(val)
     cor = calc_cor(val)
     tf.summary.histogram('magnitude/spike', mag, step=step)
-    tf.summary.image('spike-val', _reds(val)[None, ...], step=step)
     tf.summary.image('cor/spike', _jet(cor)[None, ...], step=step)
+    tf.summary.image('spike', _reds(val)[None, ...], step=step)
 
 
 def footprint_summary(val, mask, mag=None, name='footprint', step=0):
@@ -52,13 +52,13 @@ def footprint_summary(val, mask, mag=None, name='footprint', step=0):
         imgs = np.zeros((4, h, w))
         imgs[:, mask] = val[[0, 1, -2, -1]]
         tf.summary.histogram(f'magnitude/footprint', mag, step=step)
-        tf.summary.image(f'footprint-val', _greens(imgs), max_outputs=4, step=step)
+        tf.summary.image(f'footprint-sample', _greens(imgs), max_outputs=4, step=step)
     else:
-        tf.summary.histogram(name, mag, step=step)
+        tf.summary.histogram(f'firmness/{name}', mag, step=step)
         for i, v in enumerate(val):
             img = np.zeros((h, w))
             img[mask] = v
-            tf.summary.image(f'{name}-val', _greens(img)[None, ...], step=i)
+            tf.summary.image(f'footprint/{name}', _greens(img)[None, ...], step=i)
 
 
 class HotaruCallback(tf.keras.callbacks.TensorBoard):

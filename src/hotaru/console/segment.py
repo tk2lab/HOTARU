@@ -40,7 +40,7 @@ class SegmentCommand(Command):
         log_dir = os.path.join(self.application.job_dir, 'logs', 'segment', datetime.now().strftime('%Y%m%d-%H%M%S'))
         writer = tf.summary.create_file_writer(log_dir)
         with writer.as_default():
-            footprint_summary(footprint.numpy(), self.mask, score.numpy(), 'segment')
+            footprint_summary(footprint.numpy(), self.mask, score.numpy(), 'init')
         writer.close()
         footprint *= score[:, None]
         return footprint.numpy()

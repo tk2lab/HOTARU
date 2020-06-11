@@ -42,20 +42,23 @@ def footprint_summary(val, mask, mag=None, name='footprint', step=0):
 
     nk, nx = val.shape
     h, w = mask.shape
-    imgs = np.zeros((nk, h, w))
-    imgs[:, mask] = val
 
-    imgs_max = imgs.max(axis=0)
+    imgs_max = np.zeros((h, w))
+    imgs_max[mask] = val.max(axis=0)
     tf.summary.histogram(f'area/{name}', val.sum(axis=1), step=step)
     tf.summary.image(f'cor/{name}', _jet(cor)[None, ...], step=step)
     tf.summary.image(f'max/{name}', _greens(imgs_max)[None, ...], step=step)
     if name == 'footprint':
-        tf.summary.histogram(f'magnitude/{name}', mag, step=step)
-        tf.summary.image(f'{name}-val', _greens(imgs[[0,1,-2,-1]]), max_outputs=4, step=step)
+        imgs = np.zeros((4, h, w))
+        imgs[:, mask] = val[[0, 1, -2, -1]]
+        tf.summary.histogram(f'magnitude/footprint', mag, step=step)
+        tf.summary.image(f'footprint-val', _greens(imgs), max_outputs=4, step=step)
     else:
         tf.summary.histogram(name, mag, step=step)
-        for i, img in enumerate(imgs):
-            tf.summary.image(f'{name}-val', _greens(img[None, ...]), step=i)
+        for i, v in enumerate(val):
+            img = np.zeros((h, w))
+            img[mask] = v
+            tf.summary.image(f'{name}-val', _greens(img)[None, ...], step=i)
 
 
 class HotaruCallback(tf.keras.callbacks.TensorBoard):

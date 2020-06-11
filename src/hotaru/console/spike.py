@@ -30,16 +30,22 @@ class SpikeCommand(Command):
         lu = self.status['root']['lu']
         bx = self.status['root']['bx']
         bt = self.status['root']['bt']
-        prev_key = self.status['footprint_current']
+        prev_key = self.status['clean_current']
         if self.option('prev'):
-            prev_key = {v: k for k, v in self.status['footprint'].items()}[self.option('prev')]
+            prev_key = {v: k for k, v in self.status['clean'].items()}[self.option('prev')]
         self.key = prev_key + ('spike', (tau1, tau2, hz, tauscale, la, lu, bx, bt))
         self._handle('spike')
 
     def create(self):
         self.line('spike')
         model = self.model
-        model.footprint.val = self.footprint
+        clean = self.clean
+        score = clean.max(axis=1)
+        clean /= score[:, None]
+        cond = score > 0.1
+        clean = clean[cond]
+        model.footprint.val = clean
+        print(clean.shape[0])
         log_dir = os.path.join(self.application.job_dir, 'logs', 'spike', datetime.now().strftime('%Y%m%d-%H%M%S'))
         model.update_spike(
             batch=int(self.option('batch')),

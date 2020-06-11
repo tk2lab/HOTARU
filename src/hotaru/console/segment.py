@@ -24,7 +24,7 @@ class SegmentCommand(Command):
     def handle(self):
         self.set_job_dir()
         self.key = self.status['peak_current']
-        self._handle('footprint')
+        self._handle('clean')
 
     def create(self):
         self.line('segment')
@@ -42,9 +42,8 @@ class SegmentCommand(Command):
         with writer.as_default():
             footprint_summary(footprint.numpy(), self.mask, score.numpy(), 'segment')
         writer.close()
-        self._score = score
-        return footprint
+        footprint *= score[:, None]
+        return footprint.numpy()
 
     def save(self, base, val):
-        np.save(base + '.npy', val.numpy())
-        np.save(base + '-score.npy', self._score.numpy())
+        np.save(base + '.npy', val)

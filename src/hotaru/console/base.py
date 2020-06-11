@@ -68,7 +68,7 @@ class Command(CommandBase):
             model = self.application.model
         else:
             args = 'nx', 'nt', 'tau-fall', 'tau-rise', 'hz', 'tau-scale', 'la', 'lu', 'bx', 'bt'
-            nk = self.footprint.shape[0]
+            nk = self.clean.shape[0]
             args = tuple(self.status['root'][k] for k in args)
             model = HotaruModel(self.data, self.mask, nk, *args)
             model.compile()
@@ -78,6 +78,10 @@ class Command(CommandBase):
     @property
     def footprint(self):
         return self._load('footprint', self._npy_loader)
+
+    @property
+    def clean(self):
+        return self._load('clean', self._npy_loader)
 
     @property
     def spike(self):
@@ -109,9 +113,12 @@ class Command(CommandBase):
             tf.io.gfile.makedirs(os.path.join(self.work_dir, 'peak'))
             tf.io.gfile.makedirs(os.path.join(self.work_dir, 'footprint'))
             tf.io.gfile.makedirs(os.path.join(self.work_dir, 'spike'))
+            tf.io.gfile.makedirs(os.path.join(self.work_dir, 'clean'))
             status = dict(
-                root=dict(), peak=dict(), footprint=dict(), spike=dict(),
-                peak_current=None, footprint_current=None, spike_current=None,
+                root=dict(), peak=dict(), footprint=dict(),
+                spike=dict(), clean=dict(),
+                peak_current=None, footprint_current=None,
+                spike_current=None, clean_current=None,
             )
         self.application.status = status
 

@@ -26,7 +26,7 @@ class CleanCommand(Command):
         gauss = self.status['root']['gauss']
         radius = self.status['root']['diameter']
         self.key = self.status['footprint_current'] + ('clean', (gauss, radius))
-        self._handle('footprint')
+        self._handle('clean')
 
     def create(self):
         def gen():
@@ -42,9 +42,8 @@ class CleanCommand(Command):
         with writer.as_default():
             footprint_summary(footprint.numpy(), self.mask, score.numpy(), 'clean')
         writer.close()
-        self._score = score
-        return footprint
+        footprint *= score[:, None]
+        return footprint.numpy()
 
     def save(self, base, val):
-        np.save(base + '.npy', val.numpy())
-        np.save(base + '-score.npy', self._score.numpy())
+        np.save(base + '.npy', val)

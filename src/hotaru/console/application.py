@@ -23,8 +23,8 @@ class Application(ApplicationBase):
         super().__init__('hotaru', __version__)
 
         self.job_dir = None
-        self.current_key = dict(peak=None, footprint=None, spike=None)
-        self.current_val = dict(peak=None, footprint=None, spike=None)
+        self.current_key = dict(peak=None, footprint=None, spike=None, clean=None)
+        self.current_val = dict(peak=None, footprint=None, spike=None, clean=None)
 
         self.add_commands(
             ConfigCommand(),

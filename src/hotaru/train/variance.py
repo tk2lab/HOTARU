@@ -119,7 +119,9 @@ class Variance(tf.keras.layers.Layer):
         out = yout - cy * ycov
 
         lipschitz = K.max(tf.linalg.eigvalsh(cov)) / self._nm
-        self.lipschitz = lipschitz.numpy()
+        gsum = K.sum(self.spike_to_calcium.kernel)
+        self.lipschitz_a = lipschitz.numpy()
+        self.lipschitz_u = (lipschitz * gsum).numpy()
 
         nk, nx = tf.shape(dat)
         dk = max_nk - nk

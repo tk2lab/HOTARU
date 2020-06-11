@@ -37,7 +37,7 @@ class HotaruModel(tf.keras.Model):
         K.set_value(self.extract.nk, nk)
         self.variance.start_spike_mode(self.footprint.val, batch)
 
-        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz / K.get_value(self.variance.spike_to_calcium.kernel).sum()
+        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
         self.fit(*args, **kwargs)
 
         scale = self.spike.val.max(axis=1)
@@ -53,7 +53,7 @@ class HotaruModel(tf.keras.Model):
         K.set_value(self.extract.nk, nk)
         self.variance.start_footprint_mode(self.spike.val, batch)
 
-        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz
+        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
         self.fit(*args, **kwargs)
 
         scale = self.footprint.val.max(axis=1)

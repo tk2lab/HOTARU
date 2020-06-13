@@ -8,6 +8,7 @@ from ..version import __version__
 from .config import ConfigCommand
 from .run import RunCommand
 from .status import StatusCommand
+from .history import HistoryCommand
 from .data import DataCommand
 from .peak import PeakCommand
 from .segment import SegmentCommand
@@ -29,6 +30,7 @@ class Application(ApplicationBase):
             ConfigCommand(),
             RunCommand(),
             StatusCommand(),
+            HistoryCommand(),
             DataCommand(),
             PeakCommand(),
             SegmentCommand(),

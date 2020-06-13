@@ -16,8 +16,6 @@ class SpikeCommand(Command):
     options = [
         option('job-dir'),
         option('prev', flag=False, value_required=False),
-        option('name', flag=False, default='default'),
-        option('batch', flag=False, default=100),
         option('force', 'f', 'overwrite previous result'),
     ]
 
@@ -31,11 +29,8 @@ class SpikeCommand(Command):
         lu = self.status['root']['lu']
         bx = self.status['root']['bx']
         bt = self.status['root']['bt']
-        prev_key = self.status['clean_current']
-        if self.option('prev'):
-            prev_key = {v: k for k, v in self.status['clean'].items()}[self.option('prev')]
-        key = prev_key + (('spike', tau1, tau2, hz, tauscale, la, lu, bx, bt),)
-        self._handle('spike', key)
+        key = 'spike', tau1, tau2, hz, tauscale, la, lu, bx, bt
+        self._handle('clean', 'spike', key)
 
     def create(self, key, stage):
         self.line('spike')
@@ -51,7 +46,11 @@ class SpikeCommand(Command):
             datetime.now().strftime('%Y%m%d-%H%M%S'),
         )
         model.update_spike(
-            batch=int(self.option('batch')),
+            batch=self.status['root']['batch'],
+            lr=self.status['root']['learning-rate'],
+            steps_per_epoch=self.status['root']['step'],
+            epochs=self.status['root']['epoch'],
+            min_delta=self.status['root']['tol'],
             log_dir=log_dir,
             stage=stage,
         )

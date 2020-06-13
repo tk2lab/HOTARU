@@ -7,33 +7,25 @@ class RunCommand(Command):
 
     name = 'run'
     options = [
-        option(n, flag=False, value_required=False)
-        for n in [
-            'job-dir', 'imgs-file', 'hz', 'mask-type',
-            'gauss', 'radius', 'thr-gl', 'thr-dist',
-            'tau1', 'tau2', 'tauscale', 'la', 'lu', 'bx', 'bt',
-            'epochs', 'batch', 'start',
-        ]
+        option('job-dir', flag=False, value_required=False),
+        option('name', flag=False, value_required=False),
+        option('start', flag=False, value_required=False),
+        option('end', flag=False, value_required=False),
     ]
 
     def handle(self):
         self.set_job_dir()
-        self._call('config', 'gauss', 'radius', 'tau1', 'tau2', 'hz', 'tauscale', 'la', 'lu', 'bx', 'bt')
         start = self.option('start')
         if start:
-            footprint_key = {v: k for k, v in self.status['footprint'].items()}[start]
-            self.status['footprint_current'] = footprint_key
+            clean_key = {v: k for k, v in self.status['clean'].items()}[start]
+            self.status['clean_current'] = clean_key
             self.save_status()
-        elif self.status['footprint_current'] is None:
-            self._call('data', 'imgs-file', 'mask-type', 'batch')
-            self._call('peak', 'thr-gl', 'thr-dist', 'batch')
-            self._call('segment', 'batch')
-        for i in range(int(self.option('epochs') or 3)):
-            self._call('spike', 'batch')
-            self._call('footprint', 'batch')
-            self._call('clean', 'batch')
-        self._call('spike', 'batch')
-
-    def _call(self, command, *args):
-        args = ' '.join('--{}={}'.format(a, self.option(a)) for a in args if self.option(a))
-        self.call(command, args)
+        elif self.status['clean_current'] is None:
+            self.call('data')
+            self.call('peak')
+            self.call('segment')
+        for i in range(3):
+            self.call('spike')
+            self.call('footprint')
+            self.call('clean')
+        self.call('spike')

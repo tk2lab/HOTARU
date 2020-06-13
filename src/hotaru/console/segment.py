@@ -19,31 +19,29 @@ class SegmentCommand(Command):
     name = 'segment'
     options = [
         option('job-dir', 'j', '', flag=False, value_required=False),
-        option('name', None, '', flag=False, default='init'),
+        option('prev', flag=False, value_required=False),
         option('force', 'f', 'overwrite previous result'),
     ]
 
     def handle(self):
         self.set_job_dir()
-        gauss = self.status['root']['gauss']
-        radius = self.status['root']['radius']
         thr_dist = self.status['root']['thr-dist']
-        key = self.status['peak_current'] + (('segment', thr_dist),)
-        self._handle('clean', key)
+        key = 'segment', thr_dist
+        self._handle('peak', 'clean', key)
 
     def create(self, key, stage):
         self.line('segment')
-        gauss = key[-2][1]
-        radius = key[-2][2]
+        gauss, radius, thr_gl, shard = key[-2][1:]
         thr_dist = key[-1][1]
         batch = self.status['root']['batch']
-        ts, rs, ys, xs, gs = reduce_peak(self.peak, thr_dist)
+        peak = reduce_peak(self.peak, thr_dist)
+        ts, rs, ys, xs, gs = peak
         inv = {v: i for i, v in enumerate(radius)}
-        rs = np.array([inv[r] for r in rs], np.int32)
-        peak = ts, rs, ys, xs, gs
-        footprint = make_footprint(
-            self.data, self.mask, gauss, radius, peak, batch,
-        )
+        rs_id = np.array([inv[r] for r in rs], np.int32)
+        peak_id = ts, rs_id, ys, xs, gs
+        data = self.data.shard(shard, 0)
+        mask = self.mask
+        footprint = make_footprint(data, mask, gauss, radius, peak_id, batch)
 
         mask = self.mask
         log_dir = os.path.join(
@@ -52,8 +50,9 @@ class SegmentCommand(Command):
         )
         writer = tf.summary.create_file_writer(log_dir)
         with writer.as_default():
-            tf.summary.histogram(f'radius{stage}', rs, step=0)
-            tf.summary.histogram(f'laplace{stage}', gs, step=0)
+            tf.summary.histogram(f'size/{stage:03d}', footprint.sum(axis=1), step=0)
+            tf.summary.histogram(f'radius/{stage:03d}', rs, step=0)
+            tf.summary.histogram(f'laplacian/{stage:03d}', gs, step=0)
             summary_footprint_stat(footprint, mask, stage)
             summary_footprint(footprint, mask, stage)
         writer.close()

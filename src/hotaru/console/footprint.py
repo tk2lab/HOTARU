@@ -16,8 +16,6 @@ class FootprintCommand(Command):
     options = [
         option('job-dir'),
         option('prev', flag=False, value_required=False),
-        option('name', flag=False, default='default'),
-        option('batch', flag=False, default=100),
         option('force', 'f', 'overwrite previous result'),
     ]
 
@@ -28,14 +26,11 @@ class FootprintCommand(Command):
         lu = self.status['root']['lu']
         bx = self.status['root']['bx']
         bt = self.status['root']['bt']
-        prev_key = self.status['spike_current']
-        if self.option('prev'):
-            prev_key = {v: k for k, v in self.status['spike'].items()}[prev]
-        key = prev_key + (('footprint', la, lu, bx, bt),)
-        self._handle('footprint', key)
+        key = 'footprint', la, lu, bx, bt
+        self._handle('spike', 'footprint', key)
 
     def create(self, key, stage):
-        print('footprint')
+        self.line('footprint')
         model = self.model
         model.spike.val = self.spike
         log_dir = os.path.join(
@@ -43,7 +38,11 @@ class FootprintCommand(Command):
             datetime.now().strftime('%Y%m%d-%H%M%S'),
         )
         model.update_footprint(
-            batch=int(self.option('batch')),
+            lr=self.status['root']['learning-rate'],
+            steps_per_epoch=self.status['root']['step'],
+            epochs=self.status['root']['epoch'],
+            min_delta=self.status['root']['tol'],
+            batch=self.status['root']['batch'],
             log_dir=log_dir,
             stage=stage,
         )

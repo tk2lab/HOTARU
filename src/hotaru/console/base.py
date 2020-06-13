@@ -11,7 +11,8 @@ from cleo import option
 from ..image.load import get_shape, load_data
 from ..train.model import HotaruModel
 from ..util.dataset import normalized
-from ..util.gs import load_numpy
+from ..util.npy import load_numpy
+from ..util.csv import load_csv
 
 
 class Command(CommandBase):
@@ -39,8 +40,8 @@ class Command(CommandBase):
 
     @property
     def normalized_imgs(self):
-        avgt = load_numpy(os.path.join(self.work_dir, 'avgt.npy'))
-        avgx = load_numpy(os.path.join(self.work_dir, 'avgx.npy'))
+        avgt = load_numpy(os.path.join(self.work_dir, 'avgt'))
+        avgx = load_numpy(os.path.join(self.work_dir, 'avgx'))
         std = self.status['root']['std']
         return normalized(self.imgs, avgt, avgx, std)
 
@@ -60,7 +61,9 @@ class Command(CommandBase):
 
     @property
     def peak(self):
-        return self._load('peak', self.load_peak)
+        name = 'ts', 'rs', 'ys', 'xs', 'gs'
+        typ = np.int32, np.float32, np.int32, np.int32, np.float32
+        return self._load('peak', lambda b: load_csv(b, name, typ))
 
     @property
     def model(self):
@@ -82,15 +85,15 @@ class Command(CommandBase):
 
     @property
     def footprint(self):
-        return self._load('footprint', self._npy_loader)
+        return self._load('footprint', load_numpy)
 
     @property
     def clean(self):
-        return self._load('clean', self._npy_loader)
+        return self._load('clean', load_numpy)
 
     @property
     def spike(self):
-        return self._load('spike', self._npy_loader)
+        return self._load('spike', load_numpy)
 
     @property
     def current_key(self):
@@ -142,28 +145,19 @@ class Command(CommandBase):
             self.current_val[_type] = val
         return self.current_val[_type]
 
-    def load_peak(self, file_base):
-        _peak_name = 'ts', 'rs', 'xs', 'ys', 'gs'
-        _peak_type = np.int32, np.float32, np.int32, np.int32, np.float32
-        with tf.io.gfile.GFile(f'{file_base}.csv', 'r') as fp:
-            peak = pd.read_csv(fp)
-            peak = tuple(
-                np.array(peak[k], t)
-                for k, t in zip(_peak_name, _peak_type)
-            )
-        return peak
-
-    def _npy_loader(self, file_base):
-        with tf.io.gfile.GFile(f'{file_base}.npy', 'rb') as fp:
-            val = np.load(fp)
-        return val
-
-    def _handle(self, _type, key):
+    def _handle(self, prev, _type, key):
+        key = (key,)
+        if prev is not None:
+            if self.option('prev'):
+                self.status[f'{prev}_current'] = {
+                    v: k for k, v in self.status[prev].items()
+                }[self.option('prev')]
+            key = self.status[f'{prev}_current'] + key
         status = self.status[_type]
-        name = self.option('name')
+        name = self.status['root']['name']
 
         if self.option('force') or key not in status:
-            stage = f'{len(key):03d}'
+            stage = len(key)
             base = os.path.join(self.work_dir, _type, name)
             val = self.create(key, stage)
             val = self.save(base, val)

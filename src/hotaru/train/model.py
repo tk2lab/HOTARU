@@ -5,11 +5,10 @@ import numpy as np
 #from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
 from ..optimizer.prox_nesterov import ProxNesterov as Optimizer
 from ..optimizer.callback import Callback
-#from ..optimizer.regularizer import MaxNormNonNegativeL1
 from ..optimizer.input import MaxNormNonNegativeL1InputLayer
-#from .input import InputLayer
 from .extract import Extract
 from .variance import Variance
+from .loss import hotaru_loss, HotaruLoss
 from .callback import HotaruCallback
 
 
@@ -32,7 +31,7 @@ class HotaruModel(tf.keras.Model):
             self.footprint = MaxNormNonNegativeL1InputLayer(nk, nx, name='footprint')
             self.spike = MaxNormNonNegativeL1InputLayer(nk, nu, name='spike')
 
-    def update_spike(self, batch, lr=0.01, *args, **kwargs):
+    def update_spike(self, batch, lr, *args, **kwargs):
         nk = self.footprint.val.shape[0]
         nu = self.spike.val.shape[1]
         self.spike.val = np.zeros((nk, nu), np.float32)
@@ -45,7 +44,7 @@ class HotaruModel(tf.keras.Model):
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
         self.fit(*args, **kwargs)
 
-    def update_footprint(self, batch, lr=0.01, *args, **kwargs):
+    def update_footprint(self, batch, lr, *args, **kwargs):
         spike = self.spike.val
         nk = spike.shape[0]
         nx = self.footprint.val.shape[1]
@@ -107,7 +106,7 @@ class HotaruModel(tf.keras.Model):
             Callback(),
             tf.keras.callbacks.EarlyStopping(
                 'score', min_delta=min_delta, patience=3,
-                restore_best_weights=True, verbose=1,
+                restore_best_weights=True, verbose=0,
             ),
         ]
 
@@ -127,20 +126,3 @@ class HotaruModel(tf.keras.Model):
             callbacks=callbacks,
             *args, **kwargs,
         )
-
-
-def hotaru_loss(variance):
-    return 0.5 * K.log(variance)
-
-
-class HotaruLoss(tf.keras.losses.Loss):
-
-    def __init__(self, extract, variance, name='Variance'):
-        super().__init__(name=name)
-        self._extract = extract
-        self._variance = variance
-
-    def call(self, y_true, y_pred):
-        footprint, spike = self._extract(y_pred)
-        variance = self._variance((footprint, spike))
-        return hotaru_loss(variance)

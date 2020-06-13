@@ -11,7 +11,7 @@ def get_mask(masktype, h, w, job_dir='.'):
     if masktype[-4:] == '.pad':
         pad = int(masktype.split('.')[-2])
         mask = np.zeros([h, w], bool)
-        mask[pad:h-pad,pad:w-pad] = True
+        mask[pad:h-pad, pad:w-pad] = True
     else:
         if masktype[:2] == 'r:':
             maskfile = ensure_local_file(os.path.join(job_dir, masktype[2:]))
@@ -33,13 +33,3 @@ def get_mask_range(mask):
     my = np.where(np.any(mask, axis=1))[0]
     mx = np.where(np.any(mask, axis=0))[0]
     return my[0], my[-1] + 1, mx[0], mx[-1] + 1
-
-
-def make_maskfile(mask_file, mask):
-    with tf.io.gfile.GFile(mask_file, 'bw') as fp:
-        np.save(fp, mask)
-
-
-def load_maskfile(mask_file):
-    with tf.io.gfile.GFile(mask_file, 'br') as fp:
-        return np.load(fp)

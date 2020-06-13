@@ -1,12 +1,8 @@
-import tensorflow as tf
+import tensorflow.keras.backend as K
 
 from ..util.distributed import distributed, ReduceOp
 
 
-def calc_max(data):
-
-    @distributed(ReduceOp.MAX)
-    def _calc(imgs):
-        return tf.reduce_max(imgs, axis=0),
-
-    return _calc(data)[0]
+@distributed(ReduceOp.MAX)
+def calc_max(imgs):
+    return K.max(imgs, axis=0)

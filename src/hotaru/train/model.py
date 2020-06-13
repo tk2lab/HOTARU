@@ -1,12 +1,13 @@
-import numpy as np
-import tensorflow as tf
 import tensorflow.keras.backend as K
+import tensorflow as tf
+import numpy as np
 
 #from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
 from ..optimizer.prox_nesterov import ProxNesterov as Optimizer
 from ..optimizer.callback import Callback
-from ..optimizer.regularizer import MaxNormNonNegativeL1
-from .input import InputLayer
+#from ..optimizer.regularizer import MaxNormNonNegativeL1
+from ..optimizer.input import MaxNormNonNegativeL1InputLayer
+#from .input import InputLayer
 from .extract import Extract
 from .variance import Variance
 from .callback import HotaruCallback
@@ -14,48 +15,56 @@ from .callback import HotaruCallback
 
 class HotaruModel(tf.keras.Model):
 
-    def __init__(self, data, mask, nk, nx, nt, tau1, tau2, hz, tscale,
-                 la, lu, bx, bt, *args, **kwargs):
+    def __init__(self, data, mask, nk, nx, nt, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        footprint_regularizer = MaxNormNonNegativeL1(la / nx / nt, 1)
-        spike_regularizer = MaxNormNonNegativeL1(lu / nx / nt, 1)
-        variance = Variance(data, nk, nx, nt, tau1, tau2, hz, tscale, bx, bt)
-        nu = variance.nu
-        self.extract = Extract(nx, nu)
-
+        self.status_shape = nk, nx, nt
         self.mask = mask
-        self.footprint = InputLayer(nk, nx, footprint_regularizer, 'footprint')
-        self.spike = InputLayer(nk, nu, spike_regularizer, 'spike')
-        self.variance = variance
-        self.status_shape = nk, nx, nu
+        self.variance = Variance(data, nk, nx, nt)
+        self.la = 0.0
+        self.lu = 0.0
+
+    def set_double_exp(self, *args, **kwargs):
+        self.variance.set_double_exp(*args, **kwargs)
+        nu = self.variance.nu
+        nk, nx, nt = self.status_shape
+        if not hasattr(self, 'extract'):
+            self.extract = Extract(nx, nu)
+            self.footprint = MaxNormNonNegativeL1InputLayer(nk, nx, name='footprint')
+            self.spike = MaxNormNonNegativeL1InputLayer(nk, nu, name='spike')
 
     def update_spike(self, batch, lr=0.01, *args, **kwargs):
         nk = self.footprint.val.shape[0]
         nu = self.spike.val.shape[1]
         self.spike.val = np.zeros((nk, nu), np.float32)
 
-        K.set_value(self.extract.nk, nk)
         self.variance.start_spike_mode(self.footprint.val, batch)
-
+        nm = K.get_value(self.variance._nm)
+        K.set_value(self.footprint._val.regularizer.l, self.la / nm)
+        K.set_value(self.spike._val.regularizer.l, self.lu / nm)
+        K.set_value(self.extract.nk, nk)
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
         self.fit(*args, **kwargs)
 
     def update_footprint(self, batch, lr=0.01, *args, **kwargs):
-        nk = self.spike.val.shape[0]
+        spike = self.spike.val
+        nk = spike.shape[0]
         nx = self.footprint.val.shape[1]
-        scale = self.spike.val.max(axis=1)
-        self.spike.val = self.spike.val / scale[:, None]
+        scale = spike.max(axis=1)
+        self.spike.val = spike / scale[:, None]
         self.footprint.val = np.zeros((nk, nx), np.float32)
 
-        K.set_value(self.extract.nk, nk)
         self.variance.start_footprint_mode(self.spike.val, batch)
-
+        nm = K.get_value(self.variance._nm)
+        K.set_value(self.footprint._val.regularizer.l, self.la / nm)
+        K.set_value(self.spike._val.regularizer.l, self.lu / nm)
+        K.set_value(self.extract.nk, nk)
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
         self.fit(*args, **kwargs)
 
-        scale = self.footprint.val.max(axis=1)
+        footprint = self.footprint.val
+        scale = footprint.max(axis=1)
         self.spike.val = self.spike.val * scale[:, None]
-        self.footprint.val = self.footprint.val / scale[:, None]
+        self.footprint.val = footprint / scale[:, None]
 
     def call(self, inputs):
         footprint = self.footprint(inputs)
@@ -86,7 +95,7 @@ class HotaruModel(tf.keras.Model):
         )
 
     def fit(self, steps_per_epoch=100, epochs=100, min_delta=1e-3,
-            log_dir=None, callbacks=None, *args, **kwargs):
+            log_dir=None, stage='', callbacks=None, *args, **kwargs):
         def _gen_data():
             while True:
                 yield x, y
@@ -104,10 +113,11 @@ class HotaruModel(tf.keras.Model):
 
         if log_dir is not None:
             callbacks += [
-                HotaruCallback(log_dir, update_freq='batch'),
+                HotaruCallback(log_dir=log_dir, stage=stage, update_freq='batch'),
             ]
 
-        nk, nx, nu = self.status_shape
+        nk, nx, nt = self.status_shape
+        nu = self.variance.nu
         x = tf.zeros((1, 1))
         y = tf.zeros((nk, nx + nu))
         super().fit(

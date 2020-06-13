@@ -1,51 +1,37 @@
-import tensorflow as tf
 import tensorflow.keras.backend as K
+import tensorflow as tf
 
-from hotaru.train.dynamics import SpikeToCalciumDefault
-from hotaru.train.dynamics import CalciumToSpikeDefault
+from hotaru.train.dynamics import SpikeToCalcium, CalciumToSpike
 
 
 class Variance(tf.keras.layers.Layer):
 
-    def __init__(self, data, nk, nx, nt,
-                 tau1, tau2, hz, tscale, bx, bt, name='Variance'):
+    def __init__(self, data, nk, nx, nt, name='Variance'):
         super().__init__(name=name, dtype=tf.float32)
 
-        spike_to_calcium = SpikeToCalciumDefault(
-            tau1, tau2, hz, tscale, name='to_cal',
-        )
-        calcium_to_spike = CalciumToSpikeDefault(
-            tau1, tau2, hz, tscale, name='to_spk',
-        )
-        nmax = max(nx, nt)
-        nu = nt + calcium_to_spike.pad
-
-        nxf = tf.convert_to_tensor(nx, tf.float32)
-        ntf = tf.convert_to_tensor(nt, tf.float32)
-        nn = nxf * ntf
-        nm = nn
-        if bx > 0.0:
-            nm += nxf
-        if bt > 0.0:
-            nm += ntf
-
+        nz = max(nx, nt)
         self.nx = nx
         self.nt = nt
-        self.nu = nu
 
-        self.spike_to_calcium = spike_to_calcium
-        self.calcium_to_spike = calcium_to_spike
+        self.spike_to_calcium = SpikeToCalcium(name='to_cal')
+        self.calcium_to_spike = CalciumToSpike(name='to_spk')
+        self.bx = 0.0
+        self.bt = 0.0
 
-        self._params = [ [nx, bt, bx], [nt, bx, bt] ]
         self._data = data
-        self._nn = nn
-        self._nm = nm
         self._mode = self.add_weight('mode', (), tf.int32, trainable=False)
-        self._dat = self.add_weight('dat', (nk, nmax), tf.float32, trainable=False)
-        self._cov = self.add_weight('cov', (nk, nk), tf.float32, trainable=False)
-        self._out = self.add_weight('out', (nk, nk), tf.float32, trainable=False)
+        self._nn = self.add_weight('nn', (), trainable=False)
+        self._nm = self.add_weight('nm', (), trainable=False)
+        self._dat = self.add_weight('dat', (nk, nz), trainable=False)
+        self._cov = self.add_weight('cov', (nk, nk), trainable=False)
+        self._out = self.add_weight('out', (nk, nk), trainable=False)
 
-    def start_spike_mode(self, footprint, batch): 
+    def set_double_exp(self, *tau):
+        self.spike_to_calcium.set_double_exp(*tau)
+        self.calcium_to_spike.set_double_exp(*tau)
+        self.nu = self.nt + self.calcium_to_spike.pad
+
+    def start_spike_mode(self, footprint, batch):
         data = self._data.batch(batch)
         footprint = tf.convert_to_tensor(footprint)
 
@@ -61,7 +47,7 @@ class Variance(tf.keras.layers.Layer):
         adat = tf.transpose(adat.stack())
         self._cache(0, footprint, adat)
 
-    def start_footprint_mode(self, spike, batch): 
+    def start_footprint_mode(self, spike, batch):
         data = self._data.batch(batch)
         spike = tf.convert_to_tensor(spike)
         calcium = self.spike_to_calcium(spike)
@@ -106,8 +92,20 @@ class Variance(tf.keras.layers.Layer):
         return variance
 
     def _cache(self, mode, yval, dat):
+        nxf = tf.convert_to_tensor(self.nx, tf.float32)
+        ntf = tf.convert_to_tensor(self.nt, tf.float32)
+        nn = nxf * ntf
+        nm = nn
+        if self.bx > 0.0:
+            nm += nxf
+        if self.bt > 0.0:
+            nm += ntf
+
+        if mode == 0:
+            ny, bx, by = self.nx, self.bt, self.bx
+        else:
+            ny, bx, by = self.nt, self.bx, self.bt
         max_nk, nmax = tf.shape(self._dat)
-        ny, bx, by = self._params[mode]
 
         ycov = tf.matmul(yval, yval, False, True)
         ysum = K.sum(yval, axis=1)
@@ -118,7 +116,7 @@ class Variance(tf.keras.layers.Layer):
         cov = ycov - cx * yout
         out = yout - cy * ycov
 
-        lipschitz = K.max(tf.linalg.eigvalsh(cov)) / self._nm
+        lipschitz = K.max(tf.linalg.eigvalsh(cov)) / nm
         gsum = K.sum(self.spike_to_calcium.kernel)
         self.lipschitz_a = lipschitz.numpy()
         self.lipschitz_u = (lipschitz * gsum).numpy()
@@ -126,11 +124,13 @@ class Variance(tf.keras.layers.Layer):
         nk, nx = tf.shape(dat)
         dk = max_nk - nk
         dx = nmax - nx
-        dat = tf.pad(dat, [[0, dk], [0, dx]]) 
-        cov = tf.pad(cov, [[0, dk], [0, dk]]) 
-        out = tf.pad(out, [[0, dk], [0, dk]]) 
+        dat = tf.pad(dat, [[0, dk], [0, dx]])
+        cov = tf.pad(cov, [[0, dk], [0, dk]])
+        out = tf.pad(out, [[0, dk], [0, dk]])
 
         K.set_value(self._mode, mode)
+        K.set_value(self._nn, nn)
+        K.set_value(self._nm, nm)
         K.set_value(self._dat, dat)
         K.set_value(self._cov, cov)
         K.set_value(self._out, out)

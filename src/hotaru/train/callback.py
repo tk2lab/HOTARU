@@ -40,10 +40,10 @@ def summary_footprint_stat(val, mask, stage, step=0):
     nk, nx = val.shape
     h, w = mask.shape
 
-    imgs_max = np.zeros((h, w))
-    imgs_max[mask] = val.max(axis=0)
+    imgs_max = np.zeros((1, h, w))
+    imgs_max[0, mask] = val.max(axis=0)
     tf.summary.image(f'cor/{stage:03d}', _jet(cor)[None, ...], step=step)
-    tf.summary.image(f'max/{stage:03d}', _greens(imgs_max)[None, ...], step=step)
+    tf.summary.image(f'max/{stage:03d}', _greens(imgs_max), step=step)
 
 
 def summary_footprint_sample(val, mask, stage, step):
@@ -51,7 +51,8 @@ def summary_footprint_sample(val, mask, stage, step):
     imgs = np.zeros((4, h, w))
     imgs[:, mask] = val[[0, 1, -2, -1]]
     tf.summary.image(
-        f'footprint-sample/{stage:03d}', _greens(imgs), max_outputs=4, step=step,
+        f'footprint-sample/{stage:03d}',
+        _greens(imgs), max_outputs=4, step=step,
     )
 
 
@@ -86,6 +87,8 @@ class HotaruCallback(tf.keras.callbacks.TensorBoard):
                 spc = val.mean(axis=1)
                 mask = self.model.mask
                 tf.summary.histogram(f'peak/{stage:03d}', mag, step=epoch)
-                tf.summary.histogram(f'sparseness/{stage:03d}', spc, step=epoch)
+                tf.summary.histogram(
+                    f'sparseness/{stage:03d}', spc, step=epoch,
+                )
                 summary_footprint_stat(val, mask, stage, step=epoch)
                 summary_footprint_sample(val, mask, stage, step=epoch)

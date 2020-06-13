@@ -75,7 +75,10 @@ class Command(CommandBase):
             nt = self.status['root']['nt']
             model = HotaruModel(self.data, self.mask, nk, nx, nt)
             self.application.model = model
-        model.set_double_exp(*(self.status['root'][n] for n in ('tau-fall', 'tau-rise', 'hz', 'tau-scale')))
+        model.set_double_exp(
+            *(self.status['root'][n]
+              for n in ('tau-fall', 'tau-rise', 'hz', 'tau-scale'))
+        )
         model.variance.bx = self.status['root']['bx']
         model.variance.bt = self.status['root']['bt']
         model.la = self.status['root']['la']

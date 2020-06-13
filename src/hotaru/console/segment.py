@@ -50,7 +50,8 @@ class SegmentCommand(Command):
         )
         writer = tf.summary.create_file_writer(log_dir)
         with writer.as_default():
-            tf.summary.histogram(f'size/{stage:03d}', footprint.sum(axis=1), step=0)
+            fsum = footprint.sum(axis=1)
+            tf.summary.histogram(f'size/{stage:03d}', fsum, step=0)
             tf.summary.histogram(f'radius/{stage:03d}', rs, step=0)
             tf.summary.histogram(f'laplacian/{stage:03d}', gs, step=0)
             summary_footprint_stat(footprint, mask, stage)

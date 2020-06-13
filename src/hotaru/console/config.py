@@ -5,36 +5,40 @@ import tensorflow as tf
 from .base import Command, option
 
 
+def _option(*args):
+    return option(*args, flag=False, value_required=False)
+
+
 class ConfigCommand(Command):
 
     description = 'Update parameter'
 
     name = 'config'
     options = [
-        option('job-dir', 'j', 'target directory', flag=False, value_required=False),
-        option('imgs-file', flag=False, value_required=False),
-        option('mask-type', flag=False, value_required=False),
-        option('hz', None, 'sampling rate of data (1/sec)', flag=False, value_required=False),
-        option('name', None, '', flag=False, default='init'),
-        option('tau-rise', None, 'time constant of calicum raise (sec)', flag=False, value_required=False),
-        option('tau-fall', None, 'time constant of calcium fall (sec)', flag=False, value_required=False),
-        option('tau-scale', None, '', flag=False, value_required=False),
-        option('gauss', 'g', 'size of gaussian filter (px)', flag=False, value_required=False),
-        option('radius', 'r', 'radius of cell (px)', flag=False, multiple=True),
-        option('la', 'a', 'penalty coefficient of footprint', flag=False, value_required=False),
-        option('lu', 'u', 'penalty coefficient of spike', flag=False, value_required=False),
-        option('bx', 'x', 'penalty coefficient of spatical baseline', flag=False, value_required=False),
-        option('bt', 't', 'penalty coefficient of temporal baseline', flag=False, value_required=False),
-        option('shard', None, '', flag=False, value_required=False),
-        option('skip', None, '', flag=False, value_required=False),
-        option('thr-gl', None, '', flag=False, value_required=False),
-        option('thr-dist', None, '', flag=False, value_required=False),
-        option('thr-firmness', None, '', flag=False, value_required=False),
-        option('learning-rate', 'l', '', flag=False, value_required=False),
-        option('batch', None, '', flag=False, value_required=False),
-        option('step', None, '', flag=False, value_required=False),
-        option('epoch', None, '', flag=False, value_required=False),
-        option('tol', None, '', flag=False, value_required=False),
+        _option('job-dir', 'j', 'target directory'),
+        _option('imgs-file'),
+        _option('mask-type'),
+        _option('hz', None, 'sampling rate of data (1/sec)'),
+        _option('name', None, ''),
+        _option('tau-rise', None, 'time constant of calicum raise (sec)'),
+        _option('tau-fall', None, 'time constant of calcium fall (sec)'),
+        _option('tau-scale', None, ''),
+        _option('gauss', 'g', 'size of gaussian filter (px)'),
+        _option('radius', 'r', 'radius of cell (px)'),
+        _option('la', 'a', 'penalty coefficient of footprint'),
+        _option('lu', 'u', 'penalty coefficient of spike'),
+        _option('bx', 'x', 'penalty coefficient of spatical baseline'),
+        _option('bt', 't', 'penalty coefficient of temporal baseline'),
+        _option('shard', None, ''),
+        _option('skip', None, ''),
+        _option('thr-gl', None, ''),
+        _option('thr-dist', None, ''),
+        _option('thr-firmness', None, ''),
+        _option('learning-rate', 'l', ''),
+        _option('batch', None, ''),
+        _option('step', None, ''),
+        _option('epoch', None, ''),
+        _option('tol', None, ''),
     ]
 
     def handle(self):

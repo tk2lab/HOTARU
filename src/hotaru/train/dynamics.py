@@ -18,12 +18,13 @@ class SpikeToCalcium(tf.keras.layers.Layer):
         e1 = np.exp(-t / tau1)
         e2 = np.exp(-t / tau2)
         kernel = (e1 - e2) / scale
+        size = kernel.size
         if hasattr(self, 'kernel'):
             if kernel.size > K.int_shape(self.kernel)[0]:
-                raise RuntimeError(f'filter size mismatch: {kernel.size}')
+                raise RuntimeError(f'filter size mismatch: {size}')
         else:
-            self.kernel = self.add_weight('kernel', (kernel.size,), trainable=False)
-            self.pad = int(tau1 * tscale + 1)
+            self.kernel = self.add_weight('kernel', (size,), trainable=False)
+            self.pad = size - 1
         K.set_value(self.kernel, kernel)
 
     def call(self, u):
@@ -47,11 +48,12 @@ class CalciumToSpike(tf.keras.layers.Layer):
         e1 = np.exp(-1 / tau1)
         e2 = np.exp(-1 / tau2)
         kernel = np.array([1.0, -e1 - e2, e1 * e2]) / (e1 - e2) * scale
+        size = kernel.size
         if hasattr(self, 'kernel'):
-            if kernel.size > K.int_shape(self.kernel)[0]:
-                raise RuntimeError(f'filter size mismatch: {kernel.size}')
+            if size > K.int_shape(self.kernel)[0]:
+                raise RuntimeError(f'filter size mismatch: {size}')
         else:
-            self.kernel = self.add_weight('kernel', (kernel.size,), trainable=False)
+            self.kernel = self.add_weight('kernel', (size,), trainable=False)
             self.pad = int(tau1 * tscale + 1)
         K.set_value(self.kernel, kernel)
 

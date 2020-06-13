@@ -4,8 +4,8 @@ import numpy as np
 
 #from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
 from ..optimizer.prox_nesterov import ProxNesterov as Optimizer
+from ..optimizer.input import MaxNormNonNegativeL1InputLayer as InputLayer
 from ..optimizer.callback import Callback
-from ..optimizer.input import MaxNormNonNegativeL1InputLayer
 from .extract import Extract
 from .variance import Variance
 from .loss import hotaru_loss, HotaruLoss
@@ -27,9 +27,9 @@ class HotaruModel(tf.keras.Model):
         nu = self.variance.nu
         nk, nx, nt = self.status_shape
         if not hasattr(self, 'extract'):
+            self.footprint = InputLayer(nk, nx, name='footprint')
+            self.spike = InputLayer(nk, nu, name='spike')
             self.extract = Extract(nx, nu)
-            self.footprint = MaxNormNonNegativeL1InputLayer(nk, nx, name='footprint')
-            self.spike = MaxNormNonNegativeL1InputLayer(nk, nu, name='spike')
 
     def update_spike(self, batch, lr, *args, **kwargs):
         nk = self.footprint.val.shape[0]
@@ -112,7 +112,9 @@ class HotaruModel(tf.keras.Model):
 
         if log_dir is not None:
             callbacks += [
-                HotaruCallback(log_dir=log_dir, stage=stage, update_freq='batch'),
+                HotaruCallback(
+                    log_dir=log_dir, stage=stage, update_freq='batch'
+                ),
             ]
 
         nk, nx, nt = self.status_shape

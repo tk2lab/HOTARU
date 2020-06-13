@@ -1,5 +1,6 @@
-import tensorflow as tf
 from enum import Enum
+
+import tensorflow as tf
 
 
 class ReduceOp(Enum):

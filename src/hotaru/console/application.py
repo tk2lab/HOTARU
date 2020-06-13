@@ -1,7 +1,6 @@
 import os
 
 import tensorflow as tf
-
 from cleo import Application as ApplicationBase
 #from cleo.config import ApplicationConfig
 

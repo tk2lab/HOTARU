@@ -13,7 +13,7 @@ class ProxNesterov(tf.keras.optimizers.Optimizer):
         self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
         self._set_hyper('scale', scale)
         self._set_hyper('start', 0)
-    
+
     def _create_slots(self, var_list):
         for var in var_list:
             self.add_slot(var, 'old')

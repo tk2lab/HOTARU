@@ -10,7 +10,7 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
     def __init__(self, learning_rate=1.0, name='Prox', **kwargs):
         super().__init__(name, **kwargs)
         self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
-    
+
     def _resource_apply_dense(self, grad, var, apply_state=None):
         key = var.device, var.dtype.base_dtype
         coef = apply_state.get(key)

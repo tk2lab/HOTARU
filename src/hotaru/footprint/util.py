@@ -1,5 +1,5 @@
-import tensorflow as tf
 import tensorflow.keras.backend as K
+import tensorflow as tf
 
 
 def get_normalized_val(img, pos):

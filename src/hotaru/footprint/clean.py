@@ -59,4 +59,4 @@ def _prepare(imgs, mask, gauss, radius):
     pos = tf.cast(tf.where(pos_bin), tf.int32)
     ls = tf.gather_nd(ls, pos[:, :2])
     rs = tf.gather(radius, pos[:, 1])
-    return gs, ls, rs, pos[:, 2], pos[:, 3]
+    return imgs, ls, rs, pos[:, 2], pos[:, 3]

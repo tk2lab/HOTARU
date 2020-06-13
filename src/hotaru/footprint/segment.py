@@ -4,7 +4,7 @@ import heapq as hq
 
 
 def get_segment_index(gl, y, x, mask):
-    #return get_segment_index_tf(gl, y, x, mask)
+    # return get_segment_index_tf(gl, y, x, mask)
     return tf.numpy_function(
         get_segment_index_py, [gl, y, x, mask], tf.int32
     )
@@ -48,17 +48,17 @@ def get_segment_index_tf(img, y0, x0, mask):
     def push(y, x, dy, dx):
         yn, xn = y+dy, x+dx
         if mask[yn, xn]:
-            if img[yn,xn] <= img[y,x]:
+            if img[yn, xn] <= img[y, x]:
                 q.enqueue([yn, xn, dy, dx])
 
-    mask = tf.pad(mask, [[0,1], [0,1]])
+    mask = tf.pad(mask, [[0, 1], [0, 1]])
     pos = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
 
     q = tf.queue.FIFOQueue(2000, [tf.int32]*4, [()]*4)
     i = tf.constant(0)
-    pos = pos.write(i, [y0,x0])
-    for dy in tf.constant([-1,0,1]):
-        for dx in tf.constant([-1,0,1]):
+    pos = pos.write(i, [y0, x0])
+    for dy in tf.constant([-1, 0, 1]):
+        for dx in tf.constant([-1, 0, 1]):
             if tf.not_equal(dx, 0) & tf.not_equal(dy, 0):
                 push(y0, x0, dy, dx)
 

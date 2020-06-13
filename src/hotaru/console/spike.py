@@ -1,10 +1,11 @@
-from datetime import datetime
 import os
+from datetime import datetime
 
 import tensorflow as tf
 import numpy as np
 
 from .base import Command, option
+from ..util.npy import save_numpy
 
 
 class SpikeCommand(Command):
@@ -33,25 +34,29 @@ class SpikeCommand(Command):
         prev_key = self.status['clean_current']
         if self.option('prev'):
             prev_key = {v: k for k, v in self.status['clean'].items()}[self.option('prev')]
-        self.key = prev_key + ('spike', (tau1, tau2, hz, tauscale, la, lu, bx, bt))
-        self._handle('spike')
+        key = prev_key + (('spike', tau1, tau2, hz, tauscale, la, lu, bx, bt),)
+        self._handle('spike', key)
 
-    def create(self):
+    def create(self, key, stage):
         self.line('spike')
         model = self.model
         clean = self.clean
         score = clean.max(axis=1)
         clean /= score[:, None]
-        cond = score > 0.1
+        cond = score > self.status['root']['thr-firmness']
         clean = clean[cond]
         model.footprint.val = clean
-        print(clean.shape[0])
-        log_dir = os.path.join(self.application.job_dir, 'logs', 'spike', datetime.now().strftime('%Y%m%d-%H%M%S'))
+        log_dir = os.path.join(
+            self.application.job_dir, 'logs', 'spike',
+            datetime.now().strftime('%Y%m%d-%H%M%S'),
+        )
         model.update_spike(
             batch=int(self.option('batch')),
             log_dir=log_dir,
+            stage=stage,
         )
         return model.spike.val
 
     def save(self, base, val):
-        np.save(base + '.npy', val)
+        save_numpy(base, val)
+        return val

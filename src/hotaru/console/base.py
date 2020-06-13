@@ -1,17 +1,17 @@
 import pickle
 import os
 
-from cleo import Command as CommandBase
-from cleo import option
-
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 
-from ..data.load import get_shape, load_data
-from ..data.mask import load_maskfile
-from ..data.dataset import normalized
+from cleo import Command as CommandBase
+from cleo import option
+
+from ..image.load import get_shape, load_data
 from ..train.model import HotaruModel
+from ..util.dataset import normalized
+from ..util.gs import load_numpy
 
 
 class Command(CommandBase):
@@ -39,8 +39,8 @@ class Command(CommandBase):
 
     @property
     def normalized_imgs(self):
-        avgt = load_maskfile(os.path.join(self.work_dir, 'avgt.npy'))
-        avgx = load_maskfile(os.path.join(self.work_dir, 'avgx.npy'))
+        avgt = load_numpy(os.path.join(self.work_dir, 'avgt.npy'))
+        avgx = load_numpy(os.path.join(self.work_dir, 'avgx.npy'))
         std = self.status['root']['std']
         return normalized(self.imgs, avgt, avgx, std)
 
@@ -54,8 +54,8 @@ class Command(CommandBase):
     @property
     def mask(self):
         if not hasattr(self.application, 'mask'):
-            mask_file = os.path.join(self.work_dir, 'mask.npy')
-            self.application.mask = load_maskfile(mask_file)
+            mask_file = os.path.join(self.work_dir, 'mask')
+            self.application.mask = load_numpy(mask_file)
         return self.application.mask
 
     @property
@@ -67,12 +67,17 @@ class Command(CommandBase):
         if hasattr(self.application, 'model'):
             model = self.application.model
         else:
-            args = 'nx', 'nt', 'tau-fall', 'tau-rise', 'hz', 'tau-scale', 'la', 'lu', 'bx', 'bt'
             nk = self.clean.shape[0]
-            args = tuple(self.status['root'][k] for k in args)
-            model = HotaruModel(self.data, self.mask, nk, *args)
-            model.compile()
+            nx = self.status['root']['nx']
+            nt = self.status['root']['nt']
+            model = HotaruModel(self.data, self.mask, nk, nx, nt)
             self.application.model = model
+        model.set_double_exp(*(self.status['root'][n] for n in ('tau-fall', 'tau-rise', 'hz', 'tau-scale')))
+        model.variance.bx = self.status['root']['bx']
+        model.variance.bt = self.status['root']['bt']
+        model.la = self.status['root']['la']
+        model.lu = self.status['root']['lu']
+        model.compile()
         return model
 
     @property
@@ -153,15 +158,15 @@ class Command(CommandBase):
             val = np.load(fp)
         return val
 
-    def _handle(self, _type):
+    def _handle(self, _type, key):
         status = self.status[_type]
-        key = self.key
         name = self.option('name')
 
         if self.option('force') or key not in status:
-            val = self.create()
+            stage = f'{len(key):03d}'
             base = os.path.join(self.work_dir, _type, name)
-            self.save(base, val)
+            val = self.create(key, stage)
+            val = self.save(base, val)
             dup_keys = tuple(k for k, v in status.items() if v == name)
             for k in dup_keys:
                 del status[k]

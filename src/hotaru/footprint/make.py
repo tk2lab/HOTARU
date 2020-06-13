@@ -11,7 +11,7 @@ from .util import get_normalized_val, get_magnitude, ToDense
 def make_footprint(dataset, mask, gauss, radius, peaks, batch):
     strategy = tf.distribute.get_strategy()
 
-    mask = tf.convert_to_tensor(mask, tf.bool)
+    mask = tf.constant(mask, tf.bool)
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
     to_dense = ToDense(mask)
@@ -25,21 +25,23 @@ def make_footprint(dataset, mask, gauss, radius, peaks, batch):
     ys = tf.convert_to_tensor(ys, tf.int32)
     xs = tf.convert_to_tensor(xs, tf.int32)
 
-    prog = tf.keras.utils.Progbar(tf.size(ts).numpy())
+    nk = tf.size(ts).numpy()
+    prog = tf.keras.utils.Progbar(nk)
     fps = tf.TensorArray(tf.float32, 0, True)
     e = tf.constant(0)
     for imgs in strategy.experimental_distribute_dataset(dataset):
         s, e = e, e + tf.shape(imgs)[0]
-        gs, yl, xl = _prepare(
+        gl, yl, xl = _prepare(
             imgs, s, e, ts, rs, ys, xs, gauss, radius,
         )
         nk = tf.size(yl)
         for k in tf.range(nk):
             g, y, x = gl[k], yl[k], xl[k]
-            pos = get_segment_index(gl, y, x, mask)
-            val = get_normalized_val(gl, pos)
-            footprint = to_dense(pos, val)
-            fps = fps.write(fps.size(), footprint)
+            pos = get_segment_index(g, y, x, mask)
+            val = get_normalized_val(g, pos)
+            if get_magnitude(g, pos) > 0.0:
+                footprint = to_dense(pos, val)
+                fps = fps.write(fps.size(), footprint)
             prog.add(1)
     return fps.stack().numpy()
 

@@ -1,9 +1,9 @@
 import tensorflow as tf
 
-from ..data.dataset import unmasked
-from ..image.gaussian import gaussian
-from ..image.laplace import gaussian_laplace_multi
 from ..util.distribute import distributed, ReduceOp
+from ..util.dataset import unmasked
+from ..image.filter.gaussian import gaussian
+from ..image.filter.laplace import gaussian_laplace_multi
 from .segment import get_segment_index
 from .util import get_normalized_val, get_magnitude, ToDense
 
@@ -20,22 +20,27 @@ def clean_footprint(data, mask, gauss, radius, batch):
     gauss = tf.convert_to_tensor(gauss)
     radius = tf.convert_to_tensor(radius)
 
-    prog = tf.keras.utils.Progbar(data.shape[0])
-    fps = tf.TensorArray(tf.float32, 0, True)
-    mgs = tf.TensorArray(tf.float32, 0, True)
+    nk = data.shape[0]
+    prog = tf.keras.utils.Progbar(nk)
+    ps = tf.TensorArray(tf.float32, nk)
+    rs = tf.TensorArray(tf.float32, nk)
+    ys = tf.TensorArray(tf.int32, nk)
+    i = tf.constant(0)
     for data in strategy.experimental_distribute_dataset(dataset):
-        imgs, gls, peaks = _prepare(data, mask, gauss, radius)
-        for t, y, x, r in peaks:
-            gl = gls[t, :, :, r]
-            pos = get_segment_index(gl, y, x, mask)
-            mag = get_magnitude(gl, pos)
-            img = imgs[t]
-            val = get_normalized_val(img, pos)
+        gl, ll, rl, yl, xl = _prepare(data, mask, gauss, radius)
+        nx = tf.size(rl)
+        for k in tf.range(nx):
+            g, l, r, y, x = gl[k], ll[k], rl[k], yl[k], xl[k]
+            pos = get_segment_index(l, y, x, mask)
+            val = get_normalized_val(g, pos)
             footprint = to_dense(pos, val)
-            mgs = mgs.write(mgs.size(), mag)
-            fps = fps.write(fps.size(), footprint)
+            firmness = get_magnitude(l, pos) / get_magnitude(g, pos)
+            ps = ps.write(i, footprint)
+            rs = rs.write(i, [r, firmness])
+            ys = ys.write(i, [y, x])
+            i += 1
             prog.add(1)
-    return fps.stack(), mgs.stack()
+    return ps.stack().numpy(), rs.stack().numpy(), ys.stack().numpy()
 
 
 def _gen(data):
@@ -45,12 +50,13 @@ def _gen(data):
     return func
 
 
-@distributed(*[ReduceOp.CONCAT for _ in range(4)], loop=False)
+@distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)
 def _prepare(imgs, mask, gauss, radius):
-    if gauss > 0.0:
-        imgs = gaussian(imgs, gauss)
-    gls = gaussian_laplace_multi(imgs, radius) 
-    max_gls = tf.reduce_max(gls, axis=(1, 2, 3), keepdims=True)
-    pos_bin = tf.equal(gls, max_gls) & mask[..., None]
+    gs = gaussian(imgs, gauss) if gauss > 0.0 else imgs
+    ls = gaussian_laplace_multi(gs, radius)
+    max_gls = tf.reduce_max(ls, axis=(1, 2, 3), keepdims=True)
+    pos_bin = tf.equal(ls, max_gls) & mask
     pos = tf.cast(tf.where(pos_bin), tf.int32)
-    return imgs, gls, pos
+    ls = tf.gather_nd(ls, pos[:, :2])
+    rs = tf.gather(radius, pos[:, 1])
+    return gs, ls, rs, pos[:, 2], pos[:, 3]

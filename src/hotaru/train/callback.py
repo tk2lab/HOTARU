@@ -59,7 +59,7 @@ def summary_footprint_sample(val, mask, stage, step):
 def summary_footprint(val, mask, stage):
     h, w = mask.shape
     img = np.zeros((h, w))
-    for i, v in enumerate(val):
+    for i, v in enumerate(val[::-1]):
         img[:] = 0.0
         img[mask] = v
         tf.summary.image(

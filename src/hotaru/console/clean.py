@@ -33,6 +33,8 @@ class CleanCommand(Command):
 
     def create(self, key, stage):
         self.line('clean')
+
+        # clean
         mask = self.mask
         gauss, rmin, rmax, rnum = key[-1][1:]
         radius = tuple(np.linspace(rmin, rmax, rnum))
@@ -41,6 +43,8 @@ class CleanCommand(Command):
             self.footprint, mask, gauss, radius, batch,
         )
         rs, fs, ys, xs = rs[:, 0], rs[:, 1], ys[:, 0], ys[:, 1]
+
+        # sort
         idx = np.argsort(fs)[::-1]
         rs = rs[idx]
         fs = fs[idx]
@@ -48,6 +52,7 @@ class CleanCommand(Command):
         xs = xs[idx]
         footprint = footprint[idx]
 
+        # log
         log_dir = os.path.join(
             self.application.job_dir, 'logs', 'clean',
             datetime.now().strftime('%Y%m%d-%H%M%S'),
@@ -62,7 +67,11 @@ class CleanCommand(Command):
             summary_footprint(footprint, mask, stage)
         writer.close()
 
-        footprint *= fs[:, None]
+        # remove
+        cond = fs > self.status['root']['thr-firmness']
+        cond &= (radius[0] < rs) & (rs < radius[-1])
+        footprint = footprint[cond]
+
         return footprint, (rs, ys, xs, fs)
 
     def save(self, base, val):

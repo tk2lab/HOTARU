@@ -35,12 +35,7 @@ class SpikeCommand(Command):
     def create(self, key, stage):
         self.line('spike')
         model = self.model
-        clean = self.clean
-        score = clean.max(axis=1)
-        clean /= score[:, None]
-        cond = score > self.status['root']['thr-firmness']
-        clean = clean[cond]
-        model.footprint.val = clean
+        model.footprint.val = self.clean
         log_dir = os.path.join(
             self.application.job_dir, 'logs', 'spike',
             datetime.now().strftime('%Y%m%d-%H%M%S'),

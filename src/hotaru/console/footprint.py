@@ -30,7 +30,7 @@ class FootprintCommand(Command):
         self._handle('spike', 'footprint', key)
 
     def create(self, key, stage):
-        self.line('footprint')
+        self.line('<info>footprint</info>')
         model = self.model
         model.spike.val = self.spike
         log_dir = os.path.join(

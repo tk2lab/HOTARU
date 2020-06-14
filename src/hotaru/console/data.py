@@ -57,7 +57,7 @@ class DataCommand(Command):
         avgx_base = os.path.join(self.work_dir, 'avgx')
 
         if self.option('force') or not tf.io.gfile.exists(data_file):
-            self.line('data')
+            self.line('<info>data</info>')
             nt, h, w = get_shape(imgs_file_path)
             self.status['root']['nt'] = nt
 

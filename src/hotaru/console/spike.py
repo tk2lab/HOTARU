@@ -33,7 +33,7 @@ class SpikeCommand(Command):
         self._handle('clean', 'spike', key)
 
     def create(self, key, stage):
-        self.line('spike')
+        self.line('<info>spike</info>')
         model = self.model
         model.footprint.val = self.clean
         log_dir = os.path.join(

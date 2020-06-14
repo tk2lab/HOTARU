@@ -9,23 +9,21 @@ class RunCommand(Command):
     options = [
         option('job-dir', flag=False, value_required=False),
         option('name', flag=False, value_required=False),
-        option('start', flag=False, value_required=False),
-        option('end', flag=False, value_required=False),
     ]
 
     def handle(self):
         self.set_job_dir()
-        start = self.option('start')
-        if start:
-            clean_key = {v: k for k, v in self.status['clean'].items()}[start]
-            self.status['clean_current'] = clean_key
-            self.save_status()
-        elif self.status['clean_current'] is None:
+        if self.status['clean_current'] is None:
             self.call('data')
             self.call('peak')
             self.call('segment')
-        for i in range(3):
-            self.call('spike')
+        self.call('spike')
+        nk = self.spike.shape[0]
+        while True:
             self.call('footprint')
             self.call('clean')
-        self.call('spike')
+            self.call('spike')
+            nk, old_nk = self.spike.shape[0], nk
+            self.line(f'<comment>number of cell: {old_nk} -> {nk}</comment>')
+            if nk == old_nk:
+                break

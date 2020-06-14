@@ -5,7 +5,7 @@ import tensorflow as tf
 class Callback(tf.keras.callbacks.Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
-        self.model.optimizer.start = self.model.optimizer.iterations
+        self.model.optimizer.start = K.get_value(self.model.optimizer.iterations)
 
     def on_epoch_end(self, epoch, logs=None):
         vs = self.model.trainable_weights

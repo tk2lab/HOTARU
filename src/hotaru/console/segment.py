@@ -37,10 +37,7 @@ class SegmentCommand(Command):
         batch = self.status['root']['batch']
         peak = reduce_peak(self.peak, thr_dist)
         ts, rs, ys, xs, gs = peak
-        print(radius)
-        print(rs)
         cond = (radius[0] < rs) & (rs < radius[-1])
-        print(np.count_nonzero(cond))
         ts, rs, ys, xs, gs = map(lambda s: s[cond], (ts, rs, ys, xs, gs))
         inv = {v: i for i, v in enumerate(radius)}
         rs_id = np.array([inv[0.001 * round(1000 * r)] for r in rs], np.int32)

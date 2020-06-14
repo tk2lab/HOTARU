@@ -31,14 +31,12 @@ class FootprintCommand(Command):
 
     def create(self, key, stage):
         self.line('footprint')
-        self.print_gpu_memory()
         model = self.model
         model.spike.val = self.spike
         log_dir = os.path.join(
             self.application.job_dir, 'logs', 'footprint',
             datetime.now().strftime('%Y%m%d-%H%M%S'),
         )
-        self.print_gpu_memory()
         model.update_footprint(
             lr=self.status['root']['learning-rate'],
             steps_per_epoch=self.status['root']['step'],
@@ -48,7 +46,6 @@ class FootprintCommand(Command):
             log_dir=log_dir,
             stage=stage,
         )
-        self.print_gpu_memory()
         return model.footprint.val
 
     def save(self, base, val):

@@ -31,13 +31,19 @@ class SegmentCommand(Command):
 
     def create(self, key, stage):
         self.line('segment')
-        gauss, radius, thr_gl, shard = key[-2][1:]
+        gauss, rmin, rmax, rnum, thr_gl, shard = key[-2][1:]
+        radius = tuple(0.001 * round(1000 * x) for x in np.linspace(rmin, rmax, rnum))
         thr_dist = key[-1][1]
         batch = self.status['root']['batch']
         peak = reduce_peak(self.peak, thr_dist)
         ts, rs, ys, xs, gs = peak
+        print(radius)
+        print(rs)
+        cond = (radius[0] < rs) & (rs < radius[-1])
+        print(np.count_nonzero(cond))
+        ts, rs, ys, xs, gs = map(lambda s: s[cond], (ts, rs, ys, xs, gs))
         inv = {v: i for i, v in enumerate(radius)}
-        rs_id = np.array([inv[r] for r in rs], np.int32)
+        rs_id = np.array([inv[0.001 * round(1000 * r)] for r in rs], np.int32)
         peak_id = ts, rs_id, ys, xs, gs
         data = self.data.shard(shard, 0)
         mask = self.mask
@@ -58,6 +64,7 @@ class SegmentCommand(Command):
             summary_footprint(footprint, mask, stage)
         writer.close()
 
+        peak = ts, rs, ys, xs, gs
         return footprint, peak
 
     def save(self, base, val):

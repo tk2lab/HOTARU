@@ -24,7 +24,9 @@ class ConfigCommand(Command):
         _option('tau-fall', None, 'time constant of calcium fall (sec)'),
         _option('tau-scale', None, ''),
         _option('gauss', 'g', 'size of gaussian filter (px)'),
-        _option('radius', 'r', 'radius of cell (px)'),
+        _option('radius-min', None, 'radius of cell (px)'),
+        _option('radius-max', None, 'radius of cell (px)'),
+        _option('radius-num', None, 'radius of cell (px)'),
         _option('la', 'a', 'penalty coefficient of footprint'),
         _option('lu', 'u', 'penalty coefficient of spike'),
         _option('bx', 'x', 'penalty coefficient of spatical baseline'),
@@ -48,7 +50,9 @@ class ConfigCommand(Command):
         self._update_parameter('hz', 20.0)
         self._update_parameter('name', 'default', str)
         self._update_parameter('gauss', 2.0)
-        self._update_parameter('radius', [2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+        self._update_parameter('radius-min', 3.0)
+        self._update_parameter('radius-max', 8.0)
+        self._update_parameter('radius-num', 10, int)
         self._update_parameter('tau-rise', 0.08)
         self._update_parameter('tau-fall', 0.16)
         self._update_parameter('tau-scale', 6.0)

@@ -95,10 +95,6 @@ class HotaruModel(tf.keras.Model):
 
     def fit(self, steps_per_epoch=100, epochs=100, min_delta=1e-3,
             log_dir=None, stage='', callbacks=None, *args, **kwargs):
-        def _gen_data():
-            while True:
-                yield x, y
-
         if callbacks is None:
             callbacks = []
 
@@ -117,12 +113,11 @@ class HotaruModel(tf.keras.Model):
                 ),
             ]
 
-        nk, nx, nt = self.status_shape
-        nu = self.variance.nu
-        x = tf.zeros((1, 1))
-        y = tf.zeros((nk, nx + nu))
+        dummy = tf.zeros((1, 1))
+        data = tf.data.Dataset.from_tensor_slices((dummy, dummy)).repeat()
         super().fit(
-            _gen_data(),
+            data,
+            #_gen_data(),
             steps_per_epoch=steps_per_epoch,
             epochs=epochs,
             callbacks=callbacks,

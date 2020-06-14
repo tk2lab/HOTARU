@@ -110,7 +110,8 @@ class HotaruModel(tf.keras.Model):
         if log_dir is not None:
             callbacks += [
                 HotaruCallback(
-                    log_dir=log_dir, stage=stage, update_freq='batch'
+                    log_dir=log_dir, stage=stage,
+                    update_freq='batch', write_graph=False,
                 ),
             ]
 
@@ -118,7 +119,6 @@ class HotaruModel(tf.keras.Model):
         data = tf.data.Dataset.from_tensor_slices((dummy, dummy)).repeat()
         super().fit(
             data,
-            #_gen_data(),
             steps_per_epoch=steps_per_epoch,
             epochs=epochs,
             callbacks=callbacks,

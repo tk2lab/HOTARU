@@ -59,18 +59,23 @@ class CleanCommand(Command):
         )
         writer = tf.summary.create_file_writer(log_dir)
         with writer.as_default():
-            fsum = footprint.sum(axis=1)
-            tf.summary.histogram(f'size/{stage:03d}', fsum, step=0)
             tf.summary.histogram(f'radius/{stage:03d}', rs, step=0)
             tf.summary.histogram(f'firmness/{stage:03d}', fs, step=0)
+
+            fsum = footprint.sum(axis=1)
+            tf.summary.histogram(f'size/{stage:03d}', fsum, step=0)
             summary_footprint_stat(footprint, mask, stage)
             summary_footprint(footprint, mask, stage)
-        writer.close()
 
-        # remove
-        cond = fs > self.status['root']['thr-firmness']
-        cond &= (radius[0] < rs) & (rs < radius[-1])
-        footprint = footprint[cond]
+            # remove
+            cond = fs > self.status['root']['thr-firmness']
+            cond &= (radius[0] < rs) & (rs < radius[-1])
+            rs, ys, xs, fs = map(lambda s: s[cond], (rs, ys, xs, fs))
+            tf.summary.histogram(f'radius/{stage:03d}', rs, step=1)
+            tf.summary.histogram(f'firmness/{stage:03d}', fs, step=1)
+
+            footprint = footprint[cond]
+        writer.close()
 
         return footprint, (rs, ys, xs, fs)
 

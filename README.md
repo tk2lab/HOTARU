@@ -6,7 +6,9 @@ High performance Optimizer to extract spike Timing And cell location from calciu
 TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ### Reference
-- Takekawa., T, et. al., Automatic sorting system for large scale calcium imaging data, bioRxiv,  https://doi.org/10.1101/215145 (2017).
+- Takekawa., T, et. al.,
+  Automatic sorting system for large scale calcium imaging data, bioRxiv (2017).
+  https://doi.org/10.1101/215145
 
 
 ## Install
@@ -18,6 +20,7 @@ https://github.com/tk2lab/HOTARU/releases
 
 ### Require
 - python >= 3.6.1
+- tensorflow >= 2.2.0
 
 ### Install Procedure (using venv)
 - Create venv environment for hotaru
@@ -28,11 +31,19 @@ https://github.com/tk2lab/HOTARU/releases
   - `pip intall hotaru-3.x.y-py3-none-any.whl`
 
 
-## Simple Usage
+## Usage
+
+### Apply Method
 - (in hotaru venv)
 - `mkdir work`
 - `cd work`
 - `cp somewhere/TARGET.tif imgs.tif`
-- `hotaru`
+- `hotaru status`
+- `hotaru config --name val`
+- `hotaru run`
 - (see out directory)
 
+### Check Resutls
+- (in hotaru venv and in work dir)
+- `tensorboard --logidr logs`
+- open on browser `http://localhost:6006`

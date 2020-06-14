@@ -4,6 +4,7 @@ import os
 import tensorflow as tf
 import pandas as pd
 import numpy as np
+import GPUtil
 
 from cleo import Command as CommandBase
 from cleo import option
@@ -133,6 +134,10 @@ class Command(CommandBase):
                 spike_current=None, clean_current=None,
             )
         self.application.status = status
+
+    def print_gpu_memory(self):
+        for g in GPUtil.getGPUs():
+            self.line(f'{g.memoryUsed}')
 
     def save_status(self):
         status_file = os.path.join(self.work_dir, 'status.pickle')

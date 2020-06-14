@@ -34,6 +34,7 @@ class SpikeCommand(Command):
 
     def create(self, key, stage):
         self.line('spike')
+        self.print_gpu_memory()
         model = self.model
         clean = self.clean
         score = clean.max(axis=1)
@@ -45,6 +46,7 @@ class SpikeCommand(Command):
             self.application.job_dir, 'logs', 'spike',
             datetime.now().strftime('%Y%m%d-%H%M%S'),
         )
+        self.print_gpu_memory()
         model.update_spike(
             batch=self.status['root']['batch'],
             lr=self.status['root']['learning-rate'],
@@ -54,6 +56,7 @@ class SpikeCommand(Command):
             log_dir=log_dir,
             stage=stage,
         )
+        self.print_gpu_memory()
         return model.spike.val
 
     def save(self, base, val):

@@ -37,13 +37,16 @@ class CleanCommand(Command):
                 yield f
 
         self.line('clean')
+        self.print_gpu_memory()
         mask = self.mask
         gauss, rmin, rmax, rnum = key[-1][1:]
         radius = tuple(np.linspace(rmin, rmax, rnum))
         batch = self.status['root']['batch']
+        self.print_gpu_memory()
         footprint, rs, ys = clean_footprint(
             self.footprint, mask, gauss, radius, batch,
         )
+        self.print_gpu_memory()
         rs, fs, ys, xs = rs[:, 0], rs[:, 1], ys[:, 0], ys[:, 1]
         idx = np.argsort(fs)[::-1]
         rs = rs[idx]

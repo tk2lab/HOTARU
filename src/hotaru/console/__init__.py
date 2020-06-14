@@ -20,6 +20,4 @@ def main():
     )
 
     from .application import Application
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        return Application().run()
+    return Application().run()

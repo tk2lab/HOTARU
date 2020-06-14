@@ -80,12 +80,11 @@ class Command(CommandBase):
         model.variance.bt = self.status['root']['bt']
         model.la = self.status['root']['la']
         model.lu = self.status['root']['lu']
-        with self.application.strategy.scope():
-            model.set_double_exp(
-                *(self.status['root'][n]
-                  for n in ('tau-fall', 'tau-rise', 'hz', 'tau-scale'))
-            )
-            model.compile()
+        model.set_double_exp(
+            *(self.status['root'][n]
+              for n in ('tau-fall', 'tau-rise', 'hz', 'tau-scale'))
+        )
+        model.compile()
         return model
 
     @property

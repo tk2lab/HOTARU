@@ -23,13 +23,14 @@ class HotaruModel(tf.keras.Model):
         self.lu = 0.0
 
     def set_double_exp(self, *args, **kwargs):
-        self.variance.set_double_exp(*args, **kwargs)
-        nu = self.variance.nu
-        nk, nx, nt = self.status_shape
-        if not hasattr(self, 'extract'):
-            self.footprint = InputLayer(nk, nx, name='footprint')
-            self.spike = InputLayer(nk, nu, name='spike')
-            self.extract = Extract(nx, nu)
+        with self._distribution_strategy.scope():
+            self.variance.set_double_exp(*args, **kwargs)
+            nu = self.variance.nu
+            nk, nx, nt = self.status_shape
+            if not hasattr(self, 'extract'):
+                self.footprint = InputLayer(nk, nx, name='footprint')
+                self.spike = InputLayer(nk, nu, name='spike')
+                self.extract = Extract(nx, nu)
 
     def update_spike(self, batch, lr, *args, **kwargs):
         nk = self.footprint.val.shape[0]

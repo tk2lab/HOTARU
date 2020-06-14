@@ -22,6 +22,8 @@ class Application(ApplicationBase):
     def __init__(self):
         super().__init__('hotaru', __version__)
 
+        self.strategy = tf.distribute.MirroredStrategy()
+
         self.job_dir = None
         self.current_key = dict(
             peak=None, footprint=None, spike=None, clean=None,

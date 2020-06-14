@@ -27,26 +27,6 @@ class Command(CommandBase):
         return self.application.status
 
     @property
-    def imgs(self):
-
-        def _gen():
-            for x in imgs:
-                yield tf.convert_to_tensor(wrap(x)[y0:y1, x0:x1], tf.float32)
-
-        imgs_file = self.status['root']['imgs-file']
-        imgs_file = os.path.join(self.application.job_dir, imgs_file)
-        imgs, wrap = load_data(imgs_file)
-        y0, y1, x0, x1 = self.status['root']['rect']
-        return tf.data.Dataset.from_generator(_gen, tf.float32)
-
-    @property
-    def normalized_imgs(self):
-        avgt = load_numpy(os.path.join(self.work_dir, 'avgt'))
-        avgx = load_numpy(os.path.join(self.work_dir, 'avgx'))
-        std = self.status['root']['std']
-        return normalized(self.imgs, avgt, avgx, std)
-
-    @property
     def data(self):
         data_file = os.path.join(self.work_dir, 'data.tfrecord')
         data = tf.data.TFRecordDataset(data_file)

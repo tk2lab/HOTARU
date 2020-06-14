@@ -9,7 +9,7 @@ from ..image.mask import get_mask, get_mask_range
 from ..image.std import calc_std
 from ..util.tfrecord import make_tfrecord
 from ..util.dataset import normalized, masked
-from ..util.npy import save_numpy
+from ..util.npy import save_numpy, load_numpy
 from .base import Command, option
 
 
@@ -22,6 +22,26 @@ class DataCommand(Command):
         option('job-dir', flag=False, value_required=False),
         option('force', 'f', 'overwrite previous result'),
     ]
+
+    @property
+    def imgs(self):
+
+        def _gen():
+            for x in imgs:
+                yield tf.convert_to_tensor(wrap(x)[y0:y1, x0:x1], tf.float32)
+
+        imgs_file = self.status['root']['imgs-file']
+        imgs_file = os.path.join(self.application.job_dir, imgs_file)
+        imgs, wrap = load_data(imgs_file)
+        y0, y1, x0, x1 = self.status['root']['rect']
+        return tf.data.Dataset.from_generator(_gen, tf.float32)
+
+    @property
+    def normalized_imgs(self):
+        avgt = load_numpy(os.path.join(self.work_dir, 'avgt'))
+        avgx = load_numpy(os.path.join(self.work_dir, 'avgx'))
+        std = self.status['root']['std']
+        return normalized(self.imgs, avgt, avgx, std)
 
     def handle(self):
         self.set_job_dir()

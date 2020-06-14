@@ -1,3 +1,4 @@
+import tensorflow.keras.backend as K
 import tensorflow as tf
 
 from ..util.distribute import distributed, ReduceOp
@@ -17,8 +18,8 @@ def clean_footprint(data, mask, gauss, radius, batch):
     dataset = dataset.batch(batch)
     to_dense = ToDense(mask)
 
-    gauss = tf.convert_to_tensor(gauss)
-    radius = tf.convert_to_tensor(radius)
+    gauss = K.constant(gauss)
+    radius = K.constant(radius)
 
     nk = data.shape[0]
     prog = tf.keras.utils.Progbar(nk)

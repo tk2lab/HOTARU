@@ -15,6 +15,7 @@ from .segment import SegmentCommand
 from .spike import SpikeCommand
 from .footprint import FootprintCommand
 from .clean import CleanCommand
+from .output import OutputCommand
 
 
 class Application(ApplicationBase):
@@ -43,4 +44,5 @@ class Application(ApplicationBase):
             SpikeCommand(),
             FootprintCommand(),
             CleanCommand(),
+            OutputCommand(),
         )

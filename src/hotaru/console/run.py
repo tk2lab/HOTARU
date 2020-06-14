@@ -27,3 +27,4 @@ class RunCommand(Command):
             self.line(f'<comment>number of cell: {old_nk} -> {nk}</comment>')
             if nk == old_nk:
                 break
+        self.call('output')

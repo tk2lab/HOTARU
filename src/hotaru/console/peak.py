@@ -35,26 +35,20 @@ class PeakCommand(Command):
 
     def create(self, key, stage):
         self.line('peak')
+
         gauss, rmin, rmax, rnum, thr_gl, shard = key[0][1:]
-        radius = tuple(round(x, 3) for x in np.linspace(rmin, rmax, rnum))
-        batch = self.status['root']['batch']
         data = self.data.shard(shard, 0)
         mask = self.mask
+        radius = tuple(
+            0.001 * round(1000 * x) for x in np.linspace(rmin, rmax, rnum)
+        )
+        batch = self.status['root']['batch']
         nt = self.status['root']['nt']
         prog = tf.keras.utils.Progbar((nt + shard - 1) // shard)
-        peak = find_peak(data, mask, gauss, radius, thr_gl, batch, prog)
-        peak = reduce_peak(peak, 1.0)
 
-        ts, rs, ys, xs, gs = peak
-        log_dir = os.path.join(
-            self.application.job_dir, 'logs', 'peak',
-            datetime.now().strftime('%Y%m%d-%H%M%S'),
+        peak = find_peak(
+            data, mask, gauss, radius, thr_gl, batch, prog,
         )
-        writer = tf.summary.create_file_writer(log_dir)
-        with writer.as_default():
-            tf.summary.histogram(f'radius/{stage:03d}', rs, step=0)
-            tf.summary.histogram(f'laplacian/{stage:03d}', gs, step=0)
-        writer.close()
         return peak
 
     def save(self, base, peak):

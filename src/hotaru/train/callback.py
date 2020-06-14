@@ -63,7 +63,7 @@ def summary_footprint(val, mask, stage):
         img[:] = 0.0
         img[mask] = v
         tf.summary.image(
-            f'footprint/{stage:03d}', _greens(img)[None, ...], step=i,
+            f'footprint/{stage:03d}', _greens(img)[None, ...], step=i+1,
         )
 
 

@@ -72,20 +72,17 @@ class ConfigCommand(Command):
         self.save_status()
 
     def _assign_parameter(self, name, default_val=None, dtype=str):
-        current_val = self.status['root'].get(name, None)
-        val = self.option(name)
-        if current_val is None:
-            val = val or default_val
-            if val is None:
-                raise RuntimeError(f'config missing: {name}')
-            if isinstance(val, list):
-                val = tuple(dtype(v) for v in val)
+        status = self.status['root']
+        curr_val = status.get(name, None)
+        val = self.option(name) or curr_val or default
+        if val is None:
+            self.error(f'missing: {name}')
+        elif val != curr_val:
+            mask_file = os.path.join(self.work_dir, 'mask.npy')
+            if tf.io.gfile.exists(mask_file):
+                self.error(f'config mismatch: {name}')
             else:
-                val = dtype(val)
-            self.status['root'][name] = val
-        elif val and val != current_val:
-            raise RuntimeError(f'config mismatch: {name}')
-        return self.status['root'][name]
+                status[name] = dtype(val)
 
     def _update_parameter(self, name, default=None, dtype=float):
         status = self.status['root']
@@ -94,7 +91,4 @@ class ConfigCommand(Command):
         if val is None:
             self.error('missing: {name}')
         elif val != curr_val:
-            if isinstance(val, list):
-                status[name] = tuple(sorted(dtype(v) for v in val))
-            else:
-                status[name] = dtype(val)
+            status[name] = dtype(val)

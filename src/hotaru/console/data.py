@@ -44,7 +44,6 @@ class DataCommand(Command):
             mask = get_mask(mask_type, h, w, self.application.job_dir)
             y0, y1, x0, x1 = get_mask_range(mask)
             mask = mask[y0:y1, x0:x1]
-            save_numpy(mask_base, mask)
             self.status['root']['rect'] = y0, y1, x0, x1
             self.status['root']['nx'] = np.count_nonzero(mask)
             self.status['root']['h'] = y1 - y0
@@ -60,5 +59,6 @@ class DataCommand(Command):
             prog = tf.keras.utils.Progbar(nt)
             masked_data = masked(self.normalized_imgs, mask)
             make_tfrecord(data_file, masked_data, prog=prog)
+            save_numpy(mask_base, mask)
 
         self.save_status()

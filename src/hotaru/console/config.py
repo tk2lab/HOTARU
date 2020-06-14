@@ -74,7 +74,7 @@ class ConfigCommand(Command):
     def _assign_parameter(self, name, default_val=None, dtype=str):
         status = self.status['root']
         curr_val = status.get(name, None)
-        val = self.option(name) or curr_val or default
+        val = self.option(name) or curr_val or default_val
         if val is None:
             self.error(f'missing: {name}')
         elif val != curr_val:

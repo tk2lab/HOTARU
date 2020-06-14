@@ -4,7 +4,7 @@ from datetime import datetime
 import tensorflow as tf
 import numpy as np
 
-from .base import Command, option
+from .base import Command, option, _option
 from ..footprint.reduce import reduce_peak
 from ..footprint.make import make_footprint
 from ..train.callback import summary_footprint, summary_footprint_stat
@@ -18,8 +18,8 @@ class SegmentCommand(Command):
 
     name = 'segment'
     options = [
-        option('job-dir', 'j', '', flag=False, value_required=False),
-        option('prev', flag=False, value_required=False),
+        _option('job-dir', 'j', ''),
+        _option('prev'),
         option('force', 'f', 'overwrite previous result'),
     ]
 

@@ -2,11 +2,7 @@ import os
 
 import tensorflow as tf
 
-from .base import Command, option
-
-
-def _option(*args):
-    return option(*args, flag=False, value_required=False)
+from .base import Command, _option
 
 
 class ConfigCommand(Command):

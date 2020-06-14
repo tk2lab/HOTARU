@@ -1,6 +1,6 @@
 import pickle
 
-from .base import Command, option
+from .base import Command, _option
 
 
 class StatusCommand(Command):
@@ -9,7 +9,7 @@ class StatusCommand(Command):
 
     name = 'status'
     options = [
-        option('job-dir', flag=False, value_required=False),
+        _option('job-dir'),
     ]
 
     def handle(self):

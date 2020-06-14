@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import tifffile
 
-from .base import Command, option
+from .base import Command, _option
 from ..image.filter.gaussian import gaussian
 
 
@@ -15,7 +15,7 @@ class OutputCommand(Command):
 
     name = 'output'
     options = [
-        option('job-dir', flag=False, value_required=False),
+        _option('job-dir'),
     ]
 
     def handle(self):

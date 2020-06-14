@@ -1,4 +1,4 @@
-from .base import Command, option
+from .base import Command, _option
 
 
 class RunCommand(Command):
@@ -7,8 +7,9 @@ class RunCommand(Command):
 
     name = 'run'
     options = [
-        option('job-dir', flag=False, value_required=False),
-        option('name', flag=False, value_required=False),
+        _option('job-dir'),
+        _option('name'),
+        _option('rep-num'),
     ]
 
     def handle(self):
@@ -19,7 +20,7 @@ class RunCommand(Command):
             self.call('segment')
         self.call('spike')
         nk = self.spike.shape[0]
-        while True:
+        for i in range(int(self.option('rep-num') or 5)):
             self.call('footprint')
             self.call('clean')
             self.call('spike')

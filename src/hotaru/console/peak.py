@@ -5,7 +5,7 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 
-from .base import Command, option
+from .base import Command, option, _option
 from ..footprint.find import find_peak
 from ..footprint.reduce import reduce_peak
 from ..util.dataset import unmasked
@@ -18,7 +18,7 @@ class PeakCommand(Command):
 
     name = 'peak'
     options = [
-        option('job-dir', flag=False, value_required=False),
+        _option('job-dir'),
         option('force', 'f', 'overwrite previous result'),
     ]
 

@@ -16,6 +16,10 @@ from ..util.npy import load_numpy
 from ..util.csv import load_csv
 
 
+def _option(*args):
+    return option(*args, flag=False, value_required=False)
+
+
 class Command(CommandBase):
 
     @property

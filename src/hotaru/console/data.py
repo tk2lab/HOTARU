@@ -4,13 +4,13 @@ import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
 
+from .base import Command, option, _option
 from ..image.load import get_shape, load_data
 from ..image.mask import get_mask, get_mask_range
 from ..image.std import calc_std
 from ..util.tfrecord import make_tfrecord
 from ..util.dataset import normalized, masked
 from ..util.npy import save_numpy, load_numpy
-from .base import Command, option
 
 
 class DataCommand(Command):
@@ -19,7 +19,7 @@ class DataCommand(Command):
 
     name = 'data'
     options = [
-        option('job-dir', flag=False, value_required=False),
+        _option('job-dir'),
         option('force', 'f', 'overwrite previous result'),
     ]
 

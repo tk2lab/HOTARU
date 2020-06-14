@@ -4,7 +4,7 @@ from datetime import datetime
 import tensorflow as tf
 import numpy as np
 
-from .base import Command, option
+from .base import Command, option, _option
 from ..util.npy import save_numpy
 
 
@@ -14,8 +14,8 @@ class SpikeCommand(Command):
 
     name = 'spike'
     options = [
-        option('job-dir'),
-        option('prev', flag=False, value_required=False),
+        _option('job-dir'),
+        _option('prev'),
         option('force', 'f', 'overwrite previous result'),
     ]
 

@@ -4,7 +4,7 @@ from datetime import datetime
 import tensorflow as tf
 import numpy as np
 
-from .base import Command, option
+from .base import Command, option, _option
 from ..footprint.clean import clean_footprint
 from ..train.callback import summary_footprint, summary_footprint_stat, normalized_and_sort
 from ..util.npy import save_numpy
@@ -17,8 +17,8 @@ class CleanCommand(Command):
 
     name = 'clean'
     options = [
-        option('job-dir', flag=False, value_required=False),
-        option('prev', flag=False, value_required=False),
+        _option('job-dir'),
+        _option('prev'),
         option('force', 'f', 'overwrite previous result'),
     ]
 

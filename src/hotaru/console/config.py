@@ -59,7 +59,7 @@ class ConfigCommand(Command):
         self._update_parameter('shard', 1, int)
         self._update_parameter('thr-gl', 0.5)
         self._update_parameter('thr-dist', 1.5)
-        self._update_parameter('thr-firmness', 0.15)
+        self._update_parameter('thr-firmness', 0.1)
         self._update_parameter('learning-rate', 0.01)
         self._update_parameter('batch', 100, int)
         self._update_parameter('step', 100, int)

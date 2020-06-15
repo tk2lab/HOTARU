@@ -12,7 +12,7 @@ from .util import get_normalized_val, get_magnitude, ToDense
 def clean_footprint(data, mask, gauss, radius, batch):
     strategy = tf.distribute.get_strategy()
 
-    dataset = tf.data.Dataset.from_generator(_gen(data), tf.float32)
+    dataset = tf.data.Dataset.from_tensor_slices(data)
     mask = tf.convert_to_tensor(mask, tf.bool)
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
@@ -44,20 +44,16 @@ def clean_footprint(data, mask, gauss, radius, batch):
     return ps.stack().numpy(), rs.stack().numpy(), ys.stack().numpy()
 
 
-def _gen(data):
-    def func():
-        for d in data:
-            yield tf.convert_to_tensor(d, tf.float32)
-    return func
-
-
 @distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)
 def _prepare(imgs, mask, gauss, radius):
     gs = gaussian(imgs, gauss) if gauss > 0.0 else imgs
     ls = gaussian_laplace_multi(gs, radius)
-    max_gls = tf.reduce_max(ls, axis=(1, 2, 3), keepdims=True)
-    pos_bin = tf.equal(ls, max_gls) & mask
-    pos = tf.cast(tf.where(pos_bin), tf.int32)
-    ls = tf.gather_nd(ls, pos[:, :2])
-    rs = tf.gather(radius, pos[:, 1])
-    return imgs, ls, rs, pos[:, 2], pos[:, 3]
+    nk, nr, h, w = tf.shape(ls)[0], tf.shape(ls)[1], tf.shape(ls)[2], tf.shape(ls)[3]
+    lsr = K.reshape(ls, (nk, -1))
+    pos = tf.cast(K.argmax(lsr, axis=1), tf.int32)
+    rs = pos // h // w
+    ys = (pos % (h * w)) // w
+    xs = (pos % (h * w)) % w
+    ls = tf.gather_nd(ls, tf.stack([tf.range(nk), rs], axis=1))
+    rs = tf.gather(radius, rs)
+    return imgs, ls, rs, ys, xs

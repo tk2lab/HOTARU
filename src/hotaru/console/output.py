@@ -37,9 +37,9 @@ class OutputCommand(Command):
 
         spike = self.spike
         nk, nu = spike.shape
-        pad = self.model.variance.spike_to_calcium.pad
+        pad = self.spike_model.variance.spike_to_calcium.pad
         hz = self.status['root']['hz']
-        calcium = self.model.variance.spike_to_calcium(spike)
+        calcium = self.spike_model.variance.spike_to_calcium(spike)
         time = (np.arange(nu) - pad) / hz
         df = pd.DataFrame(dict(time=time))
         for k in range(nk):

@@ -87,4 +87,6 @@ class SegmentCommand(Command):
         footprint, peak = val
         save_numpy(base, footprint)
         save_csv(base, peak, ('ts', 'rs', 'ys', 'xs', 'gs'))
+        self.status['root']['nk'] = peak[0].size
+        self.save_status()
         return footprint

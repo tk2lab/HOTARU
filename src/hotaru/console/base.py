@@ -1,6 +1,7 @@
 import pickle
 import os
 
+import tensorflow.keras.backend as K
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -10,10 +11,12 @@ from cleo import Command as CommandBase
 from cleo import option
 
 from ..image.load import get_shape, load_data
-from ..train.model import HotaruModel
 from ..util.dataset import normalized
 from ..util.npy import load_numpy
 from ..util.csv import load_csv
+from ..optimizer.input import MaxNormNonNegativeL1InputLayer as Input
+from ..train.variance import Variance
+from ..train.model import FootprintModel, SpikeModel
 
 
 def _option(*args):
@@ -32,10 +35,12 @@ class Command(CommandBase):
 
     @property
     def data(self):
-        data_file = os.path.join(self.work_dir, 'data.tfrecord')
-        data = tf.data.TFRecordDataset(data_file)
-        data = data.map(lambda ex: tf.io.parse_tensor(ex, tf.float32))
-        return data
+        if not hasattr(self.application, 'data'):
+            data_file = os.path.join(self.work_dir, 'data.tfrecord')
+            data = tf.data.TFRecordDataset(data_file)
+            data = data.map(lambda ex: tf.io.parse_tensor(ex, tf.float32))
+            self.application.data = data
+        return self.application.data
 
     @property
     def mask(self):
@@ -51,30 +56,14 @@ class Command(CommandBase):
         return self._load('peak', lambda b: load_csv(b, name, typ))
 
     @property
-    def model(self):
-        if hasattr(self.application, 'model'):
-            model = self.application.model
-        else:
-            nk = self.clean.shape[0]
-            nx = self.status['root']['nx']
-            nt = self.status['root']['nt']
-            with self.application.strategy.scope():
-                model = HotaruModel(self.data, self.mask, nk, nx, nt)
-            self.application.model = model
-        model.variance.bx = self.status['root']['bx']
-        model.variance.bt = self.status['root']['bt']
-        model.la = self.status['root']['la']
-        model.lu = self.status['root']['lu']
-        model.set_double_exp(
-            *(self.status['root'][n]
-              for n in ('tau-fall', 'tau-rise', 'hz', 'tau-scale'))
-        )
-        model.compile()
-        return model
-
-    @property
     def footprint(self):
-        return self._load('footprint', load_numpy)
+        val = self._load('footprint', load_numpy)
+        self.footprint_model.footprint.val = val
+        return val
+
+    @footprint.setter
+    def footprint(self, val):
+        self.footprint_model.footprint.val = val
 
     @property
     def clean(self):
@@ -82,7 +71,14 @@ class Command(CommandBase):
 
     @property
     def spike(self):
-        return self._load('spike', load_numpy)
+        self.ensure_model()
+        val = self._load('spike', load_numpy)
+        self.application._spike_model.spike.val = val
+        return  val
+
+    @spike.setter
+    def spike(self, val):
+        self.spike_model.spike.val = val
 
     @property
     def current_key(self):
@@ -91,6 +87,49 @@ class Command(CommandBase):
     @property
     def current_val(self):
         return self.application.current_val
+
+    @property
+    def footprint_model(self):
+        self.ensure_model()
+        return self.application._footprint_model
+
+    @property
+    def spike_model(self):
+        self.ensure_model()
+        return self.application._spike_model
+
+    def ensure_model(self):
+        taus = tuple(
+            self.status['root'][n]
+            for n in ('tau-fall', 'tau-rise', 'hz', 'tau-scale')
+        )
+        if not hasattr(self.application, '_spike_model'):
+            nk = self.status['root']['nk']
+            nx = self.status['root']['nx']
+            nt = self.status['root']['nt']
+            with self.application.strategy.scope():
+                variance = Variance(self.data, nk, nx, nt)
+                variance.set_double_exp(*taus)
+                footprint = Input(nk, nx, name='footprint')
+                footprint.mask = self.mask
+                spike = Input(nk, variance.nu, name='spike')
+                footprint_model = FootprintModel(footprint, spike, variance)
+                spike_model = SpikeModel(footprint, spike, variance)
+                footprint_model.compile()
+                spike_model.compile()
+            self.application._footprint_model = footprint_model
+            self.application._spike_model = spike_model
+        else:
+            self.application._spike_model.variance.set_double_exp(*taus)
+        variance = self.application._footprint_model.variance
+        bx = self.status['root']['bx']
+        bt = self.status['root']['bt']
+        variance.set_baseline(bx, bt)
+        la = self.status['root']['la']
+        lu = self.status['root']['lu']
+        nm = K.get_value(variance._nm)
+        self.application._footprint_model.footprint.l = lu / nm
+        self.application._spike_model.spike.l = lu /nm
 
     def set_job_dir(self, default='.'):
         current_job_dir = self.application.job_dir

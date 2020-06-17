@@ -67,7 +67,7 @@ def summary_footprint(val, mask, stage):
         )
 
 
-class HotaruCallback(tf.keras.callbacks.TensorBoard):
+class SpikeCallback(tf.keras.callbacks.TensorBoard):
 
     def __init__(self, stage, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -76,19 +76,30 @@ class HotaruCallback(tf.keras.callbacks.TensorBoard):
     def on_epoch_end(self, epoch, logs=None):
         super().on_epoch_end(epoch, logs)
 
-        mode = K.get_value(self.model.variance._mode)
         stage = self.stage
         writer = self._get_writer(self._train_run_name)
         with writer.as_default():
-            if mode == 0:
-                summary_spike(self.model.spike.val, stage, step=epoch)
-            else:
-                val, mag = normalized_and_sort(self.model.footprint.val)
-                spc = val.mean(axis=1)
-                mask = self.model.mask
-                tf.summary.histogram(f'peak/{stage:03d}', mag, step=epoch)
-                tf.summary.histogram(
-                    f'sparseness/{stage:03d}', spc, step=epoch,
-                )
-                summary_footprint_stat(val, mask, stage, step=epoch)
-                summary_footprint_sample(val, mask, stage, step=epoch)
+            summary_spike(self.model.spike.val, stage, step=epoch)
+
+
+class FootprintCallback(tf.keras.callbacks.TensorBoard):
+
+    def __init__(self, stage, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stage = stage
+
+    def on_epoch_end(self, epoch, logs=None):
+        super().on_epoch_end(epoch, logs)
+
+        stage = self.stage
+        writer = self._get_writer(self._train_run_name)
+        with writer.as_default():
+            val, mag = normalized_and_sort(self.model.footprint.val)
+            spc = val.mean(axis=1)
+            mask = self.model.footprint.mask
+            tf.summary.histogram(f'peak/{stage:03d}', mag, step=epoch)
+            tf.summary.histogram(
+                f'sparseness/{stage:03d}', spc, step=epoch,
+            )
+            summary_footprint_stat(val, mask, stage, step=epoch)
+            summary_footprint_sample(val, mask, stage, step=epoch)

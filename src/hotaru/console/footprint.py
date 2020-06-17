@@ -30,14 +30,13 @@ class FootprintCommand(Command):
         self._handle('spike', 'footprint', key)
 
     def create(self, key, stage):
-        self.line('<info>footprint</info>')
-        model = self.model
-        model.spike.val = self.spike
+        self.line('footprint', 'info')
+        model = self.footprint_model
         log_dir = os.path.join(
             self.application.job_dir, 'logs', 'footprint',
             datetime.now().strftime('%Y%m%d-%H%M%S'),
         )
-        model.update_footprint(
+        model.fit(
             lr=self.status['root']['learning-rate'],
             steps_per_epoch=self.status['root']['step'],
             epochs=self.status['root']['epoch'],

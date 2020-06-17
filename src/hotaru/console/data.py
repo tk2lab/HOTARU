@@ -23,62 +23,55 @@ class DataCommand(Command):
         option('force', 'f', 'overwrite previous result'),
     ]
 
-    @property
-    def imgs(self):
+    def handle(self):
 
         def _gen():
             for x in imgs:
                 yield tf.convert_to_tensor(wrap(x)[y0:y1, x0:x1], tf.float32)
 
-        imgs_file = self.status['root']['imgs-file']
-        imgs_file = os.path.join(self.application.job_dir, imgs_file)
-        imgs, wrap = load_data(imgs_file)
-        y0, y1, x0, x1 = self.status['root']['rect']
-        return tf.data.Dataset.from_generator(_gen, tf.float32)
-
-    @property
-    def normalized_imgs(self):
-        avgt = load_numpy(os.path.join(self.work_dir, 'avgt'))
-        avgx = load_numpy(os.path.join(self.work_dir, 'avgx'))
-        std = self.status['root']['std']
-        return normalized(self.imgs, avgt, avgx, std)
-
-    def handle(self):
         self.set_job_dir()
-
-        imgs_file = self.status['root']['imgs-file']
-        mask_type = self.status['root']['mask-type']
-        batch = self.status['root']['batch']
-
-        imgs_file_path = os.path.join(self.application.job_dir, imgs_file)
-        data_file = os.path.join(self.work_dir, 'data.tfrecord')
-        mask_base = os.path.join(self.work_dir, 'mask')
-        avgt_base = os.path.join(self.work_dir, 'avgt')
-        avgx_base = os.path.join(self.work_dir, 'avgx')
-
-        if self.option('force') or not tf.io.gfile.exists(data_file):
+        
+        status = self.status['root']
+        if self.option('force') or 'nt' not in status:
             self.line('<info>data</info>')
-            nt, h, w = get_shape(imgs_file_path)
-            self.status['root']['nt'] = nt
 
+            if 'imgs-file' not in status:
+                self.line_error('not configured!: please run `hotaru config`')
+
+            imgs_file = status['imgs-file']
+            mask_type = status['mask-type']
+            batch = status['batch']
+
+            imgs_file = os.path.join(self.application.job_dir, imgs_file)
+            data_file = os.path.join(self.work_dir, 'data.tfrecord')
+            mask_base = os.path.join(self.work_dir, 'mask')
+            avgt_base = os.path.join(self.work_dir, 'avgt')
+            avgx_base = os.path.join(self.work_dir, 'avgx')
+
+            imgs, wrap = load_data(imgs_file)
+            nt, h, w = get_shape(imgs_file)
             mask = get_mask(mask_type, h, w, self.application.job_dir)
+
             y0, y1, x0, x1 = get_mask_range(mask)
+            data = tf.data.Dataset.from_generator(_gen, tf.float32)
             mask = mask[y0:y1, x0:x1]
-            self.status['root']['rect'] = y0, y1, x0, x1
-            self.status['root']['nx'] = np.count_nonzero(mask)
-            self.status['root']['h'] = y1 - y0
-            self.status['root']['w'] = x1 - x0
 
             prog = tf.keras.utils.Progbar(nt)
-            mask = K.constant(mask, tf.bool)
-            avgt, avgx, std = calc_std(self.imgs.batch(batch), mask, prog)
+            avgt, avgx, std = calc_std(data.batch(batch), mask, prog)
+            normalized_data = normalized(data, avgt, avgx, std)
+            masked_data = masked(normalized_data, mask)
+
+            prog = tf.keras.utils.Progbar(nt)
+            make_tfrecord(data_file, masked_data, prog=prog)
             save_numpy(avgt_base, avgt)
             save_numpy(avgx_base, avgx)
-            self.status['root']['std'] = std
-
-            prog = tf.keras.utils.Progbar(nt)
-            masked_data = masked(self.normalized_imgs, mask)
-            make_tfrecord(data_file, masked_data, prog=prog)
             save_numpy(mask_base, mask)
 
-        self.save_status()
+            status['nt'] = nt
+            status['h'] = y1 - y0
+            status['w'] = x1 - x0
+            status['nx'] = np.count_nonzero(mask)
+            status['margin'] = y0, x0, h - y1, w - x1
+            status['std'] = std
+            self.save_status()
+

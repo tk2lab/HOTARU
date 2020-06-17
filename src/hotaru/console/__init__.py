@@ -1,15 +1,16 @@
 def main():
     import os
-    import tensorflow as tf
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-    limit_gpu_memory = None
+    import tensorflow as tf
+    tf.get_logger().setLevel('WARN')
+
 
     # for debug
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-    tf.get_logger().setLevel('WARN')
-    #tf.debugging.set_log_device_placement(True)
+    limit_gpu_memory = None
+    # tf.debugging.set_log_device_placement(True)
     # tf.config.experimental_run_functions_eagerly(True)
-    #tf.autograph.set_verbosity(1, True)
+    # tf.autograph.set_verbosity(1, True)
 
     # limit GPU memory
     devs = tf.config.list_physical_devices('GPU')

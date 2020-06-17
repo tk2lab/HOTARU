@@ -1,3 +1,4 @@
+import sys
 import os
 
 import tensorflow as tf
@@ -72,19 +73,21 @@ class ConfigCommand(Command):
         curr_val = status.get(name, None)
         val = self.option(name) or curr_val or default_val
         if val is None:
-            self.error(f'missing: {name}')
-        elif val != curr_val:
+            self.line(f'missing: {name}', 'error')
+            sys.exit(1)
+        if val != curr_val:
             mask_file = os.path.join(self.work_dir, 'mask.npy')
             if tf.io.gfile.exists(mask_file):
-                self.error(f'config mismatch: {name}')
-            else:
-                status[name] = dtype(val)
+                self.line(f'config mismatch: {name}', 'error')
+                sys.exit(1)
+            status[name] = dtype(val)
 
     def _update_parameter(self, name, default=None, dtype=float):
         status = self.status['root']
         curr_val = status.get(name, None)
         val = self.option(name) or curr_val or default
         if val is None:
-            self.error('missing: {name}')
-        elif val != curr_val:
+            self.line('missing: {name}', 'error')
+            sys.exit(1)
+        if val != curr_val:
             status[name] = dtype(val)

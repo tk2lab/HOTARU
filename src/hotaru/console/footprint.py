@@ -31,11 +31,17 @@ class FootprintCommand(Command):
 
     def create(self, key, stage):
         self.line('footprint', 'info')
-        model = self.footprint_model
+
         log_dir = os.path.join(
             self.application.job_dir, 'logs', 'footprint',
             datetime.now().strftime('%Y%m%d-%H%M%S'),
         )
+
+        spike = self.spike
+        spike /= spike.max(axis=1, keepdims=True)
+
+        model = self.footprint_model
+        model.spike_set(spike)
         model.fit(
             lr=self.status['root']['learning-rate'],
             steps_per_epoch=self.status['root']['step'],
@@ -45,7 +51,10 @@ class FootprintCommand(Command):
             log_dir=log_dir,
             stage=stage,
         )
-        return model.footprint.val
+
+        footprint = model.footprint.val
+        footprint /= footprint.max(axis=1, keepdims=True)
+        return footprint
 
     def save(self, base, val):
         save_numpy(base, val)

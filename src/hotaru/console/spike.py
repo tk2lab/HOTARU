@@ -34,15 +34,14 @@ class SpikeCommand(Command):
 
     def create(self, key, stage):
         self.line('spike', 'info')
-        model = self.spike_model
-        self.footprint = self.clean
-        print(self.footprint.shape)
-        print(model.footprint_val().shape)
-        print(model.footprint_val().max(axis=1))
+
         log_dir = os.path.join(
             self.application.job_dir, 'logs', 'spike',
             datetime.now().strftime('%Y%m%d-%H%M%S'),
         )
+
+        model = self.spike_model
+        model.footprint_set(self.clean)
         model.fit(
             lr=self.status['root']['learning-rate'],
             steps_per_epoch=self.status['root']['step'],
@@ -52,8 +51,6 @@ class SpikeCommand(Command):
             log_dir=log_dir,
             stage=stage,
         )
-        print(model.spike.val.shape)
-        print(model.spike.val.max(axis=1))
         return model.spike.val
 
     def save(self, base, val):

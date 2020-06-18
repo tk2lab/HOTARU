@@ -25,10 +25,16 @@ class DynamicInputLayer(tf.keras.layers.Layer):
 
     @property
     def val(self):
-        return K.get_value(self.call())
+        return self.get_val()
 
     @val.setter
     def val(self, val):
+        self.set_val(val)
+
+    def get_val(self):
+        return K.get_value(self.call())
+
+    def set_val(self, val):
         nk = val.shape[0]
         val = np.pad(val, ((0, self.max_nk - nk), (0, 0)))
         K.set_value(self._nk, nk)

@@ -94,8 +94,6 @@ class Variance(tf.keras.layers.Layer):
             + K.sum(ycov * xcov)
             + K.sum(yout * xout)
         ) / self._nm
-
-        self.add_metric(K.sqrt(variance), 'mean', 'sigma')
         return variance
 
     def _cache(self, mode, yval, dat):

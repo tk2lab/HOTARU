@@ -14,9 +14,11 @@ from ..image.load import get_shape, load_data
 from ..util.dataset import normalized
 from ..util.npy import load_numpy
 from ..util.csv import load_csv
+
 from ..optimizer.input import MaxNormNonNegativeL1InputLayer as Input
 from ..train.variance import Variance
-from ..train.model import FootprintModel, SpikeModel
+from ..train.footprint import FootprintModel
+from ..train.spike import SpikeModel
 
 
 def _option(*args):
@@ -57,13 +59,7 @@ class Command(CommandBase):
 
     @property
     def footprint(self):
-        val = self._load('footprint', load_numpy)
-        self.footprint_model.footprint.val = val
-        return val
-
-    @footprint.setter
-    def footprint(self, val):
-        self.footprint_model.footprint.val = val
+        return self._load('footprint', load_numpy)
 
     @property
     def clean(self):
@@ -71,14 +67,7 @@ class Command(CommandBase):
 
     @property
     def spike(self):
-        self.ensure_model()
-        val = self._load('spike', load_numpy)
-        self.application._spike_model.spike.val = val
-        return  val
-
-    @spike.setter
-    def spike(self, val):
-        self.spike_model.spike.val = val
+        return self._load('spike', load_numpy)
 
     @property
     def current_key(self):
@@ -170,6 +159,8 @@ class Command(CommandBase):
     def _load(self, _type, loader):
         if self.current_key[_type] is None:
             key = self.status[_type + '_current']
+            print(_type)
+            print(key)
             name = self.status[_type][key]
             file_base = os.path.join(self.work_dir, _type, name)
             val = loader(file_base)

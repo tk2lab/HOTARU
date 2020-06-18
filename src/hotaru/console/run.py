@@ -29,3 +29,4 @@ class RunCommand(Command):
             if nk == old_nk:
                 break
         self.call('output')
+        self.print_gpu_memory()

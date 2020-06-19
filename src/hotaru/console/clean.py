@@ -6,7 +6,8 @@ import numpy as np
 
 from .base import Command, option, _option
 from ..footprint.clean import clean_footprint
-from ..train.callback import summary_footprint, summary_footprint_stat, normalized_and_sort
+from ..train.summary import normalized_and_sort
+from ..train.summary import summary_footprint
 from ..util.npy import save_numpy
 from ..util.csv import save_csv
 
@@ -64,7 +65,7 @@ class CleanCommand(Command):
 
             fsum = footprint.sum(axis=1)
             tf.summary.histogram(f'size/{stage:03d}', fsum, step=0)
-            summary_footprint_stat(footprint, mask, stage)
+            #summary_footprint_stat(footprint, mask, stage)
             summary_footprint(footprint, mask, stage)
 
             # remove

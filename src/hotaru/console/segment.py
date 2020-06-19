@@ -7,7 +7,7 @@ import numpy as np
 from .base import Command, option, _option
 from ..footprint.reduce import reduce_peak
 from ..footprint.make import make_footprint
-from ..train.callback import summary_footprint, summary_footprint_stat
+from ..train.summary import summary_footprint
 from ..util.npy import save_numpy
 from ..util.csv import save_csv
 
@@ -77,7 +77,7 @@ class SegmentCommand(Command):
             )
             fsum = footprint.sum(axis=1)
             tf.summary.histogram(f'size/{stage:03d}', fsum, step=0)
-            summary_footprint_stat(footprint, mask, stage)
+            #summary_footprint_stat(footprint, mask, stage)
             summary_footprint(footprint, mask, stage)
         writer.close()
 

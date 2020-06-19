@@ -26,10 +26,8 @@ class CleanCommand(Command):
     def handle(self):
         self.set_job_dir()
         gauss = self.status['root']['gauss']
-        rmin = self.status['root']['radius-min']
-        rmax = self.status['root']['radius-max']
-        rnum = self.status['root']['radius-num']
-        key = 'clean', gauss, rmin, rmax, rnum
+        radius = self.radius
+        key = 'clean', gauss, radius
         self._handle('footprint', 'clean', key)
 
     def create(self, key, stage):
@@ -37,8 +35,7 @@ class CleanCommand(Command):
 
         # clean
         mask = self.mask
-        gauss, rmin, rmax, rnum = key[-1][1:]
-        radius = tuple(np.linspace(rmin, rmax, rnum))
+        gauss, radius = key[-1][1:]
         batch = self.status['root']['batch']
         footprint, rs, ys = clean_footprint(
             self.footprint, mask, gauss, radius, batch,

@@ -32,10 +32,7 @@ class SegmentCommand(Command):
     def create(self, key, stage):
         self.line(f'segment ({stage})', 'info')
 
-        gauss, rmin, rmax, rnum, thr_gl, shard = key[-2][1:]
-        radius = tuple(
-            0.001 * round(1000 * x) for x in np.linspace(rmin, rmax, rnum)
-        )
+        gauss, radius, thr_gl, shard = key[-2][1:]
         inv = {v: i for i, v in enumerate(radius)}
         thr_dist = key[-1][1]
         batch = self.status['root']['batch']

@@ -36,6 +36,20 @@ class Command(CommandBase):
         return self.application.status
 
     @property
+    def radius(self):
+        radius_type = self.status['root']['radius-type']
+        r = self.status['root']['radius']
+        if radius_type == 'linear':
+            radius = np.linspace(r[0], r[1], int(r[2]))
+        elif radius_type == 'log':
+            radius = np.logspace(np.log10(r[0]), np.log10(r[1]), int(r[2]))
+        elif radius_type == 'manual':
+            radius = r
+        else:
+            raise RuntimeError(f'invalid radius type: {radius_type}')
+        return tuple(0.001 * round(1000 * r) for r in radius)
+
+    @property
     def data(self):
         if not hasattr(self.application, 'data'):
             data_file = os.path.join(self.work_dir, 'data.tfrecord')

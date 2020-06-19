@@ -25,23 +25,18 @@ class PeakCommand(Command):
     def handle(self):
         self.set_job_dir()
         gauss = self.status['root']['gauss']
-        rmin = self.status['root']['radius-min']
-        rmax = self.status['root']['radius-max']
-        rnum = self.status['root']['radius-num']
+        radius = self.radius
         thr_gl = self.status['root']['thr-gl']
         shard = self.status['root']['shard']
-        key = 'peak', gauss, rmin, rmax, rnum, thr_gl, shard
+        key = 'peak', gauss, radius, thr_gl, shard
         self._handle(None, 'peak', key)
 
     def create(self, key, stage):
         self.line(f'peak ({stage})', 'info')
 
-        gauss, rmin, rmax, rnum, thr_gl, shard = key[0][1:]
+        gauss, radius, thr_gl, shard = key[0][1:]
         data = self.data.shard(shard, 0)
         mask = self.mask
-        radius = tuple(
-            0.001 * round(1000 * x) for x in np.linspace(rmin, rmax, rnum)
-        )
         batch = self.status['root']['batch']
         nt = self.status['root']['nt']
         prog = tf.keras.utils.Progbar((nt + shard - 1) // shard)

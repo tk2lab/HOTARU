@@ -5,7 +5,6 @@ def main():
     import tensorflow as tf
     tf.get_logger().setLevel('WARN')
 
-
     # for debug
     limit_gpu_memory = 7000
     # tf.debugging.set_log_device_placement(True)
@@ -17,7 +16,9 @@ def main():
     if limit_gpu_memory is not None:
         tf.config.set_logical_device_configuration(
             devs[0], [
-                tf.config.LogicalDeviceConfiguration(memory_limit=limit_gpu_memory),
+                tf.config.LogicalDeviceConfiguration(
+                    memory_limit=limit_gpu_memory,
+                ),
             ],
         )
     else:

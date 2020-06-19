@@ -30,7 +30,7 @@ class DataCommand(Command):
                 yield tf.convert_to_tensor(wrap(x)[y0:y1, x0:x1], tf.float32)
 
         self.set_job_dir()
-        
+
         status = self.status['root']
         if self.option('force') or 'nt' not in status:
             self.line('<info>data</info>')
@@ -74,4 +74,3 @@ class DataCommand(Command):
             status['margin'] = y0, x0, h - y1, w - x1
             status['std'] = std
             self.save_status()
-

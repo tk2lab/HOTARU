@@ -1,3 +1,4 @@
+import tensorflow.keras.backend as K
 import tensorflow as tf
 
 from ..util.distribute import distributed, ReduceOp
@@ -11,24 +12,23 @@ from .util import get_normalized_val, get_magnitude, ToDense
 def make_footprint(dataset, mask, gauss, radius, peaks, batch):
     strategy = tf.distribute.get_strategy()
 
-    mask = tf.constant(mask, tf.bool)
+    ts, rs, ys, xs = peaks[:4]
+    nk = ts.size
+
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
     to_dense = ToDense(mask)
 
-    gauss = tf.convert_to_tensor(gauss, tf.float32)
-    radius = tf.convert_to_tensor(radius, tf.float32)
+    gauss = K.constant(gauss, tf.float32)
+    radius = K.constant(radius, tf.float32)
+    ts = K.constant(ts, tf.int32)
+    rs = K.constant(rs, tf.int32)
+    ys = K.constant(ys, tf.int32)
+    xs = K.constant(xs, tf.int32)
 
-    ts, rs, ys, xs = peaks[:4]
-    ts = tf.convert_to_tensor(ts, tf.int32)
-    rs = tf.convert_to_tensor(rs, tf.int32)
-    ys = tf.convert_to_tensor(ys, tf.int32)
-    xs = tf.convert_to_tensor(xs, tf.int32)
-
-    nk = tf.size(ts).numpy()
     prog = tf.keras.utils.Progbar(nk)
     fps = tf.TensorArray(tf.float32, 0, True)
-    e = tf.constant(0)
+    e = K.constant(0, tf.int32)
     for imgs in strategy.experimental_distribute_dataset(dataset):
         s, e = e, e + tf.shape(imgs)[0]
         gl, yl, xl = _prepare(

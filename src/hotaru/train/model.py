@@ -32,7 +32,7 @@ class BaseModel(tf.keras.Model):
         return loss, footprint_penalty, spike_penalty
 
     def fit_common(self, callback, log_dir=None, stage=None, callbacks=None,
-            steps_per_epoch=100, epochs=100, min_delta=1e-3, **kwargs):
+                   steps_per_epoch=100, epochs=100, min_delta=1e-3, **kwargs):
         if callbacks is None:
             callbacks = []
 

@@ -132,7 +132,7 @@ class Command(CommandBase):
         lu = self.status['root']['lu']
         nm = K.get_value(variance._nm)
         self.application._footprint_model.footprint.l = la / nm
-        self.application._spike_model.spike.l = lu /nm
+        self.application._spike_model.spike.l = lu / nm
 
     def set_job_dir(self, default='.'):
         current_job_dir = self.application.job_dir

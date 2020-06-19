@@ -33,7 +33,7 @@ class SegmentCommand(Command):
         self.line(f'segment ({stage})', 'info')
 
         gauss, radius, thr_gl, shard = key[-2][1:]
-        inv = {v: i for i, v in enumerate(radius)}
+        inv = {0.001 * round(1000 * r): i for i, r in enumerate(radius)}
         thr_dist = key[-1][1]
         batch = self.status['root']['batch']
 
@@ -67,7 +67,7 @@ class SegmentCommand(Command):
             # make footprint
             data = self.data.shard(shard, 0)
             mask = self.mask
-            rs_id = np.array([inv[0.001 * round(1000 * r)] for r in rs], np.int32)
+            rs_id = tuple(inv[0.001 * round(1000 * r)] for r in rs)
             peak_id = ts, rs_id, ys, xs, gs
             footprint = make_footprint(
                 data, mask, gauss, radius, peak_id, batch,

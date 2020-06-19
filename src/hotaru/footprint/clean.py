@@ -48,7 +48,7 @@ def clean_footprint(data, mask, gauss, radius, batch):
 def _prepare(imgs, mask, gauss, radius):
     gs = gaussian(imgs, gauss) if gauss > 0.0 else imgs
     ls = gaussian_laplace_multi(gs, radius)
-    nk, nr, h, w = tf.shape(ls)[0], tf.shape(ls)[1], tf.shape(ls)[2], tf.shape(ls)[3]
+    nk, h, w = tf.shape(ls)[0], tf.shape(ls)[2], tf.shape(ls)[3]
     lsr = K.reshape(ls, (nk, -1))
     pos = tf.cast(K.argmax(lsr, axis=1), tf.int32)
     rs = pos // h // w

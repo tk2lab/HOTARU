@@ -31,8 +31,8 @@ class OutputCommand(Command):
         out = np.zeros((nk, h, w), np.float32)
         out[:, mask] = footprint
         out = gaussian(out, 2.0).numpy()
-        out -= out.min(axis=(1,2), keepdims=True)
-        out /= out.max(axis=(1,2), keepdims=True)
+        out -= out.min(axis=(1, 2), keepdims=True)
+        out /= out.max(axis=(1, 2), keepdims=True)
         tifffile.imwrite(os.path.join(out_dir, 'cell.tif'), out)
 
         spike = self.spike

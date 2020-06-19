@@ -159,8 +159,6 @@ class Command(CommandBase):
     def _load(self, _type, loader):
         if self.current_key[_type] is None:
             key = self.status[_type + '_current']
-            print(_type)
-            print(key)
             name = self.status[_type][key]
             file_base = os.path.join(self.work_dir, _type, name)
             val = loader(file_base)

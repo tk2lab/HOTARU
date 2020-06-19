@@ -34,7 +34,7 @@ class PeakCommand(Command):
         self._handle(None, 'peak', key)
 
     def create(self, key, stage):
-        self.line('<info>peak</info>')
+        self.line(f'peak ({stage})', 'info')
 
         gauss, rmin, rmax, rnum, thr_gl, shard = key[0][1:]
         data = self.data.shard(shard, 0)

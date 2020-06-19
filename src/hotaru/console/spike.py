@@ -33,7 +33,7 @@ class SpikeCommand(Command):
         self._handle('clean', 'spike', key)
 
     def create(self, key, stage):
-        self.line('spike', 'info')
+        self.line(f'spike ({stage})', 'info')
 
         log_dir = os.path.join(
             self.application.job_dir, 'logs', 'spike',

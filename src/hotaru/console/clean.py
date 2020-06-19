@@ -33,7 +33,7 @@ class CleanCommand(Command):
         self._handle('footprint', 'clean', key)
 
     def create(self, key, stage):
-        self.line('<info>clean</info>')
+        self.line(f'clean ({stage})', 'info')
 
         # clean
         mask = self.mask

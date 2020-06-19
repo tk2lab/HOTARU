@@ -30,7 +30,7 @@ class SegmentCommand(Command):
         self._handle('peak', 'clean', key)
 
     def create(self, key, stage):
-        self.line('<info>segment</info>')
+        self.line(f'segment ({stage})', 'info')
 
         gauss, rmin, rmax, rnum, thr_gl, shard = key[-2][1:]
         radius = tuple(

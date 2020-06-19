@@ -13,11 +13,11 @@ def clean_footprint(data, mask, gauss, radius, batch):
     strategy = tf.distribute.get_strategy()
 
     dataset = tf.data.Dataset.from_tensor_slices(data)
-    mask = tf.convert_to_tensor(mask, tf.bool)
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
     to_dense = ToDense(mask)
 
+    mask = K.constant(mask, tf.bool)
     gauss = K.constant(gauss)
     radius = K.constant(radius)
 

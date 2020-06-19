@@ -43,7 +43,7 @@ def distributed(*types, loop=True):
 
     def decorator(func):
 
-        @tf.function
+        @tf.function(experimental_relax_shapes=True)
         def dist_run(*args, **kwargs):
             xs = strategy.run(func, args, kwargs)
             return tuple(serialize(x, t) for x, t in zip(xs, types))

@@ -32,8 +32,8 @@ class Variance(tf.keras.layers.Layer):
         self.nu = self.nt + self.calcium_to_spike.pad
 
     def set_baseline(self, bx, bt):
-        nxf = tf.convert_to_tensor(self.nx, tf.float32)
-        ntf = tf.convert_to_tensor(self.nt, tf.float32)
+        nxf = K.constant(self.nx)
+        ntf = K.constant(self.nt)
         nn = nxf * ntf
         nm = nn
         if bx > 0.0:
@@ -44,39 +44,6 @@ class Variance(tf.keras.layers.Layer):
         self._bt = bt
         K.set_value(self._nn, nn)
         K.set_value(self._nm, nm)
-
-    def start_spike_mode(self, footprint, batch):
-        data = self._data.batch(batch)
-        footprint = tf.convert_to_tensor(footprint)
-
-        prog = tf.keras.utils.Progbar(self.nt)
-        adat = tf.TensorArray(tf.float32, self.nt)
-        i = tf.constant(0)
-        for d in data:
-            adat_p = tf.matmul(footprint, d, False, True)
-            for a in tf.transpose(adat_p):
-                adat = adat.write(i, a)
-                i += 1
-                prog.add(1)
-        adat = tf.transpose(adat.stack())
-        self._cache(0, footprint, adat)
-
-    def start_footprint_mode(self, spike, batch):
-        data = self._data.batch(batch)
-        spike = tf.convert_to_tensor(spike)
-        calcium = self.spike_to_calcium(spike)
-        nk = tf.shape(calcium)[0]
-
-        prog = tf.keras.utils.Progbar(self.nt)
-        vdat = tf.constant(0.0)
-        e = tf.constant(0)
-        for d in data:
-            n = tf.shape(d)[0]
-            s, e = e, e + n
-            c_p = tf.slice(calcium, [0, s], [nk, n])
-            vdat += tf.matmul(c_p, d)
-            prog.add(n.numpy())
-        self._cache(1, calcium, vdat)
 
     def call(self, xdat):
         nk, nx = tf.shape(xdat)[0], tf.shape(xdat)[1]

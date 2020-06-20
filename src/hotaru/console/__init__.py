@@ -6,7 +6,8 @@ def main():
     tf.get_logger().setLevel('WARN')
 
     # for debug
-    limit_gpu_memory = 7000
+    #limit_gpu_memory = 7000
+    limit_gpu_memory = None
     # tf.debugging.set_log_device_placement(True)
     # tf.config.experimental_run_functions_eagerly(True)
     # tf.autograph.set_verbosity(1, True)

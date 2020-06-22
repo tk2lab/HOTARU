@@ -27,7 +27,7 @@ class ConfigCommand(Command):
         _option('radius-type', None, '{linear,log,manual}'),
         _option('radius', None, 'radius of cell (px)'),
 
-        _option('thr-strength', None, ''),
+        _option('thr-intensity', None, ''),
         _option('thr-distance', None, ''),
         _option('shard', None, ''),
 
@@ -35,13 +35,15 @@ class ConfigCommand(Command):
         _option('lu', 'u', 'penalty coefficient of spike'),
         _option('bx', 'x', 'penalty coefficient of spatical baseline'),
         _option('bt', 't', 'penalty coefficient of temporal baseline'),
-
-        _option('batch', None, ''),
         _option('thr-firmness', None, ''),
+        _option('thr-similality', None, ''),
+
         _option('learning-rate', 'l', ''),
         _option('step', None, ''),
         _option('epoch', None, ''),
         _option('tol', None, ''),
+        _option('batch', None, ''),
+        _option('thr-out', None, ''),
     ]
 
     def handle(self):
@@ -60,21 +62,23 @@ class ConfigCommand(Command):
         self._update_parameter('radius-type', 'log', str)
         self._update_parameter('radius', '2.0,100.0,16', float_tuple)
 
-        self._update_parameter('thr-strength', 0.5)
-        self._update_parameter('thr-distance', 1.5)
+        self._update_parameter('thr-intensity', 0.6)
+        self._update_parameter('thr-distance', 1.8)
         self._update_parameter('shard', 1, int)
 
-        self._update_parameter('la',  1.5)
-        self._update_parameter('lu', 10.0)
+        self._update_parameter('la', 1.5)
+        self._update_parameter('lu', 5.0)
         self._update_parameter('bx', 0.0)
         self._update_parameter('bt', 0.0)
         self._update_parameter('thr-firmness', 0.2)
+        self._update_parameter('thr-similality', 0.8)
 
-        self._update_parameter('batch', 100, int)
         self._update_parameter('learning-rate', 0.01)
         self._update_parameter('step', 100, int)
         self._update_parameter('epoch', 100, int)
         self._update_parameter('tol', 1e-3)
+        self._update_parameter('batch', 100, int)
+        self._update_parameter('thr-out', 0.5)
 
         self.save_status()
 

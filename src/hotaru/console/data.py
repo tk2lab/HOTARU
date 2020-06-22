@@ -30,6 +30,9 @@ class DataCommand(Command):
     def is_target(self, stage):
         return stage == 0
 
+    def force_stage(self, stage):
+        return 0
+
     def create(self, data, prev, curr, log, imgs_file, mask_type):
         def _gen():
             for x in imgs:
@@ -47,10 +50,8 @@ class DataCommand(Command):
         mask = mask[y0:y1, x0:x1]
 
         avgt, avgx, std = calc_std(data.batch(batch), mask, nt)
-        h, w = mask.shape
         nx = np.count_nonzero(mask)
-        margin = y0, x0, h - y1, w - x1
-        stat = nx, nt, h, w, margin, std
+        stat = nx, nt, h, w, y0, x0, std
 
         normalized_data = normalized(data, avgt, avgx, std)
         masked_data = masked(normalized_data, mask)

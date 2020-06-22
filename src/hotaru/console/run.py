@@ -15,10 +15,10 @@ class RunCommand(Command):
         self.set_job_dir()
 
         name = self.status.params['name']
-        stage = len(self.status.history.get(name, ()))
-        goal_stage = int(self.option('goal') or 60)
+        goal_stage = int(self.option('goal') or 30)
 
-        for s in range(stage, goal_stage):
+        stage = len(self.status.history.get(name, ()))
+        for s in range(stage, goal_stage + 1):
             if s == 0:
                 self.call('data')
             elif s == 1:

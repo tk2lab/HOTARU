@@ -19,7 +19,7 @@ class Status(object):
         if stage == 0:
             return p['imgs-file'], p['mask-type'],
         if stage == 1:
-            return p['gauss'], self.radius, p['thr-strength'], p['shard'],
+            return p['gauss'], self.radius, p['thr-intensity'], p['shard'],
         if stage == 2:
             return p['thr-distance'],
         if stage % 3 == 0:
@@ -27,7 +27,7 @@ class Status(object):
         if stage % 3 == 1:
             return p['la'], p['bx'], p['bt'],
         if stage % 3 == 2:
-            return p['gauss'], self.radius, p['thr-firmness']
+            return p['gauss'], self.radius, p['thr-firmness'], p['thr-similality']
 
     @property
     def tau(self):

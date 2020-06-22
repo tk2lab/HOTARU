@@ -4,7 +4,7 @@ import numpy as np
 from .base import Command, option, _option
 from ..footprint.clean import clean_footprint
 from ..train.summary import normalized_and_sort
-from ..train.summary import summary_footprint
+from ..train.summary import summary_segment
 from ..util.numpy import load_numpy, save_numpy
 
 
@@ -27,7 +27,8 @@ class CleanCommand(Command):
     def force_stage(self, stage):
         return 3 * ((stage - 2) // 3) + 2
 
-    def create(self, data, prev, curr, logs, gauss, radius, thr_firmness):
+    def create(self, data, prev, curr, logs, gauss, radius,
+               thr_firmness, thr_similality):
         footprint = load_numpy(f'{prev}-footprint')
         mask = load_numpy(f'{data}-mask')
         batch = self.status.params['batch']
@@ -40,32 +41,49 @@ class CleanCommand(Command):
         idx = np.argsort(firmness)[::-1]
         segment = segment[idx]
         pos = pos[idx]
-        f = firmness[idx]
-        r = radius[pos[:, 0]]
+        rad = radius[pos[:, 0]]
+        fir = firmness[idx]
 
         old_nk = segment.shape[0]
-        for k in range(old_nk):
-            print(r[k], f[k])
+        seg = segment > 0.5
+        cor = np.zeros((old_nk,))
+        for j in np.arange(old_nk)[::-1]:
+            cj = 0.0
+            for i in np.arange(j)[::-1]:
+                ni = np.count_nonzero(seg[i])
+                nij = np.count_nonzero(seg[i] & seg[j])
+                cij = nij / ni
+                if cij > cj:
+                    cj = cij
+            cor[j] = cj
 
         writer = tf.summary.create_file_writer(logs)
         with writer.as_default():
-            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=0)
-            tf.summary.histogram(f'firmness/{curr[-3:]}', f, step=0)
+            tf.summary.histogram(f'radius/{curr[-3:]}', rad, step=0)
+            tf.summary.histogram(f'firmness/{curr[-3:]}', fir, step=0)
+            tf.summary.histogram(f'cor/{curr[-3:]}', cor, step=0)
             writer.flush()
 
             fsum = segment.sum(axis=1)
             tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
-            summary_footprint(segment, mask, curr[-3:])
+
+            cond = fir > thr_firmness
+            cond &= (0 < pos[:, 0]) & (pos[:, 0] < nr - 1)
+            cond &= cor < thr_similality
+            idx = np.where(~cond)[0]
+            for i in idx:
+                print(i, fir[i], cor[i], pos[i, 0])
+            summary_segment(segment, mask, cond, curr[-3:])
             writer.flush()
 
-            cond = firmness > thr_firmness
-            cond &= (0 < pos[:, 0]) & (pos[:, 0] < nr - 1)
             segment = segment[cond]
             pos = pos[cond]
-            r = r[cond]
-            f = f[cond]
-            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=1)
-            tf.summary.histogram(f'firmness/{curr[-3:]}', f, step=1)
+            rad = rad[cond]
+            fir = fir[cond]
+            cor = cor[cond]
+            tf.summary.histogram(f'radius/{curr[-3:]}', rad, step=1)
+            tf.summary.histogram(f'firmness/{curr[-3:]}', fir, step=1)
+            tf.summary.histogram(f'cor/{curr[-3:]}', cor, step=1)
             writer.flush()
         writer.close()
 
@@ -74,5 +92,5 @@ class CleanCommand(Command):
 
         save_numpy(f'{curr}-segment', segment)
         save_numpy(f'{curr}-pos', pos[:, 1:])
-        save_numpy(f'{curr}-radius', r)
-        save_numpy(f'{curr}-firmness', f)
+        save_numpy(f'{curr}-radius', rad)
+        save_numpy(f'{curr}-firmness', fir)

@@ -3,8 +3,8 @@ import numpy as np
 
 from .base import Command, option, _option
 from ..footprint.reduce import reduce_peak_idx
-from ..footprint.make import make_footprint
-from ..train.summary import summary_footprint
+from ..footprint.make import make_segment
+from ..train.summary import summary_segment
 from ..util.tfrecord import load_tfrecord
 from ..util.numpy import load_numpy, save_numpy
 from ..util.pickle import load_pickle
@@ -59,15 +59,16 @@ class SegmentCommand(Command):
             tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=n+1)
             writer.flush()
 
-            footprint = make_footprint(
+            segment = make_segment(
                 tfrecord, mask, gauss, radius, pos, shard, batch,
             )
-            fsum = footprint.sum(axis=1)
+            nk = segment.shape[0]
+            fsum = segment.sum(axis=1)
             tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
-            summary_footprint(footprint, mask, curr[-3:])
+            summary_segment(segment, mask, np.ones(nk, np.bool), curr[-3:])
             writer.flush()
         writer.close()
-        save_numpy(f'{curr}-segment', footprint)
+        save_numpy(f'{curr}-segment', segment)
         save_numpy(f'{curr}-peak', pos[:, [0, 2, 3]])
         save_numpy(f'{curr}-radius', r)
         save_numpy(f'{curr}-intensity', s)

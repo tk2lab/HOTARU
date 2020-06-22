@@ -37,7 +37,7 @@ class FootprintCommand(Command):
             model.compile()
         model.set_penalty(la, lu, bx, bt)
         model.fit(
-            spike,
+            spike, stage=curr[-3:],
             lr=self.status.params['learning-rate'],
             batch=self.status.params['batch'],
             steps_per_epoch=self.status.params['step'],

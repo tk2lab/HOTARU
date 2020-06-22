@@ -1,6 +1,9 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
+from skimage.filters import gaussian
+from skimage.morphology import label
+from skimage.segmentation import find_boundaries
 from matplotlib import cm
 
 
@@ -20,10 +23,10 @@ def normalized_and_sort(val):
 def summary_stat(val, stage, step=0):
     val, mag = normalized_and_sort(val)
     spc = val.mean(axis=1)
-    cor = val @ val.T
-    scale = np.sqrt(np.diag(cor))
-    cor /= scale * scale[:, None]
-    tf.summary.image(f'cor/{stage}', _jet(cor)[None, ...], step=step)
+    #cor = val @ val.T
+    #scale = np.sqrt(np.diag(cor))
+    #cor /= scale * scale[:, None]
+    #tf.summary.image(f'cor/{stage}', _jet(cor)[None, ...], step=step)
     tf.summary.histogram(f'max_val/{stage}', mag, step=step)
     tf.summary.histogram(f'avg_val/{stage}', spc, step=step)
     return val
@@ -50,12 +53,27 @@ def summary_footprint_max(val, mask, stage, step=0):
     tf.summary.image(f'max/{stage}', _greens(imgs_max), step=step)
 
 
-def summary_footprint(val, mask, stage):
+def summary_segment(val, mask, flag, stage):
     h, w = mask.shape
-    img = np.zeros((h, w))
-    for i, v in enumerate(val[::-1]):
-        img[:] = 0.0
+    out = 0
+    b0 = False
+    b1 = False
+    for f, v in zip(flag[::-1], val[::-1]):
+        img = np.zeros((h, w))
         img[mask] = v
-        tf.summary.image(
-            f'footprint/{stage}', _greens(img)[None, ...], step=i+1,
-        )
+        g = gaussian(img, 2)
+        g /= g.max()
+        peak = np.argmax(g)
+        y, x = peak // w, peak % w
+        lbl = label(g > 0.8, connectivity=1)
+        lbl = lbl == lbl[y, x]
+        out += lbl
+        if f:
+            b0 |= find_boundaries(lbl)
+        else:
+            b1 |= find_boundaries(lbl)
+    out = out / out.max()
+    out = _greens(out)
+    out[b0] = (0, 0, 0, 1)
+    out[b1] = (1, 0, 0, 1)
+    tf.summary.image(f'segment/{stage}', out[None, ...], step=0)

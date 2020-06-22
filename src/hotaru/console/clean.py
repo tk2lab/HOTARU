@@ -35,7 +35,7 @@ class CleanCommand(Command):
         radius = np.array(radius)
         nr = radius.size
         segment, pos, firmness = clean_footprint(
-           footprint, mask, gauss, radius, batch,
+            footprint, mask, gauss, radius, batch,
         )
 
         idx = np.argsort(firmness)[::-1]

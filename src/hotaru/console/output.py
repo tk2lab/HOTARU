@@ -4,7 +4,6 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 import tifffile
-#from matplotlib import cm
 
 from .base import Command, _option
 from ..image.filter.gaussian import gaussian
@@ -54,8 +53,8 @@ class OutputCommand(Command):
         out = gaussian(out, self.status.params['gauss']).numpy()
         out -= out.min(axis=(1, 2), keepdims=True)
         out /= out.max(axis=(1, 2), keepdims=True)
-        #out = cm.Greens(out > 0.5)
-        tifffile.imwrite(f'{out_base}-cell.tif', out > self.status.params['thr-out'])
+        thr_out = self.status.params['thr-out']
+        tifffile.imwrite(f'{out_base}-cell.tif', out > thr_out)
 
         hz = self.status.params['hz']
         spike_to_calcium = SpikeToCalcium()

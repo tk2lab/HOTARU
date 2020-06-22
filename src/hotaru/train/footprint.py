@@ -12,12 +12,28 @@ class FootprintModel(BaseModel):
     def __init__(self, footprint, spike, variance, **kwargs):
         super().__init__(footprint, spike, variance, **kwargs)
         self.footprint = footprint
-        self.spike_get = spike.get_val
-        self.spike_set = spike.set_val
+        self.get_spike = spike.get_val
+        self.set_spike = spike.set_val
+        self.spike_tensor = spike.call
 
-    def start(self, spike, batch):
+    def call(self, inputs):
+        footprint = self.footprint(inputs)
+        loss, footprint_penalty, spike_penalty = self.call_common(footprint)
+        self.add_metric(footprint_penalty, 'mean', 'penalty')
+        return loss
+
+    def fit(self, spike, lr, batch, **kwargs):
+        nk = spike.shape[0]
+        nx = self.variance.nx
+        self.set_spike(spike)
+        self.start(batch)
+        self.footprint.val = np.zeros((nk, nx))
+        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
+        self.fit_common(FootprintCallback, **kwargs)
+
+    def start(self, batch):
         data = self.variance._data.enumerate().batch(batch)
-        spike = K.constant(spike)
+        spike = self.spike_tensor()
         calcium = self.variance.spike_to_calcium(spike)
         vdat = K.constant(0.0)
         prog = tf.keras.utils.Progbar(self.variance.nt)
@@ -26,21 +42,6 @@ class FootprintModel(BaseModel):
             vdat += tf.matmul(c_p, d)
             prog.add(tf.size(t).numpy())
         self.variance._cache(1, calcium, vdat)
-
-    def call(self, inputs):
-        footprint = self.footprint(inputs)
-        loss, footprint_penalty, spike_penalty = self.call_common(footprint)
-        self.add_metric(footprint_penalty, 'mean', 'penalty')
-        return loss
-
-    def fit(self, lr, batch, **kwargs):
-        spike = self.spike_get()
-        self.start(spike, batch)
-        nk = spike.shape[0]
-        nx = self.variance.nx
-        self.footprint.val = np.zeros((nk, nx))
-        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
-        self.fit_common(FootprintCallback, **kwargs)
 
 
 class FootprintCallback(tf.keras.callbacks.TensorBoard):

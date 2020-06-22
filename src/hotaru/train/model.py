@@ -14,7 +14,15 @@ class BaseModel(tf.keras.Model):
         super().__init__(**kwargs)
         self.footprint_penalty = footprint.penalty
         self.spike_penalty = spike.penalty
+        self.la_set = footprint.set_l
+        self.lu_set = spike.set_l
         self.variance = variance
+
+    def set_penalty(self, la, lu, bx, bt):
+        self.variance.set_baseline(bx, bt)
+        nm = K.get_value(self.variance._nm)
+        self.la_set(la / nm)
+        self.lu_set(lu / nm)
 
     def compile(self, **kwargs):
         super().compile(

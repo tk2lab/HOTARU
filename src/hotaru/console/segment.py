@@ -1,15 +1,13 @@
-import os
-from datetime import datetime
-
 import tensorflow as tf
 import numpy as np
 
 from .base import Command, option, _option
-from ..footprint.reduce import reduce_peak
+from ..footprint.reduce import reduce_peak_idx
 from ..footprint.make import make_footprint
 from ..train.summary import summary_footprint
-from ..util.npy import save_numpy
-from ..util.csv import save_csv
+from ..util.tfrecord import load_tfrecord
+from ..util.numpy import load_numpy, save_numpy
+from ..util.pickle import load_pickle
 
 
 class SegmentCommand(Command):
@@ -18,72 +16,58 @@ class SegmentCommand(Command):
 
     name = 'segment'
     options = [
-        _option('job-dir', 'j', ''),
-        _option('prev'),
-        option('force', 'f', 'overwrite previous result'),
+        _option('job-dir'),
+        option('force', 'f'),
     ]
 
-    def handle(self):
-        self.set_job_dir()
-        thr_dist = self.status['root']['thr-dist']
-        key = 'segment', thr_dist
-        self._handle('peak', 'clean', key)
+    def is_error(self, stage):
+        return stage < 2
 
-    def create(self, key, stage):
-        self.line(f'segment ({stage})', 'info')
+    def is_target(self, stage):
+        return stage == 2
 
-        gauss, radius, thr_gl, shard = key[-2][1:]
-        inv = {0.001 * round(1000 * r): i for i, r in enumerate(radius)}
-        thr_dist = key[-1][1]
-        batch = self.status['root']['batch']
+    def force_stage(self, stage):
+        return 2
 
-        log_dir = os.path.join(
-            self.application.job_dir, 'logs', 'segment',
-            datetime.now().strftime('%Y%m%d-%H%M%S'),
-        )
-        writer = tf.summary.create_file_writer(log_dir)
+    def create(self, data, prev, curr, logs, thr_dist):
+        tfrecord = load_tfrecord(f'{data}-data')
+        mask = load_numpy(f'{data}-mask')
+        gauss, radius, shard = load_pickle(f'{prev}-filter')
+        pos = load_numpy(f'{prev}-peak')
+        score = load_numpy(f'{prev}-intensity')
+        batch = self.status.params['batch']
+        radius = np.array(radius)
+        nr = radius.size
+        writer = tf.summary.create_file_writer(logs)
         with writer.as_default():
-            # all peak
-            ts, rs, ys, xs, gs = self.peak
-            #tf.summary.histogram(f'radius/{stage:03d}', rs, step=0)
-            #tf.summary.histogram(f'laplacian/{stage:03d}', gs, step=0)
-
-            # remove edge
-            cond = (radius[0] < rs) & (rs < radius[-1])
-            ts, rs, ys, xs, gs = map(lambda s: s[cond], (ts, rs, ys, xs, gs))
-            #tf.summary.histogram(f'radius/{stage:03d}', rs, step=1)
-            #tf.summary.histogram(f'laplacian/{stage:03d}', gs, step=1)
-
-            # reduce for multiple thr_dist
             n = 10
-            peak = ts, rs, ys, xs, gs
             for i in range(6, n + 1):
                 thr = i * thr_dist / n
-                ts, rs, ys, xs, gs = reduce_peak(peak, thr)
-                tf.summary.histogram(f'radius/{stage:03d}', rs, step=i)
-                tf.summary.histogram(f'laplacian/{stage:03d}', gs, step=i)
+                idx = reduce_peak_idx(pos, thr)
+                r = radius[pos[idx, 1]]
+                s = score[idx]
+                tf.summary.histogram(f'radius/{curr[-3:]}', r, step=i)
+                tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=i)
+                writer.flush()
+
+            pos = pos[idx]
+            cond = (0 < pos[:, 1]) & (pos[:, 1] < nr - 1)
+            pos = pos[cond]
+            r = radius[pos[:, 1]]
+            s = s[cond]
+            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=n+1)
+            tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=n+1)
             writer.flush()
 
-            # make footprint
-            data = self.data.shard(shard, 0)
-            mask = self.mask
-            rs_id = tuple(inv[0.001 * round(1000 * r)] for r in rs)
-            peak_id = ts, rs_id, ys, xs, gs
             footprint = make_footprint(
-                data, mask, gauss, radius, peak_id, batch,
+                tfrecord, mask, gauss, radius, pos, shard, batch,
             )
             fsum = footprint.sum(axis=1)
-            tf.summary.histogram(f'size/{stage:03d}', fsum, step=0)
-            #summary_footprint_stat(footprint, mask, stage)
-            summary_footprint(footprint, mask, stage)
+            tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
+            summary_footprint(footprint, mask, curr[-3:])
+            writer.flush()
         writer.close()
-
-        return footprint, (ts, rs, ys, xs, gs)
-
-    def save(self, base, val):
-        footprint, peak = val
-        save_numpy(base, footprint)
-        save_csv(base, peak, ('ts', 'rs', 'ys', 'xs', 'gs'))
-        self.status['root']['nk'] = peak[0].size
-        self.save_status()
-        return footprint
+        save_numpy(f'{curr}-segment', footprint)
+        save_numpy(f'{curr}-peak', pos[:, [0, 2, 3]])
+        save_numpy(f'{curr}-radius', r)
+        save_numpy(f'{curr}-intensity', s)

@@ -11,20 +11,9 @@ class SpikeModel(BaseModel):
     def __init__(self, footprint, spike, variance, **kwargs):
         super().__init__(footprint, spike, variance, **kwargs)
         self.spike = spike
-        self.footprint_get = footprint.get_val
-        self.footprint_set = footprint.set_val
-
-    def start(self, footprint, batch):
-        data = self.variance._data.batch(batch)
-        footprint = K.constant(footprint)
-        adat = tf.TensorArray(tf.float32, 0, True)
-        prog = tf.keras.utils.Progbar(self.variance.nt)
-        for d in data:
-            adat_p = tf.matmul(d, footprint, False, True)
-            for p in adat_p:
-                adat = adat.write(adat.size(), p)
-                prog.add(1)
-        self.variance._cache(0, footprint, tf.transpose(adat.stack()))
+        self.get_footprint = footprint.get_val
+        self.set_footprint = footprint.set_val
+        self.footprint_tensor = footprint.call
 
     def call(self, inputs):
         spike = self.spike(inputs)
@@ -33,14 +22,26 @@ class SpikeModel(BaseModel):
         self.add_metric(footprint_penalty, 'mean', 'penalty')
         return loss
 
-    def fit(self, lr, batch, **kwargs):
-        footprint = self.footprint_get()
-        self.start(footprint, batch)
+    def fit(self, footprint, lr, batch, **kwargs):
         nk = footprint.shape[0]
         nu = self.variance.nu
+        self.set_footprint(footprint)
+        self.start(batch)
         self.spike.val = np.zeros((nk, nu))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
         self.fit_common(SpikeCallback, **kwargs)
+
+    def start(self, batch):
+        data = self.variance._data.batch(batch)
+        footprint = self.footprint_tensor()
+        adat = tf.TensorArray(tf.float32, 0, True)
+        prog = tf.keras.utils.Progbar(self.variance.nt)
+        for d in data:
+            adat_p = tf.matmul(d, footprint, False, True)
+            for p in adat_p:
+                adat = adat.write(adat.size(), p)
+                prog.add(1)
+        self.variance._cache(0, footprint, tf.transpose(adat.stack()))
 
 
 class SpikeCallback(tf.keras.callbacks.TensorBoard):

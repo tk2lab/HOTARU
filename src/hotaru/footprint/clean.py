@@ -23,9 +23,9 @@ def clean_footprint(data, mask, gauss, radius, batch):
 
     nk = data.shape[0]
     prog = tf.keras.utils.Progbar(nk)
-    ps = tf.TensorArray(tf.float32, nk)
-    rs = tf.TensorArray(tf.float32, nk)
-    ys = tf.TensorArray(tf.int32, nk)
+    ss = tf.TensorArray(tf.float32, nk)
+    ps = tf.TensorArray(tf.int32, nk)
+    fs = tf.TensorArray(tf.float32, nk)
     i = tf.constant(0)
     for data in strategy.experimental_distribute_dataset(dataset):
         gl, ll, rl, yl, xl = _prepare(data, mask, gauss, radius)
@@ -36,12 +36,12 @@ def clean_footprint(data, mask, gauss, radius, batch):
             val = get_normalized_val(g, pos)
             footprint = to_dense(pos, val)
             firmness = get_magnitude(l, pos) / get_magnitude(g, pos)
-            ps = ps.write(i, footprint)
-            rs = rs.write(i, [r, firmness])
-            ys = ys.write(i, [y, x])
+            ss = ss.write(i, footprint)
+            ps = ps.write(i, [r, y, x])
+            fs = fs.write(i, firmness)
             i += 1
             prog.add(1)
-    return ps.stack().numpy(), rs.stack().numpy(), ys.stack().numpy()
+    return ss.stack().numpy(), ps.stack().numpy(), fs.stack().numpy()
 
 
 @distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)
@@ -49,11 +49,11 @@ def _prepare(imgs, mask, gauss, radius):
     gs = gaussian(imgs, gauss) if gauss > 0.0 else imgs
     ls = gaussian_laplace_multi(gs, radius)
     nk, h, w = tf.shape(ls)[0], tf.shape(ls)[2], tf.shape(ls)[3]
+    hw = h * w
     lsr = K.reshape(ls, (nk, -1))
     pos = tf.cast(K.argmax(lsr, axis=1), tf.int32)
-    rs = pos // h // w
-    ys = (pos % (h * w)) // w
-    xs = (pos % (h * w)) % w
+    rs = pos // hw
+    ys = (pos % hw) // w
+    xs = (pos % hw) % w
     ls = tf.gather_nd(ls, tf.stack([tf.range(nk), rs], axis=1))
-    rs = tf.gather(radius, rs)
     return imgs, ls, rs, ys, xs

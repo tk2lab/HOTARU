@@ -21,7 +21,7 @@ class DynamicInputLayer(tf.keras.layers.Layer):
 
     @l.setter
     def l(self, val):
-        K.set_value(self._val.regularizer.l, val)
+        self.set_l(l)
 
     @property
     def val(self):
@@ -31,14 +31,20 @@ class DynamicInputLayer(tf.keras.layers.Layer):
     def val(self, val):
         self.set_val(val)
 
-    def get_val(self):
-        return K.get_value(self.call())
+    def set_l(self, val):
+        K.set_value(self._val.regularizer.l, val)
+
+    def get_l(self):
+        return K.get_value(self._val.regularizer.l)
 
     def set_val(self, val):
         nk = val.shape[0]
         val = np.pad(val, ((0, self.max_nk - nk), (0, 0)))
         K.set_value(self._nk, nk)
         K.set_value(self._val, val)
+
+    def get_val(self):
+        return K.get_value(self.call())
 
     def penalty(self, x=None):
         if x is None:

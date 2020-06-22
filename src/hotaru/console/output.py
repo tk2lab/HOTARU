@@ -21,11 +21,18 @@ class OutputCommand(Command):
     def handle(self):
         self.set_job_dir()
 
-        out_dir = os.path.join(self.application.job_dir, 'out')
+        name = self.status.params['name']
+        out_dir = os.path.join(self.application.job_dir, 'outs')
+        out_base = os.path.join(out_dir, name)
         tf.io.gfile.makedirs(out_dir)
 
-        footprint = self.clean
-        mask = self.mask
+        history = self.status.history.get(name, ())
+        data = self.status.get_saved(history[:1])
+        segment = self.status.get_saved(history[:3 * ((len(history) - 2) // 3) + 2])
+        spike = self.status.get_saved(history[:3 * ((len(history) - 0) // 3) + 0])
+        work_dir = os.path.join(self.work_dir, name)
+
+        mask = 
         nk = footprint.shape[0]
         h, w = mask.shape
         out = np.zeros((nk, h, w), np.float32)

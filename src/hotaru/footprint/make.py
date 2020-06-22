@@ -9,13 +9,13 @@ from .segment import get_segment_index
 from .util import get_normalized_val, get_magnitude, ToDense
 
 
-def make_footprint(dataset, mask, gauss, radius, peaks, batch):
+def make_footprint(dataset, mask, gauss, radius, peaks, shard, batch):
     strategy = tf.distribute.get_strategy()
 
-    ts, rs, ys, xs = peaks[:4]
+    ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
     nk = ts.size
 
-    dataset = unmasked(dataset, mask)
+    dataset = unmasked(dataset.shard(shard, 0), mask)
     dataset = dataset.batch(batch)
     to_dense = ToDense(mask)
 

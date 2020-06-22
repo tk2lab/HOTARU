@@ -7,11 +7,12 @@ from ..image.filter.gaussian import gaussian
 from ..image.filter.laplace import gaussian_laplace_multi
 
 
-def find_peak(data, mask, gauss, radius, thr_gl, batch, prog=None):
+def find_peak(data, mask, gauss, radius, thr_gl, shard, batch, nt=None):
 
-    @distributed(*[ReduceOp.CONCAT]*5)
+    @distributed(ReduceOp.CONCAT, ReduceOp.CONCAT)
     def _find(data, mask, gauss, radius, thr_gl):
         times, imgs = data
+        times = tf.cast(times, tf.int32)
         if gauss > 0.0:
             imgs = gaussian(imgs, gauss)
         gl = gaussian_laplace_multi(imgs, radius)
@@ -21,18 +22,19 @@ def find_peak(data, mask, gauss, radius, thr_gl, batch, prog=None):
         bit = tf.equal(gl, max_gl) & (gl > thr_gl) & mask
         posr = tf.cast(tf.where(bit), tf.int32)
         ts = tf.gather(times, posr[:, 0])
-        rs = tf.gather(radius, posr[:, 1])
+        rs = posr[:, 1]
         ys = posr[:, 2]
         xs = posr[:, 3]
         gs = tf.gather_nd(gl, posr)
-        return ts, rs, ys, xs, gs
+        return tf.stack((ts, rs, ys, xs), axis=1), gs
 
     data = unmasked(data, mask)
-    data = data.enumerate().batch(batch)
+    data = data.enumerate().shard(shard, 0).batch(batch)
     mask = K.constant(mask, tf.bool)
     gauss = K.constant(gauss)
     radius = K.constant(radius)
     thr_gl = K.constant(thr_gl)
-    peak = _find(data, mask, gauss, radius, thr_gl, prog=prog)
-    idx = tf.argsort(peak[-1])[::-1]
-    return tuple(tf.gather(v, idx).numpy() for v in peak)
+    prog = tf.keras.utils.Progbar((nt + shard - 1) // shard)
+    pos, score = _find(data, mask, gauss, radius, thr_gl, prog=prog)
+    idx = tf.argsort(score)[::-1]
+    return tf.gather(pos, idx).numpy(), tf.gather(score, idx).numpy()

@@ -23,14 +23,14 @@ def summary_stat(val, stage, step=0):
     cor = val @ val.T
     scale = np.sqrt(np.diag(cor))
     cor /= scale * scale[:, None]
-    tf.summary.image(f'cor/{stage:03d}', _jet(cor)[None, ...], step=step)
-    tf.summary.histogram(f'peak/{stage:03d}', mag, step=step)
-    tf.summary.histogram(f'sparseness/{stage:03d}', spc, step=step)
+    tf.summary.image(f'cor/{stage}', _jet(cor)[None, ...], step=step)
+    tf.summary.histogram(f'max_val/{stage}', mag, step=step)
+    tf.summary.histogram(f'avg_val/{stage}', spc, step=step)
     return val
 
 
 def summary_spike(val, stage, step=0):
-    tf.summary.image(f'spike/{stage:03d}', _reds(val)[None, ...], step=step)
+    tf.summary.image(f'spike/{stage}', _reds(val)[None, ...], step=step)
 
 
 def summary_footprint_sample(val, mask, stage, step=0):
@@ -38,7 +38,7 @@ def summary_footprint_sample(val, mask, stage, step=0):
     imgs = np.zeros((4, h, w))
     imgs[:, mask] = val[[0, 1, -2, -1]]
     tf.summary.image(
-        f'footprint-sample/{stage:03d}',
+        f'footprint-sample/{stage}',
         _greens(imgs), max_outputs=4, step=step,
     )
 
@@ -47,7 +47,7 @@ def summary_footprint_max(val, mask, stage, step=0):
     h, w = mask.shape
     imgs_max = np.zeros((1, h, w))
     imgs_max[0, mask] = val.max(axis=0)
-    tf.summary.image(f'max/{stage:03d}', _greens(imgs_max), step=step)
+    tf.summary.image(f'max/{stage}', _greens(imgs_max), step=step)
 
 
 def summary_footprint(val, mask, stage):
@@ -57,5 +57,5 @@ def summary_footprint(val, mask, stage):
         img[:] = 0.0
         img[mask] = v
         tf.summary.image(
-            f'footprint/{stage:03d}', _greens(img)[None, ...], step=i+1,
+            f'footprint/{stage}', _greens(img)[None, ...], step=i+1,
         )

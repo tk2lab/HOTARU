@@ -9,7 +9,7 @@ class Variance(tf.keras.layers.Layer):
     def __init__(self, data, nk, nx, nt, name='Variance'):
         super().__init__(name=name, dtype=tf.float32)
 
-        self.nk = nk
+        self._data = data
         self.nx = nx
         self.nt = nt
 
@@ -19,7 +19,7 @@ class Variance(tf.keras.layers.Layer):
         self._bt = 0.0
 
         nz = max(nx, nt)
-        self._data = data
+        self.nk = nk
         self._nn = self.add_weight('nn', (), trainable=False)
         self._nm = self.add_weight('nm', (), trainable=False)
         self._dat = self.add_weight('dat', (nk, nz), trainable=False)

@@ -5,7 +5,7 @@ import numpy as np
 
 class SpikeToCalcium(tf.keras.layers.Layer):
 
-    def set_double_exp(self, tau1, tau2, hz=None, tscale=6.0):
+    def set_double_exp(self, hz, tau1, tau2, tscale):
         if tau1 < tau2:
             tau1, tau2 = tau1, tau2
         if hz is not None:
@@ -36,7 +36,7 @@ class SpikeToCalcium(tf.keras.layers.Layer):
 
 class CalciumToSpike(tf.keras.layers.Layer):
 
-    def set_double_exp(self, tau1, tau2, hz=None, tscale=6.0):
+    def set_double_exp(self, hz, tau1, tau2, tscale):
         if tau1 < tau2:
             tau1, tau2 = tau1, tau2
         if hz is not None:

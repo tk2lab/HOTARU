@@ -42,6 +42,18 @@ https://github.com/tk2lab/HOTARU/releases
 - `hotaru run`
 - (see outs directory)
 
+### Config Option
+- Set sampling rate of movie  
+  `hotaru config --hz 20.0`
+- Set mask file (tif or npy)  
+  `hotaru config --mask-type mask.tif`
+- Set calcium dynamics  
+  `hotaru config --tau-rase 0.08 --tau-fall 0.16
+- Set cell size candidate  
+  `hotaru config --radius-type log --radius "2.0,40.0,13"`
+  `hotaru config --radius-type linear --radius "2.0,11.0,10"`  
+  `hotaru config --radius-type manual --radius "2,3,4,5,6,7,8,9,10"`  
+  
 ### Check Resutls
 - (in hotaru venv and in work dir)
 - `tensorboard --logidr logs`

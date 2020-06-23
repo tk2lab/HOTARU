@@ -66,7 +66,8 @@ class SegmentCommand(Command):
             nk = segment.shape[0]
             fsum = segment.sum(axis=1)
             tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
-            summary_segment(segment, mask, np.ones(nk, np.bool), gauss, thr_out, curr[-3:])
+            cond = np.ones(nk, np.bool)
+            summary_segment(segment, mask, cond, gauss, thr_out, curr[-3:])
             writer.flush()
         writer.close()
         save_numpy(f'{curr}-segment', segment)

@@ -75,7 +75,7 @@ class CleanCommand(Command):
             for j in np.arange(old_nk)[::-1]:
                 cj = 0.0
                 for i in np.arange(j)[::-1]:
-                    cij = np.dot(seg[i] , seg[j])
+                    cij = np.dot(seg[i], seg[j])
                     if cij > cj:
                         cj = cij
                 cor[j] = cj

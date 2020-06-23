@@ -18,6 +18,7 @@ https://github.com/tk2lab/HOTARU/releases
 
 ### Require
 - python >= 3.6.1
+- tensorflow >= 2.2.0
 
 ### Install Procedure (using venv)
 - Create venv environment for hotaru
@@ -29,6 +30,11 @@ https://github.com/tk2lab/HOTARU/releases
 
 
 ## Simple Usage
+
+### Sample Data
+https://github.com/tk2lab/HOTARU/releases/download/v2.0.1/sample_data.tif
+
+### Procedures
 - (in hotaru venv)
 - `mkdir work`
 - `cd work`

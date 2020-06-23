@@ -50,8 +50,8 @@ class FootprintCallback(tf.keras.callbacks.TensorBoard):
         super().__init__(*args, **kwargs)
         self.stage = stage
 
-    def on_epoch_end(self, epoch, logs=None):
-        super().on_epoch_end(epoch, logs)
+    def on_train_end(self, logs=None):
+        super().on_train_end(logs)
 
         stage = self.stage
         writer = self._get_writer(self._train_run_name)
@@ -60,4 +60,3 @@ class FootprintCallback(tf.keras.callbacks.TensorBoard):
             val = self.model.footprint.val
             val = summary_stat(val, stage, step=epoch)
             summary_footprint_max(val, mask, stage, step=epoch)
-            #summary_footprint_sample(val, mask, stage, step=epoch)

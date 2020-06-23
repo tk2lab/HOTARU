@@ -25,6 +25,7 @@ class OutputCommand(Command):
         self.set_job_dir()
 
         name = self.status.params['name']
+        thr_out = self.status.params['thr-out']
         out_dir = os.path.join(self.application.job_dir, 'outs')
         out_base = os.path.join(out_dir, name)
         tf.io.gfile.makedirs(out_dir)
@@ -53,8 +54,10 @@ class OutputCommand(Command):
         out = gaussian(out, self.status.params['gauss']).numpy()
         out -= out.min(axis=(1, 2), keepdims=True)
         out /= out.max(axis=(1, 2), keepdims=True)
-        thr_out = self.status.params['thr-out']
-        tifffile.imwrite(f'{out_base}-cell.tif', out > thr_out)
+        out -= thr_out
+        out[out < 0.0] = 0.0
+        out /= (1 - thr_out)
+        tifffile.imwrite(f'{out_base}-cell.tif', out)
 
         hz = self.status.params['hz']
         spike_to_calcium = SpikeToCalcium()

@@ -13,11 +13,6 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ## Install
 
-### Download
-donwload `hotaru-3.0-py3-none-any.whl`
-from
-https://github.com/tk2lab/HOTARU/releases
-
 ### Require
 - python >= 3.6.1
 - tensorflow >= 2.2.0
@@ -27,8 +22,8 @@ https://github.com/tk2lab/HOTARU/releases
   - `python3.x -m venv hotaru`
 - Activate hotaru environment
   - `source hotaru/bin/activate`
-- Install to hotaru
-  - `pip intall hotaru-3.0-py3-none-any.whl`
+- Install hotaru
+  - `pip intall hotaru`
 
 
 ## Usage

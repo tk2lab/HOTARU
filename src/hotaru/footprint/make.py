@@ -21,7 +21,7 @@ def make_segment(dataset, mask, gauss, radius, peaks, shard, batch):
 
     gauss = K.constant(gauss, tf.float32)
     radius = K.constant(radius, tf.float32)
-    ts = K.constant(ts, tf.int32)
+    ts = K.constant(ts / shard, tf.int32)
     rs = K.constant(rs, tf.int32)
     ys = K.constant(ys, tf.int32)
     xs = K.constant(xs, tf.int32)

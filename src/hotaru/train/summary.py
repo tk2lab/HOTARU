@@ -23,10 +23,6 @@ def normalized_and_sort(val):
 def summary_stat(val, stage, step=0):
     val, mag = normalized_and_sort(val)
     spc = val.mean(axis=1)
-    #cor = val @ val.T
-    #scale = np.sqrt(np.diag(cor))
-    #cor /= scale * scale[:, None]
-    #tf.summary.image(f'cor/{stage}', _jet(cor)[None, ...], step=step)
     tf.summary.histogram(f'max_val/{stage}', mag, step=step)
     tf.summary.histogram(f'avg_val/{stage}', spc, step=step)
     return val
@@ -53,7 +49,7 @@ def summary_footprint_max(val, mask, stage, step=0):
     tf.summary.image(f'max/{stage}', _greens(imgs_max), step=step)
 
 
-def summary_segment(val, mask, flag, stage):
+def summary_segment(val, mask, flag, gauss, thr_out, stage):
     h, w = mask.shape
     out = 0
     b0 = False
@@ -61,11 +57,11 @@ def summary_segment(val, mask, flag, stage):
     for f, v in zip(flag[::-1], val[::-1]):
         img = np.zeros((h, w))
         img[mask] = v
-        g = gaussian(img, 2)
+        g = gaussian(img, gauss)
         g /= g.max()
         peak = np.argmax(g)
         y, x = peak // w, peak % w
-        lbl = label(g > 0.8, connectivity=1)
+        lbl = label(g > thr_out, connectivity=1)
         lbl = lbl == lbl[y, x]
         out += lbl
         if f:

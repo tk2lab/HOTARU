@@ -58,5 +58,5 @@ class FootprintCallback(tf.keras.callbacks.TensorBoard):
         with writer.as_default():
             mask = self.model.footprint.mask
             val = self.model.footprint.val
-            val = summary_stat(val, stage, step=epoch)
-            summary_footprint_max(val, mask, stage, step=epoch)
+            val = summary_stat(val, stage, step=0)
+            summary_footprint_max(val, mask, stage, step=0)

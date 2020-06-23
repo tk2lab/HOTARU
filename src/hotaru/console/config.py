@@ -36,7 +36,8 @@ class ConfigCommand(Command):
         _option('bx', 'x', 'penalty coefficient of spatical baseline'),
         _option('bt', 't', 'penalty coefficient of temporal baseline'),
         _option('thr-firmness', None, ''),
-        _option('thr-similality', None, ''),
+        _option('thr-sim-area', None, ''),
+        _option('thr-similarity', None, ''),
 
         _option('learning-rate', 'l', ''),
         _option('step', None, ''),
@@ -60,7 +61,7 @@ class ConfigCommand(Command):
 
         self._update_parameter('gauss', 2.0)
         self._update_parameter('radius-type', 'log', str)
-        self._update_parameter('radius', '2.0,100.0,16', float_tuple)
+        self._update_parameter('radius', '2.0,40.0,13', float_tuple)
 
         self._update_parameter('thr-intensity', 0.6)
         self._update_parameter('thr-distance', 1.8)
@@ -71,7 +72,8 @@ class ConfigCommand(Command):
         self._update_parameter('bx', 0.0)
         self._update_parameter('bt', 0.0)
         self._update_parameter('thr-firmness', 0.2)
-        self._update_parameter('thr-similality', 0.8)
+        self._update_parameter('thr-sim-area', 0.8)
+        self._update_parameter('thr-similarity', 0.5)
 
         self._update_parameter('learning-rate', 0.01)
         self._update_parameter('step', 100, int)

@@ -27,7 +27,7 @@ class Status(object):
         if stage % 3 == 1:
             return p['la'], p['bx'], p['bt'],
         if stage % 3 == 2:
-            return p['gauss'], self.radius, p['thr-firmness'], p['thr-similality']
+            return p['gauss'], self.radius, p['thr-firmness'], p['thr-sim-area'], p['thr-similarity']
 
     @property
     def tau(self):

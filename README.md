@@ -48,7 +48,7 @@ https://github.com/tk2lab/HOTARU/releases
 - Set mask file (tif or npy)  
   `hotaru config --mask-type mask.tif`
 - Set calcium dynamics  
-  `hotaru config --tau-rase 0.08 --tau-fall 0.16`
+  `hotaru config --tau-rise 0.08 --tau-fall 0.16`
 - Set cell size candidate  
   `hotaru config --radius-type log --radius "2.0,40.0,13"`  
   `hotaru config --radius-type linear --radius "2.0,11.0,10"`  

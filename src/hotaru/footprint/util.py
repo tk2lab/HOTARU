@@ -17,6 +17,7 @@ def get_magnitude(img, pos):
 class ToDense(object):
 
     def __init__(self, mask):
+        mask = K.constant(mask, tf.bool)
         nx = tf.cast(tf.math.count_nonzero(mask), tf.int32)
         ids = tf.cast(tf.where(mask), tf.int32)
         rmap = tf.scatter_nd(ids, tf.range(nx) + 1, tf.shape(mask)) - 1

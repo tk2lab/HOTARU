@@ -4,103 +4,48 @@ import numpy as np
 
 #from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
 from ..optimizer.prox_nesterov import ProxNesterov as Optimizer
-from ..optimizer.input import MaxNormNonNegativeL1InputLayer as InputLayer
-from ..optimizer.callback import Callback
-from .extract import Extract
+from ..optimizer.callback import Callback as OptCallback
 from .variance import Variance
-from .loss import hotaru_loss, HotaruLoss
-from .callback import HotaruCallback
 
 
-class HotaruModel(tf.keras.Model):
+class BaseModel(tf.keras.Model):
 
-    def __init__(self, data, mask, nk, nx, nt, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.status_shape = nk, nx, nt
-        self.mask = mask
-        self.variance = Variance(data, nk, nx, nt)
-        self.la = 0.0
-        self.lu = 0.0
+    def __init__(self, footprint, spike, variance, **kwargs):
+        super().__init__(**kwargs)
+        self.footprint_penalty = footprint.penalty
+        self.spike_penalty = spike.penalty
+        self.la_set = footprint.set_l
+        self.lu_set = spike.set_l
+        self.variance = variance
 
-    def set_double_exp(self, *args, **kwargs):
-        with self._distribution_strategy.scope():
-            self.variance.set_double_exp(*args, **kwargs)
-            nu = self.variance.nu
-            nk, nx, nt = self.status_shape
-            if not hasattr(self, 'extract'):
-                self.footprint = InputLayer(nk, nx, name='footprint')
-                self.spike = InputLayer(nk, nu, name='spike')
-                self.extract = Extract(nx, nu)
-
-    def update_spike(self, batch, lr, *args, **kwargs):
-        nk = self.footprint.val.shape[0]
-        nu = self.spike.val.shape[1]
-        self.spike.val = np.zeros((nk, nu), np.float32)
-
-        self.variance.start_spike_mode(self.footprint.val, batch)
+    def set_penalty(self, la, lu, bx, bt):
+        self.variance.set_baseline(bx, bt)
         nm = K.get_value(self.variance._nm)
-        K.set_value(self.footprint._val.regularizer.l, self.la / nm)
-        K.set_value(self.spike._val.regularizer.l, self.lu / nm)
-        K.set_value(self.extract.nk, nk)
-        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
-        self.fit(*args, **kwargs)
+        self.la_set(la / nm)
+        self.lu_set(lu / nm)
 
-    def update_footprint(self, batch, lr, *args, **kwargs):
-        spike = self.spike.val
-        nk = spike.shape[0]
-        nx = self.footprint.val.shape[1]
-        scale = spike.max(axis=1)
-        self.spike.val = spike / scale[:, None]
-        self.footprint.val = np.zeros((nk, nx), np.float32)
-
-        self.variance.start_footprint_mode(self.spike.val, batch)
-        nm = K.get_value(self.variance._nm)
-        K.set_value(self.footprint._val.regularizer.l, self.la / nm)
-        K.set_value(self.spike._val.regularizer.l, self.lu / nm)
-        K.set_value(self.extract.nk, nk)
-        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
-        self.fit(*args, **kwargs)
-
-        footprint = self.footprint.val
-        scale = footprint.max(axis=1)
-        self.spike.val = self.spike.val * scale[:, None]
-        self.footprint.val = footprint / scale[:, None]
-
-    def call(self, inputs):
-        footprint = self.footprint(inputs)
-        spike = self.spike(inputs)
-        out = tf.concat((footprint, spike), axis=1)
-        self.calc_metrics(out)
-        return out
-
-    def calc_metrics(self, out):
-        footprint, spike = self.extract(out)
-        variance = self.variance((footprint, spike))
-        footprint_penalty = self.footprint.penalty(footprint)
-        spike_penalty = self.spike.penalty(spike)
-        me = hotaru_loss(variance) + footprint_penalty + spike_penalty
-        penalty = tf.cond(
-            self.variance._mode == 0,
-            lambda: spike_penalty,
-            lambda: footprint_penalty,
-        )
-        self.add_metric(me, 'mean', 'score')
-        self.add_metric(penalty, 'mean', 'penalty')
-
-    def compile(self, *args, **kwargs):
+    def compile(self, **kwargs):
         super().compile(
-            optimizer=Optimizer(),
-            loss=HotaruLoss(self.extract, self.variance),
-            *args, **kwargs,
+            optimizer=Optimizer(), loss=Loss(), **kwargs,
         )
 
-    def fit(self, steps_per_epoch=100, epochs=100, min_delta=1e-3,
-            log_dir=None, stage='', callbacks=None, *args, **kwargs):
+    def call_common(self, val):
+        variance = self.variance(val)
+        loss = 0.5 * K.log(variance)
+        footprint_penalty = self.footprint_penalty()
+        spike_penalty = self.spike_penalty()
+        me = loss + footprint_penalty + spike_penalty
+        self.add_metric(K.sqrt(variance), 'mean', 'sigma')
+        self.add_metric(me, 'mean', 'score')
+        return loss, footprint_penalty, spike_penalty
+
+    def fit_common(self, callback, log_dir=None, stage=None, callbacks=None,
+                   steps_per_epoch=100, epochs=100, min_delta=1e-3, **kwargs):
         if callbacks is None:
             callbacks = []
 
         callbacks += [
-            Callback(),
+            OptCallback(),
             tf.keras.callbacks.EarlyStopping(
                 'score', min_delta=min_delta, patience=3,
                 restore_best_weights=True, verbose=0,
@@ -109,7 +54,7 @@ class HotaruModel(tf.keras.Model):
 
         if log_dir is not None:
             callbacks += [
-                HotaruCallback(
+                callback(
                     log_dir=log_dir, stage=stage,
                     update_freq='batch', write_graph=False,
                 ),
@@ -122,5 +67,11 @@ class HotaruModel(tf.keras.Model):
             steps_per_epoch=steps_per_epoch,
             epochs=epochs,
             callbacks=callbacks,
-            *args, **kwargs,
+            **kwargs,
         )
+
+
+class Loss(tf.keras.losses.Loss):
+
+    def call(self, y_true, y_pred):
+        return y_pred

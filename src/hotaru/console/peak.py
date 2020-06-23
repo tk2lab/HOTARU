@@ -1,15 +1,13 @@
-import os
-from datetime import datetime
-
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 
 from .base import Command, option, _option
 from ..footprint.find import find_peak
-from ..footprint.reduce import reduce_peak
 from ..util.dataset import unmasked
-from ..util.csv import save_csv
+from ..util.tfrecord import load_tfrecord
+from ..util.numpy import load_numpy, save_numpy
+from ..util.pickle import load_pickle, save_pickle
 
 
 class PeakCommand(Command):
@@ -19,38 +17,26 @@ class PeakCommand(Command):
     name = 'peak'
     options = [
         _option('job-dir'),
-        option('force', 'f', 'overwrite previous result'),
+        option('force', 'f'),
     ]
 
-    def handle(self):
-        self.set_job_dir()
-        gauss = self.status['root']['gauss']
-        rmin = self.status['root']['radius-min']
-        rmax = self.status['root']['radius-max']
-        rnum = self.status['root']['radius-num']
-        thr_gl = self.status['root']['thr-gl']
-        shard = self.status['root']['shard']
-        key = 'peak', gauss, rmin, rmax, rnum, thr_gl, shard
-        self._handle(None, 'peak', key)
+    def is_error(self, stage):
+        return stage < 1
 
-    def create(self, key, stage):
-        self.line('<info>peak</info>')
+    def is_target(self, stage):
+        return stage == 1
 
-        gauss, rmin, rmax, rnum, thr_gl, shard = key[0][1:]
-        data = self.data.shard(shard, 0)
-        mask = self.mask
-        radius = tuple(
-            0.001 * round(1000 * x) for x in np.linspace(rmin, rmax, rnum)
+    def force_stage(self, stage):
+        return 1
+
+    def create(self, data, prev, curr, logs, gauss, radius, thr_gl, shard):
+        tfrecord = load_tfrecord(f'{data}-data')
+        mask = load_numpy(f'{data}-mask')
+        nt = load_pickle(f'{data}-stat')[1]
+        batch = self.status.params['batch']
+        pos, score = find_peak(
+            tfrecord, mask, gauss, radius, thr_gl, shard, batch, nt,
         )
-        batch = self.status['root']['batch']
-        nt = self.status['root']['nt']
-        prog = tf.keras.utils.Progbar((nt + shard - 1) // shard)
-
-        peak = find_peak(
-            data, mask, gauss, radius, thr_gl, batch, prog,
-        )
-        return peak
-
-    def save(self, base, peak):
-        save_csv(base, peak, ('ts', 'rs', 'ys', 'xs', 'gs'))
-        return peak
+        save_pickle(f'{curr}-filter', (gauss, radius, shard))
+        save_numpy(f'{curr}-peak', pos)
+        save_numpy(f'{curr}-intensity', score)

@@ -1,11 +1,10 @@
-from datetime import datetime
-import os
-
 import tensorflow as tf
 import numpy as np
 
 from .base import Command, option, _option
-from ..util.npy import save_numpy
+from ..train.footprint import FootprintModel
+from ..util.numpy import load_numpy, save_numpy
+from ..util.pickle import load_pickle
 
 
 class FootprintCommand(Command):
@@ -15,39 +14,35 @@ class FootprintCommand(Command):
     name = 'footprint'
     options = [
         _option('job-dir'),
-        _option('prev'),
-        option('force', 'f', 'overwrite previous result'),
+        option('force', 'f'),
     ]
 
-    def handle(self):
-        self.set_job_dir()
-        prev = self.option('prev')
-        la = self.status['root']['la']
-        lu = self.status['root']['lu']
-        bx = self.status['root']['bx']
-        bt = self.status['root']['bt']
-        key = 'footprint', la, lu, bx, bt
-        self._handle('spike', 'footprint', key)
+    def is_error(self, stage):
+        return stage < 4
 
-    def create(self, key, stage):
-        self.line('<info>footprint</info>')
-        model = self.model
-        model.spike.val = self.spike
-        log_dir = os.path.join(
-            self.application.job_dir, 'logs', 'footprint',
-            datetime.now().strftime('%Y%m%d-%H%M%S'),
-        )
-        model.update_footprint(
-            lr=self.status['root']['learning-rate'],
-            steps_per_epoch=self.status['root']['step'],
-            epochs=self.status['root']['epoch'],
-            min_delta=self.status['root']['tol'],
-            batch=self.status['root']['batch'],
-            log_dir=log_dir,
-            stage=stage,
-        )
-        return model.footprint.val
+    def is_target(self, stage):
+        return stage % 3 == 1
 
-    def save(self, base, val):
-        save_numpy(base, val)
-        return val
+    def force_stage(self, stage):
+        return 3 * ((stage - 1) // 3) + 1
+
+    def create(self, data, prev, curr, logs, la, bx, bt):
+        tau = load_pickle(f'{prev}-tau')
+        spike = load_numpy(f'{prev}-spike')
+        nk = spike.shape[0]
+        lu = self.status.params['lu']
+        with self.application.strategy.scope():
+            elems = self.get_model(data, tau, nk)
+            model = FootprintModel(*elems)
+            model.compile()
+        model.set_penalty(la, lu, bx, bt)
+        model.fit(
+            spike, stage=curr[-3:],
+            lr=self.status.params['learning-rate'],
+            batch=self.status.params['batch'],
+            steps_per_epoch=self.status.params['step'],
+            epochs=self.status.params['epoch'],
+            min_delta=self.status.params['tol'],
+            log_dir=logs,
+        )
+        save_numpy(f'{curr}-footprint', model.footprint.val)

@@ -1,14 +1,12 @@
-import os
-from datetime import datetime
-
 import tensorflow as tf
 import numpy as np
 
 from .base import Command, option, _option
 from ..footprint.clean import clean_footprint
-from ..train.callback import summary_footprint, summary_footprint_stat, normalized_and_sort
-from ..util.npy import save_numpy
-from ..util.csv import save_csv
+from ..image.filter.gaussian import gaussian
+from ..train.summary import normalized_and_sort
+from ..train.summary import summary_segment
+from ..util.numpy import load_numpy, save_numpy
 
 
 class CleanCommand(Command):
@@ -18,69 +16,104 @@ class CleanCommand(Command):
     name = 'clean'
     options = [
         _option('job-dir'),
-        _option('prev'),
-        option('force', 'f', 'overwrite previous result'),
+        option('force', 'f'),
     ]
 
-    def handle(self):
-        self.set_job_dir()
-        gauss = self.status['root']['gauss']
-        rmin = self.status['root']['radius-min']
-        rmax = self.status['root']['radius-max']
-        rnum = self.status['root']['radius-num']
-        key = 'clean', gauss, rmin, rmax, rnum
-        self._handle('footprint', 'clean', key)
+    def is_error(self, stage):
+        return stage < 2
 
-    def create(self, key, stage):
-        self.line('<info>clean</info>')
+    def is_target(self, stage):
+        return stage % 3 == 2
 
-        # clean
-        mask = self.mask
-        gauss, rmin, rmax, rnum = key[-1][1:]
-        radius = tuple(np.linspace(rmin, rmax, rnum))
-        batch = self.status['root']['batch']
-        footprint, rs, ys = clean_footprint(
-            self.footprint, mask, gauss, radius, batch,
+    def force_stage(self, stage):
+        return 3 * ((stage - 2) // 3) + 2
+
+    def create(self, data, prev, curr, logs, gauss, radius,
+               thr_firmness, thr_sim_area, thr_similarity):
+        footprint = load_numpy(f'{prev}-footprint')
+        mask = load_numpy(f'{data}-mask')
+        batch = self.status.params['batch']
+        thr_out = self.status.params['thr-out']
+        radius = np.array(radius)
+        nr = radius.size
+        segment, pos, firmness = clean_footprint(
+            footprint, mask, gauss, radius, batch,
         )
-        rs, fs, ys, xs = rs[:, 0], rs[:, 1], ys[:, 0], ys[:, 1]
 
-        # sort
-        idx = np.argsort(fs)[::-1]
-        rs = rs[idx]
-        fs = fs[idx]
-        ys = ys[idx]
-        xs = xs[idx]
-        footprint = footprint[idx]
+        idx = np.argsort(firmness)[::-1]
+        segment = segment[idx]
+        pos = pos[idx]
+        fir = firmness[idx]
+        rad = radius[pos[:, 0]]
 
-        # log
-        log_dir = os.path.join(
-            self.application.job_dir, 'logs', 'clean',
-            datetime.now().strftime('%Y%m%d-%H%M%S'),
-        )
-        writer = tf.summary.create_file_writer(log_dir)
+        old_nk = segment.shape[0]
+        if thr_sim_area > 0.0:
+            h, w = mask.shape
+            seg = np.zeros((old_nk, h, w), np.float32)
+            seg[:, mask] = segment
+            seg = gaussian(seg, gauss).numpy()
+            seg -= seg.min(axis=(1, 2), keepdims=True)
+            mag = seg.max(axis=(1, 2))
+            cond = mag > 0.0
+            seg[cond] /= mag[cond, None, None]
+            seg[~cond] = 1.0
+            seg = seg > thr_sim_area
+            cor = np.zeros((old_nk,))
+            for j in np.arange(old_nk)[::-1]:
+                cj = 0.0
+                for i in np.arange(j)[::-1]:
+                    ni = np.count_nonzero(seg[i])
+                    nij = np.count_nonzero(seg[i] & seg[j])
+                    cij = nij / ni
+                    if cij > cj:
+                        cj = cij
+                cor[j] = cj
+        else:
+            scale = np.sqrt((segment ** 2).sum(axis=1))
+            seg = segment / scale[:, None]
+            cor = np.zeros((old_nk,))
+            for j in np.arange(old_nk)[::-1]:
+                cj = 0.0
+                for i in np.arange(j)[::-1]:
+                    cij = np.dot(seg[i], seg[j])
+                    if cij > cj:
+                        cj = cij
+                cor[j] = cj
+
+        writer = tf.summary.create_file_writer(logs)
         with writer.as_default():
-            tf.summary.histogram(f'radius/{stage:03d}', rs, step=0)
-            tf.summary.histogram(f'firmness/{stage:03d}', fs, step=0)
+            tf.summary.histogram(f'radius/{curr[-3:]}', rad, step=0)
+            tf.summary.histogram(f'firmness/{curr[-3:]}', fir, step=0)
+            tf.summary.histogram(f'cor/{curr[-3:]}', cor, step=0)
+            writer.flush()
 
-            fsum = footprint.sum(axis=1)
-            tf.summary.histogram(f'size/{stage:03d}', fsum, step=0)
-            summary_footprint_stat(footprint, mask, stage)
-            summary_footprint(footprint, mask, stage)
+            fsum = segment.sum(axis=1)
+            tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
 
-            # remove
-            cond = fs > self.status['root']['thr-firmness']
-            cond &= (radius[0] < rs) & (rs < radius[-1])
-            rs, ys, xs, fs = map(lambda s: s[cond], (rs, ys, xs, fs))
-            tf.summary.histogram(f'radius/{stage:03d}', rs, step=1)
-            tf.summary.histogram(f'firmness/{stage:03d}', fs, step=1)
+            cond = fir > thr_firmness
+            cond &= cor < thr_similarity
+            cond &= (0 < pos[:, 0]) & (pos[:, 0] < nr - 1)
+            idx = np.where(~cond)[0]
+            for i in idx:
+                print(i, fir[i], cor[i], pos[i, 0])
+            summary_segment(segment, mask, cond, gauss, thr_out, curr[-3:])
+            writer.flush()
 
-            footprint = footprint[cond]
+            segment = segment[cond]
+            pos = pos[cond]
+            rad = rad[cond]
+            fir = fir[cond]
+            cor = cor[cond]
+            tf.summary.histogram(f'radius/{curr[-3:]}', rad, step=1)
+            tf.summary.histogram(f'firmness/{curr[-3:]}', fir, step=1)
+            tf.summary.histogram(f'cor/{curr[-3:]}', cor, step=1)
+            writer.flush()
         writer.close()
 
-        return footprint, (rs, ys, xs, fs)
+        nk = segment.shape[0]
+        self.line(f'ncell: {old_nk} -> {nk}', 'comment')
 
-    def save(self, base, val):
-        footprint, peak = val
-        save_numpy(base, footprint)
-        save_csv(base, peak, ('rs', 'ys', 'xs', 'fs'))
-        return footprint
+        save_numpy(f'{curr}-segment', segment)
+        save_numpy(f'{curr}-pos', pos[:, 1:])
+        save_numpy(f'{curr}-radius', rad)
+        save_numpy(f'{curr}-firmness', fir)

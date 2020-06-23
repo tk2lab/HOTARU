@@ -39,11 +39,11 @@ https://github.com/tk2lab/HOTARU/releases
 - `cd work`
 - `cp somewhere/TARGET.tif imgs.tif`
 - `hotaru status`
-- `hotaru config --name val`
+- `hotaru config --name val` (optionaal)
 - `hotaru run`
 - (see out directory)
 
 ### Check Resutls
 - (in hotaru venv and in work dir)
 - `tensorboard --logidr logs`
-- open on browser `http://localhost:6006`
+- open in web browser `http://localhost:6006`

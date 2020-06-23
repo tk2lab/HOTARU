@@ -1,11 +1,10 @@
-import os
-from datetime import datetime
-
 import tensorflow as tf
 import numpy as np
 
 from .base import Command, option, _option
-from ..util.npy import save_numpy
+from ..train.spike import SpikeModel
+from ..util.numpy import load_numpy, save_numpy
+from ..util.pickle import load_pickle, save_pickle
 
 
 class SpikeCommand(Command):
@@ -15,42 +14,35 @@ class SpikeCommand(Command):
     name = 'spike'
     options = [
         _option('job-dir'),
-        _option('prev'),
-        option('force', 'f', 'overwrite previous result'),
+        option('force', 'f'),
     ]
 
-    def handle(self):
-        self.set_job_dir()
-        tau1 = self.status['root']['tau-fall']
-        tau2 = self.status['root']['tau-rise']
-        hz = self.status['root']['hz']
-        tauscale = self.status['root']['tau-scale']
-        la = self.status['root']['la']
-        lu = self.status['root']['lu']
-        bx = self.status['root']['bx']
-        bt = self.status['root']['bt']
-        key = 'spike', tau1, tau2, hz, tauscale, la, lu, bx, bt
-        self._handle('clean', 'spike', key)
+    def is_error(self, stage):
+        return stage < 3
 
-    def create(self, key, stage):
-        self.line('<info>spike</info>')
-        model = self.model
-        model.footprint.val = self.clean
-        log_dir = os.path.join(
-            self.application.job_dir, 'logs', 'spike',
-            datetime.now().strftime('%Y%m%d-%H%M%S'),
-        )
-        model.update_spike(
-            batch=self.status['root']['batch'],
-            lr=self.status['root']['learning-rate'],
-            steps_per_epoch=self.status['root']['step'],
-            epochs=self.status['root']['epoch'],
-            min_delta=self.status['root']['tol'],
-            log_dir=log_dir,
-            stage=stage,
-        )
-        return model.spike.val
+    def is_target(self, stage):
+        return stage % 3 == 0
 
-    def save(self, base, val):
-        save_numpy(base, val)
-        return val
+    def force_stage(self, stage):
+        return 3 * ((stage - 0) // 3) + 0
+
+    def create(self, data, prev, curr, logs, tau, lu, bx, bt):
+        segment = load_numpy(f'{prev}-segment')
+        nk = segment.shape[0]
+        la = self.status.params['la']
+        with self.application.strategy.scope():
+            elems = self.get_model(data, tau, nk)
+            model = SpikeModel(*elems)
+            model.compile()
+        model.set_penalty(la, lu, bx, bt)
+        model.fit(
+            segment, stage=curr[-3:],
+            lr=self.status.params['learning-rate'],
+            batch=self.status.params['batch'],
+            steps_per_epoch=self.status.params['step'],
+            epochs=self.status.params['epoch'],
+            min_delta=self.status.params['tol'],
+            log_dir=logs,
+        )
+        save_pickle(f'{curr}-tau', tuple(tau))
+        save_numpy(f'{curr}-spike', model.spike.val)

@@ -38,10 +38,10 @@ https://github.com/tk2lab/HOTARU/releases
 - `mkdir work`
 - `cd work`
 - `cp somewhere/TARGET.tif imgs.tif`
-- `hotaru status`
+- `hotaru config`
 - `hotaru config --name val` (optionaal)
 - `hotaru run`
-- (see out directory)
+- (see outs directory)
 
 ### Check Resutls
 - (in hotaru venv and in work dir)

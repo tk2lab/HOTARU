@@ -14,7 +14,7 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ## Install
 
 ### Download
-donwload `hotaru-3.x.y-py3-none-any.whl`
+donwload `hotaru-3.0-py3-none-any.whl`
 from
 https://github.com/tk2lab/HOTARU/releases
 
@@ -28,7 +28,7 @@ https://github.com/tk2lab/HOTARU/releases
 - Activate hotaru environment
   - `source hotaru/bin/activate`
 - Install to hotaru
-  - `pip intall hotaru-3.x.y-py3-none-any.whl`
+  - `pip intall hotaru-3.0-py3-none-any.whl`
 
 
 ## Usage
@@ -39,7 +39,6 @@ https://github.com/tk2lab/HOTARU/releases
 - `cd work`
 - `cp somewhere/TARGET.tif imgs.tif`
 - `hotaru config`
-- `hotaru config --name val` (optionaal)
 - `hotaru run`
 - (see outs directory)
 

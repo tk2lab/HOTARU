@@ -23,7 +23,7 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 - Activate hotaru environment
   - `source hotaru/bin/activate`
 - Install hotaru
-  - `pip intall hotaru`
+  - `pip install hotaru`
 
 
 ## Usage

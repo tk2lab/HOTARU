@@ -47,26 +47,9 @@ class SegmentCommand(Command):
 
         writer = tf.summary.create_file_writer(logs)
         with writer.as_default():
-<<<<<<< HEAD
-            n = 10
-            for i in range(6, n + 1):
-                thr = i * thr_dist / n
-                idx = reduce_peak_idx(pos, radius, thr)
-                r = radius[pos[idx, 1]]
-                s = score[idx]
-                tf.summary.histogram(f'radius/{curr[-3:]}', r, step=i)
-                tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=i)
-                writer.flush()
-
-            pos = pos[idx]
-            cond = (0 < pos[:, 1]) & (pos[:, 1] < nr - 1)
-            pos = pos[cond]
-            r = radius[pos[:, 1]]
-=======
             cond = s > thr_intensity
             p = p[cond]
             r = r[cond]
->>>>>>> f126d6f... Both Paak and Segment use thr-intensity and thr-distance
             s = s[cond]
             tf.summary.histogram(f'radius/{curr[-3:]}', r, step=0)
             tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=0)

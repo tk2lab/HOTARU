@@ -14,9 +14,11 @@ from ..util.pickle import load_pickle
 
 class OutputCommand(Command):
 
-    description = 'Output results'
-
     name = 'output'
+    description = 'Output results'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
     ]

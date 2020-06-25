@@ -12,9 +12,11 @@ from ..util.pickle import load_pickle, save_pickle
 
 class PeakCommand(Command):
 
-    description = 'Find peaks'
-
     name = 'peak'
+    description = 'Find peaks'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
         option('force', 'f'),

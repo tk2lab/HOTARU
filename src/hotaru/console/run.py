@@ -3,9 +3,11 @@ from .base import Command, _option
 
 class RunCommand(Command):
 
-    description = 'Execute all'
-
     name = 'run'
+    description = 'Execute all'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
         _option('goal'),

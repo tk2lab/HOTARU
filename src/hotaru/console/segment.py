@@ -44,7 +44,7 @@ class SegmentCommand(Command):
             n = 10
             for i in range(6, n + 1):
                 thr = i * thr_dist / n
-                idx = reduce_peak_idx(pos, thr)
+                idx = reduce_peak_idx(pos, radius, thr)
                 r = radius[pos[idx, 1]]
                 s = score[idx]
                 tf.summary.histogram(f'radius/{curr[-3:]}', r, step=i)

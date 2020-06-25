@@ -31,19 +31,23 @@ class SegmentCommand(Command):
     def force_stage(self, stage):
         return 2
 
-    def create(self, data, prev, curr, logs, thr_dist):
+    def create(self, data, prev, curr, logs, thr_intensity, thr_distance):
+        batch = self.status.params['batch']
+        verbose = self.status.params['pbar']
+        thr_out = self.status.params['thr-out']
+
         tfrecord = load_tfrecord(f'{data}-data')
         mask = load_numpy(f'{data}-mask')
         gauss, radius, shard = load_pickle(f'{prev}-filter')
-        thr_out = self.status.params['thr-out']
-        pos = load_numpy(f'{prev}-peak')
-        score = load_numpy(f'{prev}-intensity')
-        batch = self.status.params['batch']
-        verbose = self.status.params['pbar']
         radius = np.array(radius)
         nr = radius.size
+        p = load_numpy(f'{prev}-peak')
+        r = radius[p[:, 1]]
+        s = load_numpy(f'{prev}-intensity')
+
         writer = tf.summary.create_file_writer(logs)
         with writer.as_default():
+<<<<<<< HEAD
             n = 10
             for i in range(6, n + 1):
                 thr = i * thr_dist / n
@@ -58,22 +62,45 @@ class SegmentCommand(Command):
             cond = (0 < pos[:, 1]) & (pos[:, 1] < nr - 1)
             pos = pos[cond]
             r = radius[pos[:, 1]]
+=======
+            cond = s > thr_intensity
+            p = p[cond]
+            r = r[cond]
+>>>>>>> f126d6f... Both Paak and Segment use thr-intensity and thr-distance
             s = s[cond]
-            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=n+1)
-            tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=n+1)
+            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=0)
+            tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=0)
+            writer.flush()
+
+            idx = reduce_peak_idx(p, radius, thr_distance)
+            p = p[idx]
+            r = r[idx]
+            s = s[idx]
+            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=1)
+            tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=1)
+            writer.flush()
+
+            cond = (0 < p[:, 1]) & (p[:, 1] < nr - 1)
+            p = p[cond]
+            r = r[cond]
+            s = s[cond]
+            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=2)
+            tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=2)
             writer.flush()
 
             segment = make_segment(
-                tfrecord, mask, gauss, radius, pos, shard, batch, verbose,
+                tfrecord, mask, gauss, radius, p, shard, batch, verbose,
             )
+
             nk = segment.shape[0]
-            fsum = segment.sum(axis=1)
-            tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
             cond = np.ones(nk, np.bool)
             summary_segment(segment, mask, cond, gauss, thr_out, curr[-3:])
+            fsum = segment.sum(axis=1)
+            tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
             writer.flush()
         writer.close()
+
         save_numpy(f'{curr}-segment', segment)
-        save_numpy(f'{curr}-peak', pos[:, [0, 2, 3]])
+        save_numpy(f'{curr}-peak', p[:, [0, 2, 3]])
         save_numpy(f'{curr}-radius', r)
         save_numpy(f'{curr}-intensity', s)

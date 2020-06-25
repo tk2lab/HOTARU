@@ -2,7 +2,6 @@ import os
 
 import tensorflow as tf
 import numpy as np
-import GPUtil
 
 from cleo import Command as CommandBase
 from cleo import option
@@ -93,7 +92,3 @@ class Command(CommandBase):
                 self.status.add_saved(history, name)
             self.status.history[name] = history
             self.save_status()
-
-    def print_gpu_memory(self):
-        for g in GPUtil.getGPUs():
-            self.line(f'{g.memoryUsed}')

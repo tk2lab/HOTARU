@@ -12,9 +12,11 @@ from ..util.pickle import load_pickle
 
 class SegmentCommand(Command):
 
-    description = 'Make segment'
-
     name = 'segment'
+    description = 'Make segment'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
         option('force', 'f'),

@@ -8,9 +8,11 @@ from .base import Command, _option
 
 class ConfigCommand(Command):
 
-    description = 'Update parameter'
-
     name = 'config'
+    description = 'Update parameter'
+    help = '''
+'''
+
     options = [
         _option('job-dir', 'j', 'target directory'),
         _option('name', None, ''),

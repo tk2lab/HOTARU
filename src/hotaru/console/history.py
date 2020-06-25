@@ -5,9 +5,11 @@ from .base import Command, _option
 
 class HistoryCommand(Command):
 
-    description = 'Show History'
-
     name = 'history'
+    description = 'Show History'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
     ]

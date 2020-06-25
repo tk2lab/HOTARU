@@ -9,9 +9,11 @@ from ..util.pickle import load_pickle
 
 class FootprintCommand(Command):
 
-    description = 'Update footprint'
-
     name = 'footprint'
+    description = 'Update footprint'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
         option('force', 'f'),

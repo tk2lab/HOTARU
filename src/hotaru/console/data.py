@@ -16,9 +16,11 @@ from ..util.numpy import save_numpy
 
 class DataCommand(Command):
 
-    description = 'Create TFRecord'
-
     name = 'data'
+    description = 'Create TFRecord'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
         option('force', 'f'),

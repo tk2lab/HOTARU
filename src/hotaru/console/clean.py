@@ -13,12 +13,14 @@ from ..util.numpy import load_numpy, save_numpy
 
 class CleanCommand(Command):
 
-    description = 'Clean segment'
-
     name = 'clean'
+    description = 'Clean segment'
+    help = '''The clean command 
+'''
+
     options = [
-        _option('job-dir'),
-        option('force', 'f'),
+        _option('job-dir', 'j', ''),
+        option('force', 'f', ''),
     ]
 
     def is_error(self, stage):

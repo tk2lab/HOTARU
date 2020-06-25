@@ -1,8 +1,8 @@
 import tensorflow as tf
 
 
-def save_tfrecord(filebase, data, nt=None):
-    prog = tf.keras.utils.Progbar(nt)
+def save_tfrecord(filebase, data, nt=None, verbose=1):
+    prog = tf.keras.utils.Progbar(nt, verbose=verbose)
     with tf.io.TFRecordWriter(f'{filebase}.tfrecord') as writer:
         for d in data:
             writer.write(tf.io.serialize_tensor(d).numpy())

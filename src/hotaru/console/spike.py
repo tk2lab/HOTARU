@@ -41,6 +41,7 @@ class SpikeCommand(Command):
             batch=self.status.params['batch'],
             steps_per_epoch=self.status.params['step'],
             epochs=self.status.params['epoch'],
+            verbose=self.status.params['pbar'],
             min_delta=self.status.params['tol'],
             log_dir=logs,
         )

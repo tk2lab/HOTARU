@@ -1,3 +1,5 @@
+import os
+
 import tensorflow as tf
 import numpy as np
 
@@ -33,11 +35,12 @@ class CleanCommand(Command):
         footprint = load_numpy(f'{prev}-footprint')
         mask = load_numpy(f'{data}-mask')
         batch = self.status.params['batch']
+        verbose = self.status.params['pbar']
         thr_out = self.status.params['thr-out']
         radius = np.array(radius)
         nr = radius.size
         segment, pos, firmness = clean_footprint(
-            footprint, mask, gauss, radius, batch,
+            footprint, mask, gauss, radius, batch, verbose,
         )
 
         idx = np.argsort(firmness)[::-1]
@@ -80,6 +83,7 @@ class CleanCommand(Command):
                         cj = cij
                 cor[j] = cj
 
+        logs = os.path.join(logs, 'clean')
         writer = tf.summary.create_file_writer(logs)
         with writer.as_default():
             tf.summary.histogram(f'radius/{curr[-3:]}', rad, step=0)

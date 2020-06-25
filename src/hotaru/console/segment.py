@@ -37,6 +37,7 @@ class SegmentCommand(Command):
         pos = load_numpy(f'{prev}-peak')
         score = load_numpy(f'{prev}-intensity')
         batch = self.status.params['batch']
+        verbose = self.status.params['pbar']
         radius = np.array(radius)
         nr = radius.size
         writer = tf.summary.create_file_writer(logs)
@@ -61,7 +62,7 @@ class SegmentCommand(Command):
             writer.flush()
 
             segment = make_segment(
-                tfrecord, mask, gauss, radius, pos, shard, batch,
+                tfrecord, mask, gauss, radius, pos, shard, batch, verbose,
             )
             nk = segment.shape[0]
             fsum = segment.sum(axis=1)

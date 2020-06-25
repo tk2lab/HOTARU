@@ -10,7 +10,7 @@ def reduce_peak(peaks, thr_dist):
 def reduce_peak_idx(peaks, thr_dist):
     ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
     total = ts.size
-    prog = tf.keras.utils.Progbar(total)
+    #prog = tf.keras.utils.Progbar(total)
     flg = np.arange(total, dtype=np.int32)
     idx = []
     while flg.size > 0:
@@ -21,5 +21,5 @@ def reduce_peak_idx(peaks, thr_dist):
         cond = np.square(y1 - y0) + np.square(x1 - x0) >= thr
         flg = j[cond]
         idx.append(i)
-        prog.update(total - flg.size)
+        #prog.update(total - flg.size)
     return np.array(idx, np.int32)

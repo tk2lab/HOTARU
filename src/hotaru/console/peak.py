@@ -34,8 +34,9 @@ class PeakCommand(Command):
         mask = load_numpy(f'{data}-mask')
         nt = load_pickle(f'{data}-stat')[1]
         batch = self.status.params['batch']
+        verbose = self.status.params['pbar']
         pos, score = find_peak(
-            tfrecord, mask, gauss, radius, thr_gl, shard, batch, nt,
+            tfrecord, mask, gauss, radius, thr_gl, shard, batch, nt, verbose,
         )
         save_pickle(f'{curr}-filter', (gauss, radius, shard))
         save_numpy(f'{curr}-peak', pos)

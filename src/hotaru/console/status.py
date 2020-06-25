@@ -19,9 +19,9 @@ class Status(object):
         if stage == 0:
             return p['imgs-file'], p['mask-type'],
         if stage == 1:
-            return p['gauss'], self.radius, p['thr-intensity'], p['shard'],
+            return p['gauss'], self.radius, p['min-intensity'], p['min-distance'], p['shard'],
         if stage == 2:
-            return p['thr-distance'],
+            return p['thr-intensity'], p['thr-distance'],
         if stage % 3 == 0:
             return self.tau, p['lu'], p['bx'], p['bt'],
         if stage % 3 == 1:

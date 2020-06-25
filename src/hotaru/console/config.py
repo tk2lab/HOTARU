@@ -30,6 +30,11 @@ class ConfigCommand(Command):
         _option('radius-type', None, '{linear,log,manual}'),
         _option('radius', None, 'radius of cell (px)'),
 
+        _option('min-intensity', None, ''),
+        _option('min-distance', None, ''),
+        _option('max-intensity', None, ''),
+        _option('max-distance', None, ''),
+
         _option('thr-intensity', None, ''),
         _option('thr-distance', None, ''),
         _option('shard', None, ''),
@@ -67,6 +72,10 @@ class ConfigCommand(Command):
         self._update_parameter('radius-type', 'log', str)
         self._update_parameter('radius', '2.0,40.0,13', float_tuple)
 
+        self._update_parameter('min-intensity', 0.5)
+        self._update_parameter('min-distance', 1.5)
+        self._update_parameter('max-intensity', 1.0)
+        self._update_parameter('max-distance', 2.0)
         self._update_parameter('thr-intensity', 0.7)
         self._update_parameter('thr-distance', 1.6)
         self._update_parameter('shard', 1, int)

@@ -7,8 +7,9 @@ def reduce_peak(peaks, thr_dist):
     return tuple(v[idx] for v in peaks)
 
 
-def reduce_peak_idx(peaks, thr_dist):
+def reduce_peak_idx(peaks, radius, thr_dist):
     ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
+    rs = np.array(radius)[rs]
     total = ts.size
     #prog = tf.keras.utils.Progbar(total)
     flg = np.arange(total, dtype=np.int32)

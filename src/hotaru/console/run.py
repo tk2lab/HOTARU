@@ -39,7 +39,6 @@ class RunCommand(Command):
                 self.call('clean')
 
         self.call('output')
-        self.print_gpu_memory()
 
         s = time.time() - start
         h = int(s / 3600)

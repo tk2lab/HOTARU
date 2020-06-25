@@ -1,3 +1,5 @@
+import time
+
 from .base import Command, _option
 
 
@@ -14,6 +16,8 @@ class RunCommand(Command):
     ]
 
     def handle(self):
+        start = time.time()
+
         self.set_job_dir()
 
         name = self.status.params['name']
@@ -36,3 +40,10 @@ class RunCommand(Command):
 
         self.call('output')
         self.print_gpu_memory()
+
+        s = time.time() - start
+        h = int(s / 3600)
+        s -= 3600 * h
+        m = int(s / 60)
+        s -= 60 * m
+        self.line(f'{h}:{m}:{s}', 'comment')

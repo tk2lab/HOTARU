@@ -22,21 +22,21 @@ class FootprintModel(BaseModel):
         self.add_metric(footprint_penalty, 'mean', 'penalty')
         return loss
 
-    def fit(self, spike, lr, batch, **kwargs):
+    def fit(self, spike, lr, batch, verbose, **kwargs):
         nk = spike.shape[0]
         nx = self.variance.nx
         self.set_spike(spike)
-        self.start(batch)
+        self.start(batch, verbose)
         self.footprint.val = np.zeros((nk, nx))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
-        self.fit_common(FootprintCallback, **kwargs)
+        self.fit_common(FootprintCallback, verbose=verbose, **kwargs)
 
-    def start(self, batch):
+    def start(self, batch, verbose):
         data = self.variance._data.enumerate().batch(batch)
         spike = self.spike_tensor()
         calcium = self.variance.spike_to_calcium(spike)
         vdat = K.constant(0.0)
-        prog = tf.keras.utils.Progbar(self.variance.nt)
+        prog = tf.keras.utils.Progbar(self.variance.nt, verbose=verbose)
         for t, d in data:
             c_p = tf.gather(calcium, t, axis=1)
             vdat += tf.matmul(c_p, d)
@@ -54,7 +54,7 @@ class FootprintCallback(tf.keras.callbacks.TensorBoard):
         super().on_train_end(logs)
 
         stage = self.stage
-        writer = self._get_writer(self._train_run_name)
+        writer = self._get_writer('footprint')
         with writer.as_default():
             mask = self.model.footprint.mask
             val = self.model.footprint.val

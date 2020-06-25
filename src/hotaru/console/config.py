@@ -14,6 +14,7 @@ class ConfigCommand(Command):
     options = [
         _option('job-dir', 'j', 'target directory'),
         _option('name', None, ''),
+        _option('pbar', None, ''),
 
         _option('imgs-file'),
         _option('mask-type'),
@@ -50,6 +51,7 @@ class ConfigCommand(Command):
     def handle(self):
         self.set_job_dir()
         self._update_parameter('name', 'default', str)
+        self._update_parameter('pbar', 1, int)
 
         self._update_parameter('imgs-file', 'imgs.tif', str)
         self._update_parameter('mask-type', '0.pad', str)

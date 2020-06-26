@@ -73,6 +73,7 @@ class Command(CommandBase):
             stage = len(history)
         if self.is_error(stage):
             self.line(f'invalid stage: {self.name} {stage}', 'error')
+            return 1
         elif self.is_target(stage):
             self.line(f'{self.name} ({stage})', 'info')
             key = self.status.get_params(stage)
@@ -92,3 +93,4 @@ class Command(CommandBase):
                 self.status.add_saved(history, name)
             self.status.history[name] = history
             self.save_status()
+            return 0

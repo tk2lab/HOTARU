@@ -16,9 +16,11 @@ from ..util.numpy import save_numpy
 
 class DataCommand(Command):
 
-    description = 'Create TFRecord'
-
     name = 'data'
+    description = 'Create TFRecord'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
         option('force', 'f'),
@@ -40,6 +42,7 @@ class DataCommand(Command):
 
         imgs_file = os.path.join(self.application.job_dir, imgs_file)
         batch = self.status.params['batch']
+        verbose = self.status.params['pbar']
 
         imgs, wrap = load_data(imgs_file)
         nt, h, w = get_shape(imgs_file)
@@ -49,14 +52,14 @@ class DataCommand(Command):
         data = tf.data.Dataset.from_generator(_gen, tf.float32)
         mask = mask[y0:y1, x0:x1]
 
-        avgt, avgx, std = calc_std(data.batch(batch), mask, nt)
+        avgt, avgx, std = calc_std(data.batch(batch), mask, nt, verbose)
         nx = np.count_nonzero(mask)
         stat = nx, nt, h, w, y0, x0, std
 
         normalized_data = normalized(data, avgt, avgx, std)
         masked_data = masked(normalized_data, mask)
 
-        save_tfrecord(f'{curr}-data', masked_data, nt)
+        save_tfrecord(f'{curr}-data', masked_data, nt, verbose)
         save_numpy(f'{curr}-mask', mask)
         save_numpy(f'{curr}-avgt', avgt)
         save_numpy(f'{curr}-avgx', avgx)

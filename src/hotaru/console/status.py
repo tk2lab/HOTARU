@@ -19,15 +19,19 @@ class Status(object):
         if stage == 0:
             return p['imgs-file'], p['mask-type'],
         if stage == 1:
-            return p['gauss'], self.radius, p['thr-intensity'], p['shard'],
+            return p['gauss'], self.radius, p['min-intensity'], p['min-distance'], p['shard'],
         if stage == 2:
-            return p['thr-distance'],
+            return p['thr-intensity'], p['thr-distance'],
         if stage % 3 == 0:
             return self.tau, p['lu'], p['bx'], p['bt'],
         if stage % 3 == 1:
             return p['la'], p['bx'], p['bt'],
         if stage % 3 == 2:
-            return p['gauss'], self.radius, p['thr-firmness'], p['thr-sim-area'], p['thr-similarity']
+            return p['gauss'], self.radius, p['thr-firmness'], p['thr-sim-area'], p['thr-similarity'],
+
+    def get_test_params(self):
+        p = self.params
+        return p['min-intensity'], p['max-intensity'], p['min-distance'], p['max-distance'],
 
     @property
     def tau(self):

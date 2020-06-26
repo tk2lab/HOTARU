@@ -1,9 +1,9 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
-from skimage.filters import gaussian
-from skimage.morphology import label
-from skimage.segmentation import find_boundaries
+from scipy.ndimage import gaussian_filter as gaussian
+from scipy.ndimage import label, binary_closing
+from scipy.ndimage import generate_binary_structure, binary_dilation
 from matplotlib import cm
 
 
@@ -50,6 +50,7 @@ def summary_footprint_max(val, mask, stage, step=0):
 
 
 def summary_segment(val, mask, flag, gauss, thr_out, stage):
+    struct = generate_binary_structure(2, 2)
     h, w = mask.shape
     out = 0
     b0 = False
@@ -60,14 +61,20 @@ def summary_segment(val, mask, flag, gauss, thr_out, stage):
         g = gaussian(img, gauss)
         g /= g.max()
         peak = np.argmax(g)
-        y, x = peak // w, peak % w
-        lbl = label(g > thr_out, connectivity=1)
-        lbl = lbl == lbl[y, x]
-        out += lbl
+        lbl, n = label(g > thr_out)
+        size = 0
+        for i in range(1, n+1):
+            tmp = binary_closing(lbl == i)
+            ts = np.count_nonzero(tmp)
+            if ts > size:
+                size = ts
+                obj = tmp
+        out += obj
+        bound = binary_dilation(obj, struct) ^ obj
         if f:
-            b0 |= find_boundaries(lbl)
+            b0 |= bound
         else:
-            b1 |= find_boundaries(lbl)
+            b1 |= bound
     out = out / out.max()
     out = _greens(out)
     out[b0] = (0, 0, 0, 1)

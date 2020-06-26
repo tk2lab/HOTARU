@@ -4,7 +4,7 @@ import tensorflow as tf
 from ..util.distribute import distributed, ReduceOp
 
 
-def calc_std(data, mask, nt=None):
+def calc_std(data, mask, nt=None, verbose=1):
 
     @distributed(ReduceOp.CONCAT, ReduceOp.SUM, ReduceOp.SUM, ReduceOp.SUM)
     def _calc(imgs, mask):
@@ -15,7 +15,7 @@ def calc_std(data, mask, nt=None):
         nt = K.cast_to_floatx(K.shape(imgs)[0])
         return avg_t, sum_x, sumsq, nt
 
-    prog = tf.keras.utils.Progbar(nt)
+    prog = tf.keras.utils.Progbar(nt, verbose=verbose)
     mask = K.constant(mask, tf.bool)
     nx = K.cast_to_floatx(tf.math.count_nonzero(mask))
     avg_t, sum_x, sumsq, nt = _calc(data, mask, prog=prog)

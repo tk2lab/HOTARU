@@ -12,6 +12,7 @@ from .spike import SpikeCommand
 from .footprint import FootprintCommand
 from .clean import CleanCommand
 from .output import OutputCommand
+from .test import TestCommand
 
 
 class Application(ApplicationBase):
@@ -33,4 +34,5 @@ class Application(ApplicationBase):
             FootprintCommand(),
             CleanCommand(),
             OutputCommand(),
+            TestCommand(),
         )

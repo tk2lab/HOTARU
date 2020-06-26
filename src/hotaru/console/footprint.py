@@ -9,9 +9,11 @@ from ..util.pickle import load_pickle
 
 class FootprintCommand(Command):
 
-    description = 'Update footprint'
-
     name = 'footprint'
+    description = 'Update footprint'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
         option('force', 'f'),
@@ -42,6 +44,7 @@ class FootprintCommand(Command):
             batch=self.status.params['batch'],
             steps_per_epoch=self.status.params['step'],
             epochs=self.status.params['epoch'],
+            verbose=self.status.params['pbar'],
             min_delta=self.status.params['tol'],
             log_dir=logs,
         )

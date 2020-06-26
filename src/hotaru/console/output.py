@@ -1,22 +1,24 @@
 import os
 
 import tensorflow as tf
-import pandas as pd
 import numpy as np
-import tifffile
 
 from .base import Command, _option
 from ..image.filter.gaussian import gaussian
 from ..train.dynamics import SpikeToCalcium
 from ..util.numpy import load_numpy
 from ..util.pickle import load_pickle
+from ..util.tiff import save_tiff
+from ..util.csv import save_csv
 
 
 class OutputCommand(Command):
 
-    description = 'Output results'
-
     name = 'output'
+    description = 'Output results'
+    help = '''
+'''
+
     options = [
         _option('job-dir'),
     ]
@@ -57,7 +59,6 @@ class OutputCommand(Command):
         out -= thr_out
         out[out < 0.0] = 0.0
         out /= (1 - thr_out)
-        tifffile.imwrite(f'{out_base}-cell.tif', out)
 
         hz = self.status.params['hz']
         spike_to_calcium = SpikeToCalcium()
@@ -65,12 +66,12 @@ class OutputCommand(Command):
         calcium = spike_to_calcium(spike).numpy()
         pad = spike_to_calcium.pad
         time = (np.arange(nu) - pad) / hz
-        df = pd.DataFrame(dict(time=time))
-        for k in range(nk):
-            df[f'id{k:04d}'] = spike[k] / spike[k].max()
-        df.to_csv(f'{out_base}-spike.csv', float_format='%.3f')
+        spike /= spike.max(axis=1, keepdims=True)
+        spike = np.concatenate([time[:, None], spike.T], axis=1)
         time = time[pad:]
-        df = pd.DataFrame(dict(time=time))
-        for k in range(nk):
-            df[f'id{k:04d}'] = calcium[k]
-        df.to_csv(f'{out_base}-calcium.csv', float_format='%.3f')
+        calcium = np.concatenate([time[:, None], calcium.T], axis=1)
+        h = ','.join(['time'] + [f'id{k:04d}' for k in range(nk)])
+
+        save_tiff(f'{out_base}-cell', out)
+        save_csv(f'{out_base}-spike', spike, '%.3f', header=h)
+        save_csv(f'{out_base}-calcium', calcium, '%.3f', header=h)

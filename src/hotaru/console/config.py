@@ -8,12 +8,15 @@ from .base import Command, _option
 
 class ConfigCommand(Command):
 
-    description = 'Update parameter'
-
     name = 'config'
+    description = 'Update parameter'
+    help = '''
+'''
+
     options = [
         _option('job-dir', 'j', 'target directory'),
         _option('name', None, ''),
+        _option('pbar', None, ''),
 
         _option('imgs-file'),
         _option('mask-type'),
@@ -26,6 +29,11 @@ class ConfigCommand(Command):
         _option('gauss', 'g', 'size of gaussian filter (px)'),
         _option('radius-type', None, '{linear,log,manual}'),
         _option('radius', None, 'radius of cell (px)'),
+
+        _option('min-intensity', None, ''),
+        _option('min-distance', None, ''),
+        _option('max-intensity', None, ''),
+        _option('max-distance', None, ''),
 
         _option('thr-intensity', None, ''),
         _option('thr-distance', None, ''),
@@ -50,6 +58,7 @@ class ConfigCommand(Command):
     def handle(self):
         self.set_job_dir()
         self._update_parameter('name', 'default', str)
+        self._update_parameter('pbar', 1, int)
 
         self._update_parameter('imgs-file', 'imgs.tif', str)
         self._update_parameter('mask-type', '0.pad', str)
@@ -63,24 +72,28 @@ class ConfigCommand(Command):
         self._update_parameter('radius-type', 'log', str)
         self._update_parameter('radius', '2.0,40.0,13', float_tuple)
 
-        self._update_parameter('thr-intensity', 0.6)
-        self._update_parameter('thr-distance', 1.8)
+        self._update_parameter('min-intensity', 0.5)
+        self._update_parameter('min-distance', 1.5)
+        self._update_parameter('max-intensity', 1.0)
+        self._update_parameter('max-distance', 2.0)
+        self._update_parameter('thr-intensity', 0.7)
+        self._update_parameter('thr-distance', 1.6)
         self._update_parameter('shard', 1, int)
 
-        self._update_parameter('la', 1.5)
-        self._update_parameter('lu', 5.0)
-        self._update_parameter('bx', 0.0)
-        self._update_parameter('bt', 0.0)
-        self._update_parameter('thr-firmness', 0.2)
-        self._update_parameter('thr-sim-area', 0.8)
-        self._update_parameter('thr-similarity', 0.5)
+        self._update_parameter('la', 10.0)
+        self._update_parameter('lu', 100.0)
+        self._update_parameter('bx', 0.5)
+        self._update_parameter('bt', 0.5)
+        self._update_parameter('thr-firmness', 0.1)
+        self._update_parameter('thr-sim-area', 0.7)
+        self._update_parameter('thr-similarity', 0.8)
 
         self._update_parameter('learning-rate', 0.01)
         self._update_parameter('step', 100, int)
         self._update_parameter('epoch', 100, int)
         self._update_parameter('tol', 1e-3)
         self._update_parameter('batch', 100, int)
-        self._update_parameter('thr-out', 0.5)
+        self._update_parameter('thr-out', 0.7)
 
         self.save_status()
 

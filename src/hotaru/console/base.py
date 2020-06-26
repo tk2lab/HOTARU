@@ -2,7 +2,6 @@ import os
 
 import tensorflow as tf
 import numpy as np
-import GPUtil
 
 from cleo import Command as CommandBase
 from cleo import option
@@ -74,6 +73,7 @@ class Command(CommandBase):
             stage = len(history)
         if self.is_error(stage):
             self.line(f'invalid stage: {self.name} {stage}', 'error')
+            return 1
         elif self.is_target(stage):
             self.line(f'{self.name} ({stage})', 'info')
             key = self.status.get_params(stage)
@@ -93,7 +93,4 @@ class Command(CommandBase):
                 self.status.add_saved(history, name)
             self.status.history[name] = history
             self.save_status()
-
-    def print_gpu_memory(self):
-        for g in GPUtil.getGPUs():
-            self.line(f'{g.memoryUsed}')
+            return 0

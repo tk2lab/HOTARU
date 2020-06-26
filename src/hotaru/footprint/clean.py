@@ -9,7 +9,7 @@ from .segment import get_segment_index
 from .util import get_normalized_val, get_magnitude, ToDense
 
 
-def clean_footprint(data, mask, gauss, radius, batch):
+def clean_footprint(data, mask, gauss, radius, batch, verbose):
     strategy = tf.distribute.get_strategy()
 
     dataset = tf.data.Dataset.from_tensor_slices(data)
@@ -22,7 +22,7 @@ def clean_footprint(data, mask, gauss, radius, batch):
     radius = K.constant(radius)
 
     nk = data.shape[0]
-    prog = tf.keras.utils.Progbar(nk)
+    prog = tf.keras.utils.Progbar(nk, verbose=verbose)
     ss = tf.TensorArray(tf.float32, nk)
     ps = tf.TensorArray(tf.int32, nk)
     fs = tf.TensorArray(tf.float32, nk)

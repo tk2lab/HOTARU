@@ -22,20 +22,20 @@ class SpikeModel(BaseModel):
         self.add_metric(footprint_penalty, 'mean', 'penalty')
         return loss
 
-    def fit(self, footprint, lr, batch, **kwargs):
+    def fit(self, footprint, lr, batch, verbose, **kwargs):
         nk = footprint.shape[0]
         nu = self.variance.nu
         self.set_footprint(footprint)
-        self.start(batch)
+        self.start(batch, verbose)
         self.spike.val = np.zeros((nk, nu))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
-        self.fit_common(SpikeCallback, **kwargs)
+        self.fit_common(SpikeCallback, verbose=verbose, **kwargs)
 
-    def start(self, batch):
+    def start(self, batch, verbose):
         data = self.variance._data.batch(batch)
         footprint = self.footprint_tensor()
         adat = tf.TensorArray(tf.float32, 0, True)
-        prog = tf.keras.utils.Progbar(self.variance.nt)
+        prog = tf.keras.utils.Progbar(self.variance.nt, verbose=verbose)
         for d in data:
             adat_p = tf.matmul(d, footprint, False, True)
             for p in adat_p:
@@ -54,7 +54,7 @@ class SpikeCallback(tf.keras.callbacks.TensorBoard):
         super().on_train_end(logs)
 
         stage = self.stage
-        writer = self._get_writer(self._train_run_name)
+        writer = self._get_writer('spike')
         with writer.as_default():
             summary_stat(self.model.spike.val, stage, step=0)
             summary_spike(self.model.spike.val, stage, step=0)

@@ -17,8 +17,12 @@ def reduce_peak_idx(peaks, radius, thr_distance):
         i, j = flg[0], flg[1:]
         y0, x0 = ys[i], xs[i]
         y1, x1 = ys[j], xs[j]
+        ya, xa = ys[idx], xs[idx]
         thr = np.square(thr_distance * rs[i])
-        cond = np.square(y1 - y0) + np.square(x1 - x0) >= thr
-        flg = j[cond]
-        idx.append(i)
+        if not idx or np.all(np.square(ya - y0) + np.square(xa - x0) >= thr):
+            cond = np.square(y1 - y0) + np.square(x1 - x0) >= thr
+            flg = j[cond]
+            idx.append(i)
+        else:
+            flg = j
     return np.array(idx, np.int32)

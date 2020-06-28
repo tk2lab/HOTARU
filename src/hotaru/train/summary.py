@@ -23,12 +23,12 @@ def normalized_and_sort(val):
 def summary_stat(val, stage, step=0):
     val, mag = normalized_and_sort(val)
     spc = val.mean(axis=1)
-    tf.summary.histogram(f'max_val/{stage}', mag, step=step)
-    tf.summary.histogram(f'avg_val/{stage}', spc, step=step)
-    return val
+    tf.summary.histogram(f'val_max/{stage}', mag, step=step)
+    tf.summary.histogram(f'val_avg/{stage}', spc, step=step)
 
 
 def summary_spike(val, stage, step=0):
+    val, mag = normalized_and_sort(val)
     tf.summary.image(f'spike/{stage}', _reds(val)[None, ...], step=step)
 
 
@@ -43,9 +43,11 @@ def summary_footprint_sample(val, mask, stage, step=0):
 
 
 def summary_footprint_max(val, mask, stage, step=0):
+    val_max = val.max(axis=0)
+    val_max /= val.max()
     h, w = mask.shape
     imgs_max = np.zeros((1, h, w))
-    imgs_max[0, mask] = val.max(axis=0)
+    imgs_max[0, mask] = val_max
     tf.summary.image(f'max/{stage}', _greens(imgs_max), step=step)
 
 

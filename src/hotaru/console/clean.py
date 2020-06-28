@@ -88,13 +88,12 @@ class CleanCommand(Command):
         logs = os.path.join(logs, 'clean')
         writer = tf.summary.create_file_writer(logs)
         with writer.as_default():
-            tf.summary.histogram(f'radius/{curr[-3:]}', rad, step=0)
-            tf.summary.histogram(f'firmness/{curr[-3:]}', fir, step=0)
-            tf.summary.histogram(f'cor/{curr[-3:]}', cor, step=0)
-            writer.flush()
-
             fsum = segment.sum(axis=1)
-            tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
+            tf.summary.histogram(f'seg_radius/{curr[-3:]}', rad, step=0)
+            tf.summary.histogram(f'seg_firmness/{curr[-3:]}', fir, step=0)
+            tf.summary.histogram(f'seg_correlation/{curr[-3:]}', cor, step=0)
+            tf.summary.histogram(f'seg_size/{curr[-3:]}', fsum, step=0)
+            writer.flush()
 
             cond = fir > thr_firmness
             cond &= cor < thr_similarity
@@ -110,9 +109,12 @@ class CleanCommand(Command):
             rad = rad[cond]
             fir = fir[cond]
             cor = cor[cond]
-            tf.summary.histogram(f'radius/{curr[-3:]}', rad, step=1)
-            tf.summary.histogram(f'firmness/{curr[-3:]}', fir, step=1)
-            tf.summary.histogram(f'cor/{curr[-3:]}', cor, step=1)
+
+            fsum = segment.sum(axis=1)
+            tf.summary.histogram(f'seg_radius/{curr[-3:]}', rad, step=1)
+            tf.summary.histogram(f'seg_firmness/{curr[-3:]}', fir, step=1)
+            tf.summary.histogram(f'seg_correlation/{curr[-3:]}', cor, step=1)
+            tf.summary.histogram(f'seg_size/{curr[-3:]}', fsum, step=1)
             writer.flush()
         writer.close()
 

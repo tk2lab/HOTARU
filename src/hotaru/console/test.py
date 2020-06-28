@@ -23,9 +23,17 @@ class TestCommand(Command):
     ]
 
     def handle(self):
-        self.line('test', 'info')
         self.set_job_dir()
+
         name = self.status.params['name']
+
+        stage = len(self.status.history.get(name, ()))
+        if stage <= 0:
+            self.call('data')
+        if stage <= 1:
+            self.call('peak')
+
+        self.line('test', 'info')
         min_intensity, max_intensity, min_distance, max_distance = self.status.get_test_params()
         green = cm.Greens
 

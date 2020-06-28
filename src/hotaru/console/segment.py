@@ -51,24 +51,24 @@ class SegmentCommand(Command):
             p = p[cond]
             r = r[cond]
             s = s[cond]
-            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=0)
-            tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=0)
+            tf.summary.histogram(f'init/radius', r, step=0)
+            tf.summary.histogram(f'init/intensity', s, step=0)
             writer.flush()
 
             idx = reduce_peak_idx(p, radius, thr_distance)
             p = p[idx]
             r = r[idx]
             s = s[idx]
-            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=1)
-            tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=1)
+            tf.summary.histogram(f'init/radius', r, step=1)
+            tf.summary.histogram(f'init/intensity', s, step=1)
             writer.flush()
 
             cond = (0 < p[:, 1]) & (p[:, 1] < nr - 1)
             p = p[cond]
             r = r[cond]
             s = s[cond]
-            tf.summary.histogram(f'radius/{curr[-3:]}', r, step=2)
-            tf.summary.histogram(f'intensity/{curr[-3:]}', s, step=2)
+            tf.summary.histogram(f'init/radius', r, step=2)
+            tf.summary.histogram(f'init/intensity', s, step=2)
             writer.flush()
 
             segment = make_segment(
@@ -79,7 +79,7 @@ class SegmentCommand(Command):
             cond = np.ones(nk, np.bool)
             summary_segment(segment, mask, cond, gauss, thr_out, curr[-3:])
             fsum = segment.sum(axis=1)
-            tf.summary.histogram(f'sum_val/{curr[-3:]}', fsum, step=0)
+            tf.summary.histogram(f'init/seg_size', fsum, step=0)
             writer.flush()
         writer.close()
 

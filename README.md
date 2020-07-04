@@ -14,7 +14,7 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ## Install
 
 ### Require
-- python >= 3.6.1
+- python >= 3.7
 - tensorflow >= 2.2.0
 
 ### Install Procedure (using venv)

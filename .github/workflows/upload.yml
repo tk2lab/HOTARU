@@ -1,0 +1,37 @@
+name: Python package
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install Poetry
+      uses: dschep/install-poetry-action@v1.2
+
+    - name: Cache Poetry virtualenv
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: ~/.cache
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install Decendencies
+      run: poetry install
+      if: steps.cache.outputs.cache-hit != 'true'
+
+    - name: Build and Publish
+      run: |
+        poetry build
+        poetry publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }}

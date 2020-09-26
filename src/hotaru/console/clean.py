@@ -2,6 +2,7 @@ import os
 
 import tensorflow as tf
 import numpy as np
+from tensorboard.plugins import projector
 
 from .base import Command, option, _option
 from ..footprint.clean import clean_footprint
@@ -92,16 +93,25 @@ class CleanCommand(Command):
             tf.summary.histogram(f'seg_radius/{curr[-3:]}', rad, step=0)
             tf.summary.histogram(f'seg_firmness/{curr[-3:]}', fir, step=0)
             tf.summary.histogram(f'seg_correlation/{curr[-3:]}', cor, step=0)
-            tf.summary.histogram(f'seg_size/{curr[-3:]}', fsum, step=0)
             writer.flush()
+            tf.summary.histogram(f'seg_size/{curr[-3:]}', fsum, step=0)
+
+            seg_prop = tf.Variable(np.array([rad, fir, cor, fsum]).T, name='prop')
+            checkpoint = tf.train.Checkpoint(seg_prop=seg_prop)
+            checkpoint.save(os.path.join(logs, 'prop.ckpg'))
+            config = projector.ProjectorConfig()
+            tmp = config.embeddings.add()
+            tmp.tensor_name = f'seg_prop/.ATTRIBUTES/VARIABLE_VALUE'
+            projector.visualize_embeddings(logs, config)
 
             cond = fir > thr_firmness
             cond &= cor < thr_similarity
             cond &= (0 < pos[:, 0]) & (pos[:, 0] < nr - 1)
+
             idx = np.where(~cond)[0]
             for i in idx:
-                print(i, fir[i], cor[i], pos[i, 0])
-            summary_segment(segment, mask, cond, gauss, thr_out, curr[-3:])
+                print(f'id={i:03d}, firmness={fir[i]:.3f}, corr={cor[i]:.3f}, radius={rad[i]:6.3f}')
+            summary_segment(segment, fir, mask, cond, gauss, thr_out, curr[-3:])
             writer.flush()
 
             segment = segment[cond]

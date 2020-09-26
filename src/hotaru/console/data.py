@@ -22,8 +22,8 @@ class DataCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
-        option('force', 'f'),
+        _option('job-dir', 'j', ''),
+        option('force', 'f', ''),
     ]
 
     def is_error(self, stage):
@@ -56,10 +56,17 @@ class DataCommand(Command):
         nx = np.count_nonzero(mask)
         stat = nx, nt, h, w, y0, x0, std
 
-        normalized_data = normalized(data, avgt, avgx, std)
-        masked_data = masked(normalized_data, mask)
+        masked_avgx = avgx[mask]
+        out = np.lib.format.open_memmap(
+            f'{curr}-data.npy', mode='w+', dtype=np.float32, shape=(nt, nx)
+        )
+        for t, x in enumerate(imgs):
+            out[t] = (wrap(x)[y0:y1, x0:x1][mask] - avgt[t] - masked_avgx) / std
 
-        save_tfrecord(f'{curr}-data', masked_data, nt, verbose)
+        #normalized_data = normalized(data, avgt, avgx, std)
+        #masked_data = masked(normalized_data, mask)
+        #save_tfrecord(f'{curr}-data', masked_data, nt, verbose)
+
         save_numpy(f'{curr}-mask', mask)
         save_numpy(f'{curr}-avgt', avgt)
         save_numpy(f'{curr}-avgx', avgx)

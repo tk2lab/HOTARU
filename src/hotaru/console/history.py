@@ -11,7 +11,7 @@ class HistoryCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
+        _option('job-dir', 'j', ''),
     ]
 
     def handle(self):
@@ -23,8 +23,8 @@ class HistoryCommand(Command):
                 if s == 0:
                     self.line(f'data ({s}): {h[0]}, {h[1]}')
                 elif s == 1:
-                    self.line(f'peak ({s}): gamma={h[0]}, thr-intensity{h[2]}, shard={h[3]}')
-                    self.line('    radius=(' + ', '.join(f'{r:.2f}' for r in h[1]) + ')')
+                    self.line(f'peak ({s}): window={h[0]}, shift={h[1]}, gamma={h[2]}, min-intensity={h[4]}, min-distance={h[5]}')
+                    self.line('    radius=(' + ', '.join(f'{r:.2f}' for r in h[3]) + ')')
                 elif s == 2:
                     self.line(f'segment ({s}): thr-distance{h[0]}')
                 elif s % 3 == 0:

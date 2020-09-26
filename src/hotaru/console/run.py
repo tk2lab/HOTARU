@@ -11,8 +11,8 @@ class RunCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
-        _option('goal'),
+        _option('job-dir', 'j', ''),
+        _option('goal', 'g', ''),
     ]
 
     def handle(self):

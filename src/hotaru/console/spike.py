@@ -13,8 +13,8 @@ class SpikeCommand(Command):
 
     name = 'spike'
     options = [
-        _option('job-dir'),
-        option('force', 'f'),
+        _option('job-dir', 'j', ''),
+        option('force', 'f', ''),
     ]
 
     def is_error(self, stage):
@@ -33,8 +33,8 @@ class SpikeCommand(Command):
         with self.application.strategy.scope():
             elems = self.get_model(data, tau, nk)
             model = SpikeModel(*elems)
+            model.set_penalty(la, lu, bx, bt)
             model.compile()
-        model.set_penalty(la, lu, bx, bt)
         model.fit(
             segment, stage=curr[-3:],
             lr=self.status.params['learning-rate'],

@@ -27,34 +27,34 @@ class ProxOp(tf.keras.layers.Layer):
 
 class NonNegativeL1(ProxOp):
 
-    def __init__(self):
+    def __init__(self, l):
         super().__init__()
-        self.l = self.add_weight('l', (), trainable=False)
+        self._l = l
 
     def call(self, x):
-        return self.l * K.sum(K.relu(x))
+        return self._l * K.sum(K.relu(x))
 
     def prox(self, y, eta):
-        return K.relu(y - eta * self.l)
+        return K.relu(y - eta * self._l)
 
 
 class MaxNormNonNegativeL1(ProxOp):
 
-    def __init__(self, axis=-1):
+    def __init__(self, l, axis=-1):
         super().__init__()
-        self.l = self.add_weight('l', (), trainable=False)
-        self.axis = axis
+        self._l = l
+        self._axis = axis
 
     def call(self, x):
         x = K.relu(x)
-        s = K.sum(x, axis=self.axis)
-        m = K.max(x, axis=self.axis)
+        s = K.sum(x, axis=self._axis)
+        m = K.max(x, axis=self._axis)
         cond = m > 0.0
         s = tf.boolean_mask(s, cond)
         m = tf.boolean_mask(m, cond)
-        return self.l * K.sum(s / m)
+        return self._l * K.sum(s / m)
 
     def prox(self, y, eta):
         y = K.relu(y)
-        m = K.max(y, axis=self.axis, keepdims=True)
-        return K.relu(tf.where(K.equal(y, m), y, y - eta * self.l / m))
+        m = K.max(y, axis=self._axis, keepdims=True)
+        return K.relu(tf.where(K.equal(y, m), y, y - eta * self._l / m))

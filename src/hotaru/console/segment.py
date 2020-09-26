@@ -5,7 +5,7 @@ from .base import Command, option, _option
 from ..footprint.reduce import reduce_peak_idx
 from ..footprint.make import make_segment
 from ..train.summary import summary_segment
-from ..util.tfrecord import load_tfrecord
+from ..util.tfrecord import moving_average_imgs
 from ..util.numpy import load_numpy, save_numpy
 from ..util.pickle import load_pickle
 
@@ -18,8 +18,8 @@ class SegmentCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
-        option('force', 'f'),
+        _option('job-dir', 'j', ''),
+        option('force', 'f', ''),
     ]
 
     def is_error(self, stage):
@@ -36,14 +36,12 @@ class SegmentCommand(Command):
         verbose = self.status.params['pbar']
         thr_out = self.status.params['thr-out']
 
-        tfrecord = load_tfrecord(f'{data}-data')
-        mask = load_numpy(f'{data}-mask')
-        gauss, radius, shard = load_pickle(f'{prev}-filter')
+        window, shift, gauss, radius, _, _ = load_pickle(f'{prev}-filter')
+        imgs, mask, nt = moving_average_imgs(data, window, shift)
         radius = np.array(radius)
         nr = radius.size
         p = load_numpy(f'{prev}-peak')
-        r = radius[p[:, 1]]
-        s = load_numpy(f'{prev}-intensity')
+        s, d, r = load_numpy(f'{prev}-stat').T
 
         writer = tf.summary.create_file_writer(logs)
         with writer.as_default():
@@ -72,12 +70,12 @@ class SegmentCommand(Command):
             writer.flush()
 
             segment = make_segment(
-                tfrecord, mask, gauss, radius, p, shard, batch, verbose,
+                imgs, mask, gauss, radius, p, batch, verbose,
             )
 
             nk = segment.shape[0]
             cond = np.ones(nk, np.bool)
-            summary_segment(segment, mask, cond, gauss, thr_out, curr[-3:])
+            summary_segment(segment, s, mask, cond, gauss, thr_out, curr[-3:])
             fsum = segment.sum(axis=1)
             tf.summary.histogram(f'init/seg_size', fsum, step=0)
             writer.flush()

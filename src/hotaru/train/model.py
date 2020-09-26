@@ -12,17 +12,17 @@ class BaseModel(tf.keras.Model):
 
     def __init__(self, footprint, spike, variance, **kwargs):
         super().__init__(**kwargs)
+        self.la = footprint.l
+        self.lu = spike.l
         self.footprint_penalty = footprint.penalty
         self.spike_penalty = spike.penalty
-        self.la_set = footprint.set_l
-        self.lu_set = spike.set_l
         self.variance = variance
 
     def set_penalty(self, la, lu, bx, bt):
         self.variance.set_baseline(bx, bt)
         nm = K.get_value(self.variance._nm)
-        self.la_set(la / nm)
-        self.lu_set(lu / nm)
+        K.set_value(self.la, la / nm)
+        K.set_value(self.lu, lu / nm)
 
     def compile(self, **kwargs):
         super().compile(
@@ -34,10 +34,10 @@ class BaseModel(tf.keras.Model):
         loss = 0.5 * K.log(variance)
         footprint_penalty = self.footprint_penalty()
         spike_penalty = self.spike_penalty()
-        me = loss + footprint_penalty + spike_penalty
-        self.add_metric(K.sqrt(variance), 'mean', 'sigma')
-        self.add_metric(me, 'mean', 'score')
-        return loss, footprint_penalty, spike_penalty
+        out = loss, footprint_penalty, spike_penalty
+        self.add_metric(K.sqrt(variance), 'sigma')
+        self.add_metric(K.sum(out), 'score')
+        return out
 
     def fit_common(self, callback, log_dir=None, stage=None, callbacks=None,
                    steps_per_epoch=100, epochs=100, min_delta=1e-3, **kwargs):
@@ -55,7 +55,7 @@ class BaseModel(tf.keras.Model):
         if log_dir is not None:
             callbacks += [
                 callback(
-                    log_dir=log_dir, stage=stage,
+                    log_dir=log_dir, stage=stage, profile_batch=0,
                     update_freq='batch', write_graph=False,
                 ),
             ]

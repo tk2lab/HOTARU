@@ -9,27 +9,31 @@ from .segment import get_segment_index
 from .util import get_normalized_val, get_magnitude, ToDense
 
 
-def make_segment(dataset, mask, gauss, radius, peaks, shard, batch, verbose):
+def make_segment(data, mask, gauss, radius, peaks, batch, verbose):
     strategy = tf.distribute.get_strategy()
 
     ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
     nk = ts.size
 
-    dataset = unmasked(dataset.shard(shard, 0), mask)
-    dataset = dataset.batch(batch)
+    mask = K.constant(mask, tf.bool)
     to_dense = ToDense(mask)
 
-    gauss = K.constant(gauss, tf.float32)
-    radius = K.constant(radius, tf.float32)
-    ts = K.constant(ts / shard, tf.int32)
+    gauss = K.constant(gauss)
+    radius = K.constant(radius)
+
+    ts = K.constant(ts, tf.int32)
     rs = K.constant(rs, tf.int32)
     ys = K.constant(ys, tf.int32)
     xs = K.constant(xs, tf.int32)
 
+    nx = tf.math.count_nonzero(mask)
+    data = data.batch(batch)
+
+    verbose=0
     prog = tf.keras.utils.Progbar(nk, verbose=verbose)
     fps = tf.TensorArray(tf.float32, 0, True)
     e = K.constant(0, tf.int32)
-    for imgs in strategy.experimental_distribute_dataset(dataset):
+    for imgs in strategy.experimental_distribute_dataset(data):
         s, e = e, e + tf.shape(imgs)[0]
         gl, yl, xl = _prepare(
             imgs, s, e, ts, rs, ys, xs, gauss, radius,
@@ -43,7 +47,8 @@ def make_segment(dataset, mask, gauss, radius, peaks, shard, batch, verbose):
                 footprint = to_dense(pos, val)
                 fps = fps.write(fps.size(), footprint)
             prog.add(1)
-    return fps.stack().numpy()
+    stack = fps.stack()
+    return stack.numpy()
 
 
 @distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)

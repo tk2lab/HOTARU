@@ -19,7 +19,7 @@ class FootprintModel(BaseModel):
     def call(self, inputs):
         footprint = self.footprint(inputs)
         loss, footprint_penalty, spike_penalty = self.call_common(footprint)
-        self.add_metric(footprint_penalty, 'mean', 'penalty')
+        self.add_metric(footprint_penalty, 'penalty')
         return loss
 
     def fit(self, spike, lr, batch, verbose, **kwargs):
@@ -54,17 +54,16 @@ class FootprintCallback(tf.keras.callbacks.TensorBoard):
         super().on_epoch_end(logs)
 
         stage = self.stage
-        writer = self._get_writer('footprint')
+        writer = self._val_writer
         with writer.as_default():
             val = self.model.footprint.val
             summary_stat(val, stage, step=epoch)
 
     def on_train_end(self, logs=None):
-        super().on_train_end(logs)
-
         stage = self.stage
-        writer = self._get_writer('footprint')
+        writer = self._val_writer
         with writer.as_default():
             val = self.model.footprint.val
             mask = self.model.footprint.mask
             summary_footprint_max(val, mask, stage, step=0)
+        super().on_train_end(logs)

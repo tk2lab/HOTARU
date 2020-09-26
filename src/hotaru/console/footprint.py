@@ -15,8 +15,8 @@ class FootprintCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
-        option('force', 'f'),
+        _option('job-dir', 'j', ''),
+        option('force', 'f', ''),
     ]
 
     def is_error(self, stage):
@@ -33,11 +33,13 @@ class FootprintCommand(Command):
         spike = load_numpy(f'{prev}-spike')
         nk = spike.shape[0]
         lu = self.status.params['lu']
-        with self.application.strategy.scope():
-            elems = self.get_model(data, tau, nk)
-            model = FootprintModel(*elems)
-            model.compile()
+        #with self.application.strategy.scope():
+        elems = self.get_model(data, tau, nk)
+        model = FootprintModel(*elems)
         model.set_penalty(la, lu, bx, bt)
+        model.compile()
+        tf.print(model.spike_penalty())
+        tf.print(model.footprint_penalty())
         model.fit(
             spike, stage=curr[-3:],
             lr=self.status.params['learning-rate'],
@@ -48,4 +50,6 @@ class FootprintCommand(Command):
             min_delta=self.status.params['tol'],
             log_dir=logs,
         )
+        tf.print(model.spike_penalty())
+        tf.print(model.footprint_penalty())
         save_numpy(f'{curr}-footprint', model.footprint.val)

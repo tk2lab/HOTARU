@@ -7,21 +7,15 @@ from .regularizer import ProxOp, MaxNormNonNegativeL1
 
 class DynamicInputLayer(tf.keras.layers.Layer):
 
-    def __init__(self, nk, nx, regularizer=None, name='input', **kwargs):
+    def __init__(self, nk, nx, name='input', **kwargs):
         super().__init__(name=f'{name}_layer', **kwargs)
-        regularizer = regularizer or ProxOp()
         self.max_nk = nk
         self._nk = self.add_weight(f'{name}/nk', (), tf.int32, trainable=False)
         self._val = self.add_weight(f'{name}/val', (nk, nx))
-        self._val.regularizer = regularizer
+        self._val.regularizer = self._create_regularizer()
 
-    @property
-    def l(self):
-        return K.get_value(self._val.regularizer.l)
-
-    @l.setter
-    def l(self, val):
-        self.set_l(l)
+    def _create_regularizer(self):
+        return PropOp()
 
     @property
     def val(self):
@@ -30,12 +24,6 @@ class DynamicInputLayer(tf.keras.layers.Layer):
     @val.setter
     def val(self, val):
         self.set_val(val)
-
-    def set_l(self, val):
-        K.set_value(self._val.regularizer.l, val)
-
-    def get_l(self):
-        return K.get_value(self._val.regularizer.l)
 
     def set_val(self, val):
         nk = val.shape[0]
@@ -60,5 +48,8 @@ class DynamicInputLayer(tf.keras.layers.Layer):
 class MaxNormNonNegativeL1InputLayer(DynamicInputLayer):
 
     def __init__(self, nk, nx, name='mnnnl1', **kwargs):
-        reg = MaxNormNonNegativeL1(1)
-        super().__init__(nk, nx, reg, name=name, **kwargs)
+        super().__init__(nk, nx, name=name, **kwargs)
+
+    def _create_regularizer(self):
+        self.l = self.add_weight('l', (), tf.float32, trainable=False)
+        return MaxNormNonNegativeL1(self.l, 1)

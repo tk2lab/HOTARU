@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import tensorflow as tf
@@ -45,6 +46,10 @@ class Command(CommandBase):
         return os.path.join(self.application.job_dir, 'logs')
 
     @property
+    def figs_dir(self):
+        return os.path.join(self.application.job_dir, 'figs')
+
+    @property
     def status(self):
         return self.application.status
 
@@ -53,10 +58,13 @@ class Command(CommandBase):
         save_pickle(status_base, self.status)
 
     def get_model(self, data, tau, nk):
-        tfrecord = load_tfrecord(f'{data}-data')
+        def gen():
+            for d in load_numpy(f'{data}-data', mmap=True):
+                yield d
+        dataset = tf.data.Dataset.from_generator(gen, tf.float32)
         mask = load_numpy(f'{data}-mask')
         nx, nt = load_pickle(f'{data}-stat')[:2]
-        variance = Variance(tfrecord, nk, nx, nt)
+        variance = Variance(dataset, nk, nx, nt)
         variance.set_double_exp(*tau)
         footprint = Input(nk, nx, name='footprint')
         footprint.mask = mask
@@ -86,8 +94,9 @@ class Command(CommandBase):
                 prev = self.status.find_saved(history[:-1])
                 if prev:
                     prev = os.path.join(self.work_dir, prev, f'{stage-1:03d}')
+                dt = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
                 curr = os.path.join(self.work_dir, name, f'{stage:03d}')
-                logs = os.path.join(self.logs_dir, name, f'{stage:03d}')
+                logs = os.path.join(self.logs_dir, name, f'{stage:03d}-{dt}')
                 tf.io.gfile.makedirs(os.path.join(self.work_dir, name))
                 self.create(data, prev, curr, logs, *key)
                 self.status.add_saved(history, name)

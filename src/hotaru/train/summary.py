@@ -51,13 +51,13 @@ def summary_footprint_max(val, mask, stage, step=0):
     tf.summary.image(f'max/{stage}', _greens(imgs_max), step=step)
 
 
-def summary_segment(val, mask, flag, gauss, thr_out, stage):
+def summary_segment(val, fir, mask, flag, gauss, thr_out, stage):
     struct = generate_binary_structure(2, 2)
     h, w = mask.shape
-    out = 0
+    out = 0.0
     b0 = False
     b1 = False
-    for f, v in zip(flag[::-1], val[::-1]):
+    for f, v, s in zip(flag[::-1], val[::-1], fir[::-1]):
         img = np.zeros((h, w))
         img[mask] = v
         g = gaussian(img, gauss)
@@ -71,12 +71,13 @@ def summary_segment(val, mask, flag, gauss, thr_out, stage):
             if ts > size:
                 size = ts
                 obj = tmp
-        out += obj
-        bound = binary_dilation(obj, struct) ^ obj
-        if f:
-            b0 |= bound
-        else:
-            b1 |= bound
+        if size > 0:
+            out = np.where(out > s * obj, out, s * obj)
+            bound = binary_dilation(obj, struct) ^ obj
+            if f:
+                b0 |= bound
+            else:
+                b1 |= bound
     out = out / out.max()
     out = _greens(out)
     out[b0] = (0, 0, 0, 1)

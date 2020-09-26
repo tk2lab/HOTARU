@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hotaru"
-version = "3.2.3"
+version = "3.2.4"
 description = "High performance Optimizer to extract spike Timing And cell location from calcium imaging data via lineaR impUlse"
 license = "GPL-3.0-only"
 authors = ["TAKEKAWA Takashi <takekawa@tk2lab.org>"]
@@ -10,7 +10,7 @@ keywords = ["Calcium Imaging", "Spike Detection", "Cell Extraction"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-tensorflow = "^2.2.0"
+tensorflow = "^2.2.1"
 tifffile = "^2020.5.11"
 matplotlib = "^3.2.1"
 cleo = "^0.8.1"

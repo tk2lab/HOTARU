@@ -1,3 +1,5 @@
+import os
+
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
@@ -19,7 +21,7 @@ class SpikeModel(BaseModel):
         spike = self.spike(inputs)
         calcium = self.variance.spike_to_calcium(spike)
         loss, footprint_penalty, spike_penalty = self.call_common(calcium)
-        self.add_metric(footprint_penalty, 'mean', 'penalty')
+        self.add_metric(footprint_penalty, 'penalty')
         return loss
 
     def fit(self, footprint, lr, batch, verbose, **kwargs):
@@ -50,18 +52,18 @@ class SpikeCallback(tf.keras.callbacks.TensorBoard):
         super().__init__(*args, **kwargs)
         self.stage = stage
 
+    def set_model(self, model):
+        super().set_model(model)
+        self._train_dir = os.path.join(self._log_write_dir, 'spike')
+
     def on_epoch_end(self, epoch, logs=None):
+        stage = self.stage
+        with self._train_writer.as_default():
+            summary_stat(self.model.spike.val, stage, step=epoch)
         super().on_epoch_end(epoch, logs)
 
-        stage = self.stage
-        writer = self._get_writer('spike')
-        with writer.as_default():
-            summary_stat(self.model.spike.val, stage, step=epoch)
-
     def on_train_end(self, logs=None):
-        super().on_train_end(logs)
-
         stage = self.stage
-        writer = self._get_writer('spike')
-        with writer.as_default():
+        with self._train_writer.as_default():
             summary_spike(self.model.spike.val, stage, step=0)
+        super().on_train_end(logs)

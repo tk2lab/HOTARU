@@ -19,7 +19,7 @@ class TestCommand(Command):
 '''
 
     options = [
-        _option('job-dir', 'j', ''),
+        _option('job-dir', 'j', 'target directory'),
     ]
 
     def handle(self):

@@ -20,7 +20,7 @@ class OutputCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
+        _option('job-dir', 'j', 'target directory'),
     ]
 
     def handle(self):

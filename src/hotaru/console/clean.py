@@ -19,7 +19,7 @@ class CleanCommand(Command):
 '''
 
     options = [
-        _option('job-dir', 'j', ''),
+        _option('job-dir', 'j', 'target directory'),
         option('force', 'f', ''),
     ]
 

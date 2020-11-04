@@ -15,7 +15,7 @@ class FootprintCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
+        _option('job-dir', 'j', 'target directory'),
         option('force', 'f'),
     ]
 
@@ -33,10 +33,10 @@ class FootprintCommand(Command):
         spike = load_numpy(f'{prev}-spike')
         nk = spike.shape[0]
         lu = self.status.params['lu']
-        with self.application.strategy.scope():
-            elems = self.get_model(data, tau, nk)
-            model = FootprintModel(*elems)
-            model.compile()
+        #with self.application.strategy.scope():
+        elems = self.get_model(data, tau, nk)
+        model = FootprintModel(*elems)
+        model.compile()
         model.set_penalty(la, lu, bx, bt)
         model.fit(
             spike, stage=curr[-3:],

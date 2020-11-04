@@ -11,7 +11,7 @@ class RunCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
+        _option('job-dir', 'j', 'target directory'),
         _option('goal'),
     ]
 

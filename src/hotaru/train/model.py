@@ -35,8 +35,8 @@ class BaseModel(tf.keras.Model):
         footprint_penalty = self.footprint_penalty()
         spike_penalty = self.spike_penalty()
         me = loss + footprint_penalty + spike_penalty
-        self.add_metric(K.sqrt(variance), 'mean', 'sigma')
-        self.add_metric(me, 'mean', 'score')
+        self.add_metric(K.sqrt(variance), 'sigma')
+        self.add_metric(me, 'score')
         return loss, footprint_penalty, spike_penalty
 
     def fit_common(self, callback, log_dir=None, stage=None, callbacks=None,

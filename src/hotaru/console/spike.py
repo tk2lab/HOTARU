@@ -13,7 +13,7 @@ class SpikeCommand(Command):
 
     name = 'spike'
     options = [
-        _option('job-dir'),
+        _option('job-dir', 'j', 'target directory'),
         option('force', 'f'),
     ]
 
@@ -30,10 +30,10 @@ class SpikeCommand(Command):
         segment = load_numpy(f'{prev}-segment')
         nk = segment.shape[0]
         la = self.status.params['la']
-        with self.application.strategy.scope():
-            elems = self.get_model(data, tau, nk)
-            model = SpikeModel(*elems)
-            model.compile()
+        #with self.application.strategy.scope():
+        elems = self.get_model(data, tau, nk)
+        model = SpikeModel(*elems)
+        model.compile()
         model.set_penalty(la, lu, bx, bt)
         model.fit(
             segment, stage=curr[-3:],

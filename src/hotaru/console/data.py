@@ -22,7 +22,7 @@ class DataCommand(Command):
 '''
 
     options = [
-        _option('job-dir'),
+        _option('job-dir', 'j', 'target directory'),
         option('force', 'f'),
     ]
 

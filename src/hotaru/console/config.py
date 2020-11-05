@@ -18,8 +18,8 @@ class ConfigCommand(Command):
         _option('name', None, ''),
         _option('pbar', None, ''),
 
-        _option('imgs-file'),
-        _option('mask-type'),
+        _option('imgs-file', None, ''),
+        _option('mask-type', None, ''),
 
         _option('tau-rise', None, 'time constant of calicum raise (sec)'),
         _option('tau-fall', None, 'time constant of calcium fall (sec)'),

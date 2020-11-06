@@ -10,8 +10,6 @@ from .util import get_normalized_val, get_magnitude, ToDense
 
 
 def make_segment(dataset, mask, gauss, radius, peaks, shard, batch, verbose):
-    strategy = tf.distribute.get_strategy()
-
     ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
     nk = ts.size
 
@@ -29,7 +27,7 @@ def make_segment(dataset, mask, gauss, radius, peaks, shard, batch, verbose):
     prog = tf.keras.utils.Progbar(nk, verbose=verbose)
     fps = tf.TensorArray(tf.float32, 0, True)
     e = K.constant(0, tf.int32)
-    for imgs in strategy.experimental_distribute_dataset(dataset):
+    for imgs in dataset:
         s, e = e, e + tf.shape(imgs)[0]
         gl, yl, xl = _prepare(
             imgs, s, e, ts, rs, ys, xs, gauss, radius,

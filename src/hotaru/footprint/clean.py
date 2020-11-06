@@ -10,7 +10,7 @@ from .util import get_normalized_val, get_magnitude, ToDense
 
 
 def clean_footprint(data, mask, gauss, radius, batch, verbose):
-    strategy = tf.distribute.get_strategy()
+    #strategy = tf.distribute.get_strategy()
 
     dataset = tf.data.Dataset.from_tensor_slices(data)
     dataset = unmasked(dataset, mask)
@@ -27,7 +27,8 @@ def clean_footprint(data, mask, gauss, radius, batch, verbose):
     ps = tf.TensorArray(tf.int32, nk)
     fs = tf.TensorArray(tf.float32, nk)
     i = tf.constant(0)
-    for data in strategy.experimental_distribute_dataset(dataset):
+    #for data in strategy.experimental_distribute_dataset(dataset):
+    for data in dataset:
         gl, ll, rl, yl, xl = _prepare(data, mask, gauss, radius)
         nx = tf.size(rl)
         for k in tf.range(nx):

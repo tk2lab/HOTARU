@@ -18,7 +18,7 @@ jobs:
         python-version: '3.x'
 
     - name: Install Poetry
-      uses: dschep/install-poetry-action@v1.2
+      uses: snok/install-poetry@v1.0.0
 
     - name: Cache Poetry virtualenv
       uses: actions/cache@v2

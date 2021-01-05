@@ -11,8 +11,8 @@ keywords = ["Calcium Imaging", "Spike Detection", "Cell Extraction"]
 [tool.poetry.dependencies]
 python = "^3.7 || ^3.8 || ^3.9"
 cleo = "^0.8"
+scipy = "~1.4"
 tifffile = "^2020"
-scipy = "^1.6"
 tensorflow = "^2.4"
 matplotlib = "^3.3"
 

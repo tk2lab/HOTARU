@@ -1,5 +1,6 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
+from tqdm import trange
 
 from ..util.distribute import distributed, ReduceOp
 from ..util.dataset import unmasked
@@ -20,25 +21,25 @@ def clean_footprint(data, mask, gauss, radius, batch, verbose):
     radius = K.constant(radius)
 
     nk = data.shape[0]
-    prog = tf.keras.utils.Progbar(nk, verbose=verbose)
     ss = tf.TensorArray(tf.float32, nk)
     ps = tf.TensorArray(tf.int32, nk)
     fs = tf.TensorArray(tf.float32, nk)
     i = tf.constant(0)
-    for data in dataset:
-        gl, ll, rl, yl, xl = _prepare(data, mask, gauss, radius)
-        nx = tf.size(rl)
-        for k in tf.range(nx):
-            g, l, r, y, x = gl[k], ll[k], rl[k], yl[k], xl[k]
-            pos = get_segment_index(l, y, x, mask)
-            val = get_normalized_val(g, pos)
-            footprint = to_dense(pos, val)
-            firmness = get_magnitude(l, pos) / get_magnitude(g, pos)
-            ss = ss.write(i, footprint)
-            ps = ps.write(i, [r, y, x])
-            fs = fs.write(i, firmness)
-            i += 1
-            prog.add(1)
+    with trange(nk, disable=verbose==0) as prog:
+        for data in dataset:
+            gl, ll, rl, yl, xl = _prepare(data, mask, gauss, radius)
+            nx = tf.size(rl)
+            for k in tf.range(nx):
+                g, l, r, y, x = gl[k], ll[k], rl[k], yl[k], xl[k]
+                pos = get_segment_index(l, y, x, mask)
+                val = get_normalized_val(g, pos)
+                footprint = to_dense(pos, val)
+                firmness = get_magnitude(l, pos) / get_magnitude(g, pos)
+                ss = ss.write(i, footprint)
+                ps = ps.write(i, [r, y, x])
+                fs = fs.write(i, firmness)
+                i += 1
+                prog.update(1)
     return ss.stack().numpy(), ps.stack().numpy(), fs.stack().numpy()
 
 

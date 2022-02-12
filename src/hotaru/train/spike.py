@@ -3,6 +3,7 @@ import os
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
+from tqdm import trange
 
 from .model import BaseModel
 from .summary import summary_stat, summary_spike
@@ -37,12 +38,13 @@ class SpikeModel(BaseModel):
         data = self.variance._data.batch(batch)
         footprint = self.footprint_tensor()
         adat = tf.TensorArray(tf.float32, 0, True)
-        prog = tf.keras.utils.Progbar(self.variance.nt, verbose=verbose)
-        for d in data:
-            adat_p = tf.matmul(d, footprint, False, True)
-            for p in adat_p:
-                adat = adat.write(adat.size(), p)
-                prog.add(1)
+        with trange(self.variance.nt,
+                    desc='Initialize', disable=verbose == 0) as prog:
+            for d in data:
+                adat_p = tf.matmul(d, footprint, False, True)
+                for p in adat_p:
+                    adat = adat.write(adat.size(), p)
+                    prog.update(1)
         self.variance._cache(0, footprint, tf.transpose(adat.stack()))
 
 

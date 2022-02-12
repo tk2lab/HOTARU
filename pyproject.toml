@@ -9,12 +9,14 @@ repository = "https://github.com/tk2lab/HOTARU"
 keywords = ["Calcium Imaging", "Spike Detection", "Cell Extraction"]
 
 [tool.poetry.dependencies]
-python = "^3.7 || ^3.8 || ^3.9"
+python = ">=3.8,<3.11"
 cleo = "^0.8"
-scipy = "~1.4"
-tifffile = "^2020"
-tensorflow = "^2.4"
-matplotlib = "^3.3"
+scipy = "~1.8"
+tifffile = "^2022"
+tensorflow = ">=2.6.1,<2.8"
+matplotlib = "^3.5"
+tqdm = "^4.62"
+tensorflow-addons = "^0.15.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"

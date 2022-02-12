@@ -3,7 +3,7 @@ def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
     import tensorflow as tf
-    tf.get_logger().setLevel('WARN')
+    tf.get_logger().setLevel('ERROR')
 
     # for debug
     #limit_gpu_memory = 7000

@@ -21,7 +21,7 @@ class Application(ApplicationBase):
         super().__init__('hotaru', __version__)
 
         self.job_dir = None
-        self.strategy = tf.distribute.MirroredStrategy()
+        #self.strategy = tf.distribute.MirroredStrategy()
 
         self.add_commands(
             ConfigCommand(),

@@ -1,5 +1,6 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
+from tqdm import trange
 
 from ..util.distribute import distributed, ReduceOp
 from ..util.dataset import unmasked
@@ -37,7 +38,7 @@ def find_peak(
     gauss = K.constant(gauss)
     radius = K.constant(radius)
     thr_intensity = K.constant(thr_intensity)
-    prog = tf.keras.utils.Progbar((nt + shard - 1) // shard, verbose=verbose)
-    pos, score = _find(data, mask, gauss, radius, thr_intensity, prog=prog)
+    with trange((nt + shard - 1) // shard, disable=verbose == 0) as prog:
+        pos, score = _find(data, mask, gauss, radius, thr_intensity, prog=prog)
     idx = tf.argsort(score)[::-1]
     return tf.gather(pos, idx).numpy(), tf.gather(score, idx).numpy()

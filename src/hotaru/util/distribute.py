@@ -55,9 +55,9 @@ def distributed(*types, loop=True):
                 os = tuple(o + x for o, x in zip(os, xs))
                 if prog is not None:
                     if isinstance(d, tuple):
-                        prog.add(tf.shape(d[0])[0].numpy())
+                        prog.update(tf.shape(d[0])[0].numpy())
                     else:
-                        prog.add(tf.shape(d)[0].numpy())
+                        prog.update(tf.shape(d)[0].numpy())
             return tuple(finish(o, t) for o, t in zip(os, types))
 
         def single_run(*args, **kwargs):

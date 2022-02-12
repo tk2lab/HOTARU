@@ -1,5 +1,6 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
+from tqdm import trange
 
 from ..util.distribute import distributed, ReduceOp
 from ..util.dataset import unmasked
@@ -24,23 +25,23 @@ def make_segment(dataset, mask, gauss, radius, peaks, shard, batch, verbose):
     ys = K.constant(ys, tf.int32)
     xs = K.constant(xs, tf.int32)
 
-    prog = tf.keras.utils.Progbar(nk, verbose=verbose)
     fps = tf.TensorArray(tf.float32, 0, True)
     e = K.constant(0, tf.int32)
-    for imgs in dataset:
-        s, e = e, e + tf.shape(imgs)[0]
-        gl, yl, xl = _prepare(
-            imgs, s, e, ts, rs, ys, xs, gauss, radius,
-        )
-        nk = tf.size(yl)
-        for k in tf.range(nk):
-            g, y, x = gl[k], yl[k], xl[k]
-            pos = get_segment_index(g, y, x, mask)
-            val = get_normalized_val(g, pos)
-            if get_magnitude(g, pos) > 0.0:
-                footprint = to_dense(pos, val)
-                fps = fps.write(fps.size(), footprint)
-            prog.add(1)
+    with trange(nk, disable=verbose==0) as prog:
+        for imgs in dataset:
+            s, e = e, e + tf.shape(imgs)[0]
+            gl, yl, xl = _prepare(
+                imgs, s, e, ts, rs, ys, xs, gauss, radius,
+            )
+            nk = tf.size(yl)
+            for k in tf.range(nk):
+                g, y, x = gl[k], yl[k], xl[k]
+                pos = get_segment_index(g, y, x, mask)
+                val = get_normalized_val(g, pos)
+                if get_magnitude(g, pos) > 0.0:
+                    footprint = to_dense(pos, val)
+                    fps = fps.write(fps.size(), footprint)
+                prog.update(1)
     return fps.stack().numpy()
 
 

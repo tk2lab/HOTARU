@@ -3,6 +3,7 @@ import os
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
+from tqdm import trange
 
 from .model import BaseModel
 from .summary import normalized_and_sort
@@ -38,11 +39,12 @@ class FootprintModel(BaseModel):
         spike = self.spike_tensor()
         calcium = self.variance.spike_to_calcium(spike)
         vdat = K.constant(0.0)
-        prog = tf.keras.utils.Progbar(self.variance.nt, verbose=verbose)
-        for t, d in data:
-            c_p = tf.gather(calcium, t, axis=1)
-            vdat += tf.matmul(c_p, d)
-            prog.add(tf.size(t).numpy())
+        with trange(self.variance.nt,
+                    desc='Initialize', disable=verbose == 0) as prog:
+            for t, d in data:
+                c_p = tf.gather(calcium, t, axis=1)
+                vdat += tf.matmul(c_p, d)
+                prog.update(tf.size(t).numpy())
         self.variance._cache(1, calcium, vdat)
 
 

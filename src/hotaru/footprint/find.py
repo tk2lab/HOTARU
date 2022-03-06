@@ -38,7 +38,8 @@ def find_peak(
     gauss = K.constant(gauss)
     radius = K.constant(radius)
     thr_intensity = K.constant(thr_intensity)
-    with trange((nt + shard - 1) // shard, disable=verbose == 0) as prog:
+    total = (nt + shard - 1) // shard
+    with trange(total, desc='Find', disable=verbose == 0) as prog:
         pos, score = _find(data, mask, gauss, radius, thr_intensity, prog=prog)
     idx = tf.argsort(score)[::-1]
     return tf.gather(pos, idx).numpy(), tf.gather(score, idx).numpy()

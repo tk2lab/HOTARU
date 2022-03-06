@@ -13,5 +13,5 @@ def save_tfrecord(filebase, data, nt=None, verbose=1):
 
 def load_tfrecord(filebase):
     data = tf.data.TFRecordDataset(f'{filebase}.tfrecord')
-    data = data.map(lambda ex: tf.io.parse_tensor(ex, tf.float32))
+    data = data.map(lambda x: tf.io.parse_tensor(x, tf.float32))
     return data

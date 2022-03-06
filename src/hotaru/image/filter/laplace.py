@@ -19,5 +19,6 @@ def gaussian_laplace(imgs, r):
 
 
 def gaussian_laplace_multi(imgs, radius):
-    tmp = K.map_fn(lambda r: gaussian_laplace(imgs, r), radius)
+    tmp = tf.map_fn(lambda r: gaussian_laplace(imgs, r), radius,
+                   fn_output_signature=tf.float32)
     return tf.transpose(tmp, (1, 0, 2, 3))

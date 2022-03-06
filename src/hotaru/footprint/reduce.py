@@ -10,8 +10,11 @@ def reduce_peak(peaks, radius, thr_distance):
 def reduce_peak_idx(peaks, radius, thr_distance):
     ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
     rs = np.array(radius)[rs]
-    total = ts.size
-    flg = np.arange(total, dtype=np.int32)
+    return _reduce_peak_idx(ys, xs, rs, thr_distance)
+
+
+def _reduce_peak_idx(ys, xs, rs, thr_distance):
+    flg = np.arange(rs.size, dtype=np.int32)
     idx = []
     while flg.size > 0:
         i, j = flg[0], flg[1:]

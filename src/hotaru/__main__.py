@@ -1,5 +1,6 @@
-from .console import main
 import sys
+
+from .console import main
 
 
 sys.exit(main())

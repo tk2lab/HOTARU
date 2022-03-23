@@ -1,10 +1,9 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
-from scipy.ndimage import gaussian_filter as gaussian
-from scipy.ndimage import label, binary_closing
-from scipy.ndimage import generate_binary_structure, binary_dilation
 from matplotlib import cm
+
+from ..footprint.util import footprint_contour
 
 
 _jet = cm.get_cmap('jet')
@@ -52,33 +51,5 @@ def summary_footprint_max(val, mask, stage, step=0):
 
 
 def summary_segment(val, mask, flag, gauss, thr_out, stage):
-    struct = generate_binary_structure(2, 2)
-    h, w = mask.shape
-    out = 0
-    b0 = False
-    b1 = False
-    for f, v in zip(flag[::-1], val[::-1]):
-        img = np.zeros((h, w))
-        img[mask] = v
-        g = gaussian(img, gauss)
-        g /= g.max()
-        peak = np.argmax(g)
-        lbl, n = label(g > thr_out)
-        size = 0
-        for i in range(1, n+1):
-            tmp = binary_closing(lbl == i)
-            ts = np.count_nonzero(tmp)
-            if ts > size:
-                size = ts
-                obj = tmp
-        out += obj
-        bound = binary_dilation(obj, struct) ^ obj
-        if f:
-            b0 |= bound
-        else:
-            b1 |= bound
-    out = out / out.max()
-    out = _greens(out)
-    out[b0] = (0, 0, 0, 1)
-    out[b1] = (1, 0, 0, 1)
+    out, _, _ = footprint_contour(val, gauss, thr_out, mask, flag)
     tf.summary.image(f'segment/{stage}', out[None, ...], step=0)

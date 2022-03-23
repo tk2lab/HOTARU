@@ -7,6 +7,7 @@ class ReduceOp(Enum):
     CONCAT = 0
     SUM = 1
     MAX = 2
+    STACK = 3
 
 
 def distributed(*types, loop=True):
@@ -18,6 +19,8 @@ def distributed(*types, loop=True):
             return ()
         elif t == ReduceOp.CONCAT:
             return ()
+        elif t == ReduceOp.STACK:
+            return ()
         else:
             raise NotImplementedError()
 
@@ -27,6 +30,8 @@ def distributed(*types, loop=True):
         elif t == ReduceOp.MAX:
             return strategy.experimental_local_results(x)
         elif t == ReduceOp.CONCAT:
+            return strategy.experimental_local_results(x)
+        elif t == ReduceOp.STACK:
             return strategy.experimental_local_results(x)
         else:
             raise NotImplementedError()
@@ -38,6 +43,8 @@ def distributed(*types, loop=True):
             return tf.reduce_max(o, axis=0)
         elif t == ReduceOp.CONCAT:
             return tf.concat(o, axis=0)
+        elif t == ReduceOp.STACK:
+            return tf.stack(o)
         else:
             raise NotImplementedError()
 

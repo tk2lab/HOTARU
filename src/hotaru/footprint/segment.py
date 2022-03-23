@@ -2,12 +2,19 @@ import tensorflow as tf
 import numpy as np
 import heapq as hq
 
+from scipy.ndimage import label
+
 
 def get_segment_index(gl, y, x, mask):
     # return get_segment_index_tf(gl, y, x, mask)
     return tf.numpy_function(
         get_segment_index_py, [gl, y, x, mask], tf.int32
     )
+
+
+def get_segment(img, y, x, thr):
+    lbl, n = label(img > thr)
+    return lbl == lbl[y, x]
 
 
 def get_segment_index_py(img, y0, x0, mask):

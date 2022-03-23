@@ -63,7 +63,7 @@ class FootprintCallback(tf.keras.callbacks.TensorBoard):
         with self._train_writer.as_default():
             val = self.model.footprint.val
             summary_stat(val, stage, step=epoch)
-        super().on_epoch_end(logs)
+        super().on_epoch_end(epoch, logs)
 
     def on_train_end(self, logs=None):
         stage = self.stage

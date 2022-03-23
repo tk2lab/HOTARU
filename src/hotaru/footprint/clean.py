@@ -1,46 +1,59 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
+import numpy as np
 from tqdm import trange
 
 from ..util.distribute import distributed, ReduceOp
 from ..util.dataset import unmasked
 from ..image.filter.gaussian import gaussian
 from ..image.filter.laplace import gaussian_laplace_multi
-from .segment import get_segment_index
-from .util import get_normalized_val, get_magnitude, ToDense
+from .segment import get_segment_index_py
 
 
 def clean_footprint(data, mask, gauss, radius, batch, verbose):
     dataset = tf.data.Dataset.from_tensor_slices(data)
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
-    to_dense = ToDense(mask)
+    #to_dense = ToDense(mask)
 
+    _mask = mask
     mask = K.constant(mask, tf.bool)
     gauss = K.constant(gauss)
     radius = K.constant(radius)
 
+    thr = 0.01
     nk = data.shape[0]
-    ss = tf.TensorArray(tf.float32, nk)
-    ps = tf.TensorArray(tf.int32, nk)
-    fs = tf.TensorArray(tf.float32, nk)
-    i = tf.constant(0)
-    with trange(nk, disable=verbose==0) as prog:
+    i = 0
+    ss = []
+    ps = []
+    fs = []
+    #i = tf.constant(0)
+    with trange(nk, desc='Clean', disable=verbose==0) as prog:
         for data in dataset:
             gl, ll, rl, yl, xl = _prepare(data, mask, gauss, radius)
-            nx = tf.size(rl)
-            for k in tf.range(nx):
-                g, l, r, y, x = gl[k], ll[k], rl[k], yl[k], xl[k]
-                pos = get_segment_index(l, y, x, mask)
-                val = get_normalized_val(g, pos)
-                footprint = to_dense(pos, val)
-                firmness = get_magnitude(l, pos) / get_magnitude(g, pos)
-                ss = ss.write(i, footprint)
-                ps = ps.write(i, [r, y, x])
-                fs = fs.write(i, firmness)
+            _gl = gl.numpy()
+            _ll = ll.numpy()
+            _rl = rl.numpy()
+            _yl = yl.numpy()
+            _xl = xl.numpy()
+            nx = _rl.size
+            for k in range(nx):
+                img, log, r, y, x = _gl[k], _ll[k], _rl[k], _yl[k], _xl[k]
+                pos = get_segment_index_py(log, y, x, _mask)
+                slog = log[pos[:, 0], pos[:, 1]]
+                simg = img[pos[:, 0], pos[:, 1]]
+                firmness = (slog.max() - slog.min()) / (simg.max() - simg.min())
+                img = simg.min() * np.ones_like(img)
+                img[pos[:, 0], pos[:, 1]] = simg
+                img -= img.min()
+                if img.max() > 0.0:
+                    img /= img.max()
+                ss.append(img)
+                ps.append([r, y, x])
+                fs.append(firmness)
                 i += 1
                 prog.update(1)
-    return ss.stack().numpy(), ps.stack().numpy(), fs.stack().numpy()
+    return np.array(ss)[:, mask], np.array(ps), np.array(fs)
 
 
 @distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)

@@ -1,6 +1,7 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
+import pandas as pd
 from tqdm import trange
 
 from ..util.distribute import distributed, ReduceOp
@@ -10,7 +11,7 @@ from ..image.filter.laplace import gaussian_laplace_multi
 from .segment import get_segment_index_py
 
 
-def clean_footprint(data, mask, gauss, radius, batch, verbose):
+def clean_footprint(data, mask, radius, batch, verbose):
     dataset = tf.data.Dataset.from_tensor_slices(data)
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
@@ -18,8 +19,7 @@ def clean_footprint(data, mask, gauss, radius, batch, verbose):
 
     _mask = mask
     mask = K.constant(mask, tf.bool)
-    gauss = K.constant(gauss)
-    radius = K.constant(radius)
+    radius_ = K.constant(radius)
 
     thr = 0.01
     nk = data.shape[0]
@@ -30,7 +30,7 @@ def clean_footprint(data, mask, gauss, radius, batch, verbose):
     #i = tf.constant(0)
     with trange(nk, desc='Clean', disable=verbose==0) as prog:
         for data in dataset:
-            gl, ll, rl, yl, xl = _prepare(data, mask, gauss, radius)
+            gl, ll, rl, yl, xl = _prepare(data, mask, radius_)
             _gl = gl.numpy()
             _ll = ll.numpy()
             _rl = rl.numpy()
@@ -53,13 +53,16 @@ def clean_footprint(data, mask, gauss, radius, batch, verbose):
                 fs.append(firmness)
                 i += 1
                 prog.update(1)
-    return np.array(ss)[:, mask], np.array(ps), np.array(fs)
+    r, y, x = np.array(ps).T
+    r = radius[r]
+    f = np.array(fs)
+    peaks = pd.DataFrame(dict(firmness=f, radius=r, y=y, x=x))
+    return np.array(ss)[:, mask], peaks
 
 
 @distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)
-def _prepare(imgs, mask, gauss, radius):
-    gs = gaussian(imgs, gauss) if gauss > 0.0 else imgs
-    ls = gaussian_laplace_multi(gs, radius)
+def _prepare(imgs, mask, radius):
+    ls = gaussian_laplace_multi(imgs, radius)
     nk, h, w = tf.shape(ls)[0], tf.shape(ls)[2], tf.shape(ls)[3]
     hw = h * w
     lsr = K.reshape(ls, (nk, -1))

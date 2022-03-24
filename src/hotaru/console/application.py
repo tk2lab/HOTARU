@@ -1,18 +1,20 @@
 from cleo import Application as ApplicationBase
-import tensorflow as tf
 
 from ..version import __version__
-from .config import ConfigCommand
-from .run import RunCommand
-from .history import HistoryCommand
+
 from .data import DataCommand
-from .peak import PeakCommand
-from .segment import SegmentCommand
-from .spike import SpikeCommand
-from .footprint import FootprintCommand
+from .find import FindCommand
+from .reduce import ReduceCommand
+from .init import InitCommand
+from .temporal import TemporalCommand
+from .spatial import SpatialCommand
 from .clean import CleanCommand
-from .output import OutputCommand
-from .test import TestCommand
+
+#from .config import ConfigCommand
+#from .run import RunCommand
+#from .output import OutputCommand
+#from .history import HistoryCommand
+#from .test import TestCommand
 
 
 class Application(ApplicationBase):
@@ -20,19 +22,18 @@ class Application(ApplicationBase):
     def __init__(self):
         super().__init__('hotaru', __version__)
 
-        self.job_dir = None
-        #self.strategy = tf.distribute.MirroredStrategy()
-
         self.add_commands(
-            ConfigCommand(),
-            RunCommand(),
-            HistoryCommand(),
             DataCommand(),
-            PeakCommand(),
-            SegmentCommand(),
-            SpikeCommand(),
-            FootprintCommand(),
+            FindCommand(),
+            ReduceCommand(),
+            InitCommand(),
+            TemporalCommand(),
+            SpatialCommand(),
             CleanCommand(),
-            OutputCommand(),
-            TestCommand(),
+
+            #ConfigCommand(),
+            #RunCommand(),
+            #OutputCommand(),
+            #HistoryCommand(),
+            #TestCommand(),
         )

@@ -1,66 +1,57 @@
-import os
+from .base import CommandBase
+from .base import option
 
-import tensorflow.keras.backend as K
-import tensorflow as tf
-import numpy as np
-
-from .base import Command, option, _option
-from ..image.load import get_shape, load_data
-from ..image.mask import get_mask, get_mask_range
+from ..image.load import load_data
+from ..image.mask import get_mask
+from ..image.mask import get_mask_range
 from ..image.std import calc_std
-from ..util.dataset import normalized, masked
+from ..image.max import calc_max
+from ..image.cor import calc_cor
+from ..util.dataset import normalized
+from ..util.dataset import masked
 from ..util.tfrecord import save_tfrecord
 from ..util.pickle import save_pickle
-from ..util.numpy import save_numpy
 
 
-class DataCommand(Command):
+class DataCommand(CommandBase):
 
     name = 'data'
+    _type = 'data'
     description = 'Create TFRecord'
     help = '''
 '''
 
-    options = [
-        _option('job-dir', 'j', 'target directory'),
-        option('force', 'f'),
+    options = CommandBase.options + [
+        option('imgs-path', 'i', '', False, False, False, 'imgs.tif'),
+        option('mask-type', 'm', '', False, False, False, '0.pad'),
+        option('batch', 'b', '', False, False, False, 100),
     ]
 
-    def is_error(self, stage):
-        return False
+    def _handle(self, base):
+        imgs_path = self.option('imgs-path')
+        imgs = load_data(imgs_path)
+        nt, h, w = imgs.shape()
 
-    def is_target(self, stage):
-        return stage == 0
-
-    def force_stage(self, stage):
-        return 0
-
-    def create(self, data, prev, curr, log, imgs_file, mask_type):
-        def _gen():
-            for x in imgs:
-                yield tf.convert_to_tensor(wrap(x)[y0:y1, x0:x1], tf.float32)
-
-        imgs_file = os.path.join(self.application.job_dir, imgs_file)
-        batch = self.status.params['batch']
-        verbose = self.status.params['pbar']
-
-        imgs, wrap = load_data(imgs_file)
-        nt, h, w = get_shape(imgs_file)
-        mask = get_mask(mask_type, h, w, self.application.job_dir)
-
+        mask_type = self.option('mask-type')
+        mask = get_mask(mask_type, h, w)
         y0, y1, x0, x1 = get_mask_range(mask)
-        data = tf.data.Dataset.from_generator(_gen, tf.float32)
+
+        data = imgs.clipped_dataset(y0, y1, x0, x1)
         mask = mask[y0:y1, x0:x1]
 
-        avgt, avgx, std = calc_std(data.batch(batch), mask, nt, verbose)
-        nx = np.count_nonzero(mask)
-        stat = nx, nt, h, w, y0, x0, std
+        batch = int(self.option('batch'))
+        verbose = self.verbose()
+        istd, avgt, avgx = calc_std(data.batch(batch), mask, nt, verbose)
+        #imax = calc_max(data.batch(batch), nt, verbose)
+        #icor = calc_cor(data.batch(batch), nt, verbose)
 
-        normalized_data = normalized(data, avgt, avgx, std)
+        data_path = f'{base}.tfrecord'
+        normalized_data = normalized(data, istd, avgt, avgx)
         masked_data = masked(normalized_data, mask)
+        save_tfrecord(data_path, masked_data, nt, verbose)
 
-        save_tfrecord(f'{curr}-data', masked_data, nt, verbose)
-        save_numpy(f'{curr}-mask', mask)
-        save_numpy(f'{curr}-avgt', avgt)
-        save_numpy(f'{curr}-avgx', avgx)
-        save_pickle(f'{curr}-stat', stat)
+        log_path = f'{base}_log.pickle'
+        save_pickle(log_path, dict(
+            imgs=imgs_path, nt=nt, y0=y0, x0=x0, mask=mask,
+            std=istd, avgt=avgt, avgx=avgx, #max=imax, cor=icor,
+        ))

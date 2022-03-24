@@ -25,4 +25,4 @@ def calc_std(data, mask, nt=None, verbose=1):
     avg_t -= avg_0
     avgxm = tf.boolean_mask(avg_x - avg_0, mask)
     std = K.sqrt(sumsq / nt / nx - K.mean(K.square(avgxm)))
-    return avg_t.numpy(), avg_x.numpy(), std.numpy()
+    return std.numpy(), avg_t.numpy(), avg_x.numpy()

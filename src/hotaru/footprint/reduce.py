@@ -4,24 +4,13 @@ import numpy as np
 from tqdm import tqdm
 
 
-def reduce_peak(peaks, radius, thr_distance, verbose=1):
-    idx = reduce_peak_idx(peaks, radius, thr_distance, verbose)
-    return tuple(v[idx] for v in peaks)
-
-
-def reduce_peak_idx(peaks, radius, thr_distance, verbose=1):
-    ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
-    rs = np.array(radius)[rs]
-    idx = _reduce_peak_idx(ys, xs, rs, thr_distance, verbose)
-    return np.array(idx, np.int32)
-
-
-def reduce_peak_idx_mp(peaks, radius, thr_distance, size, verbose=1):
-    margin = int(np.ceil(thr_distance * radius[-1]))
-    ys, xs = peaks[:, 2], peaks[:, 3]
-    rs = np.array(radius)[peaks[:, 1]]
+def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):
+    rs = peaks['radius'].values
+    ys = peaks['y'].values
+    xs = peaks['x'].values
     xmax = xs.max()
     ymax = ys.max()
+    margin = int(np.ceil(thr_distance * rs.max()))
 
     data = []
     for x in range(0, xmax - margin, size):
@@ -57,6 +46,18 @@ def _reduce_peak_idx_mp_local(data):
         return index[np.array(idx)[cond]]
     else:
         return np.array([], np.int32)
+
+
+def reduce_peak(peaks, radius, thr_distance, verbose=1):
+    idx = reduce_peak_idx(peaks, radius, thr_distance, verbose)
+    return tuple(v[idx] for v in peaks)
+
+
+def reduce_peak_idx(peaks, radius, thr_distance, verbose=1):
+    ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
+    rs = np.array(radius)[rs]
+    idx = _reduce_peak_idx(ys, xs, rs, thr_distance, verbose)
+    return np.array(idx, np.int32)
 
 
 def _reduce_peak_idx(ys, xs, rs, thr_distance, verbose=1):

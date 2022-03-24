@@ -5,51 +5,65 @@ import tifffile
 from ..util.gs import ensure_local_file
 
 
-def get_shape(filename):
-    filename = ensure_local_file(filename)
-    in_type = filename.split('.')[-1]
+def load_data(path, in_type=None):
+    path = ensure_local_file(path)
+    if in_type is None:
+        in_type = path.split('.')[-1]
     if in_type == 'npy':
-        return np.load(filename, mmap_mode='r').shape
-    elif in_type == 'tif':
-        return tifffile.TiffFile(filename).series[0].shape
+        return NpyData(path)
+    elif in_type == 'tif' or in_type == 'tiff':
+        return TifData(path)
     elif in_type[:3] == 'raw':
+        return RawData(path)
+    raise RuntimeError(f'{path} is not imgs file')
+
+
+class Data:
+
+    def __init__(self, path):
+        self._path = path
+
+    def shape(self):
+        return self._load().shape
+    
+    def clipped_dataset(self, y0, y1, x0, x1):
+        def gen_clipped_tensor():
+            for x in self._load():
+                clip = self._wrap(x)[y0:y1, x0:x1]
+                yield tf.convert_to_tensor(clip, tf.float32)
+        return tf.data.Dataset.from_generator(gen_clipped_tensor, tf.float32)
+
+    def _load(self):
+        NotImplemented
+
+    def _wrap(self, x):
+        return x
+
+
+class NumpyData(Data):
+
+    def _load(self):
+        return np.load(self._filename, mmap_mode='r')
+
+
+class TifData(Data):
+
+    def _load(self):
+        if not hasattr(self, '_imgs'):
+            tif = tifffile.TiffFile(self._path)
+            if tif.series[0].offset:
+                self._imgs = tif.series[0].asarray(out='memmap')
+            else:
+                self._imgs = tif.series[0]
+                self._wrap = lambda x: x.asarray()
+        return self._imgs
+
+
+class RawData(Data):
+
+    def _load(self):
+        in_type = self._path.split('.')[-1]
         _, dtype, h, w, endian = in_type.split('_')
         h, w = int(h), int(w)
         dtype = np.dtype(dtype).newbyteorder('<' if endian == 'l' else '>')
-        return np.memmap(filename, dtype, 'r', shape=(-1, h, w)).shape
-    raise RuntimeError(f'{filename} is not imgs file')
-
-
-def load_data(filename):
-    filename = ensure_local_file(filename)
-    in_type = filename.split('.')[-1]
-    if in_type == 'npy':
-        return load_data_npy(filename)
-    elif in_type == 'tif':
-        return load_data_tif(filename)
-    elif in_type[:3] == 'raw':
-        return load_data_raw(filename)
-    raise RuntimeError(f'{filename} is not imgs file')
-
-
-def load_data_npy(filename):
-    mmap = np.load(filename, mmap_mode='r')
-    return mmap, lambda x: x
-
-
-def load_data_tif(filename):
-    tif = tifffile.TiffFile(filename)
-    if tif.series[0].offset:
-        mmap = tif.series[0].asarray(out='memmap')
-        return mmap, lambda x: x
-    else:
-        return tif.series[0], lambda x: x.asarray()
-
-
-def load_data_raw(filename):
-    in_type = infile.split('.')[-1]
-    _, dtype, h, w, endian = in_type.split('_')
-    h, w = int(h), int(w)
-    dtype = np.dtype(dtype).newbyteorder('<' if endian == 'l' else '>')
-    mmap = np.memmap(filename, dtype, 'r', shape=(-1, h, w))
-    return mmap, lambda x: x
+        return np.memmap(filename, dtype, 'r', shape=(-1, h, w))

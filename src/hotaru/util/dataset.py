@@ -2,7 +2,7 @@ import tensorflow.keras.backend as K
 import tensorflow as tf
 
 
-def normalized(data, avgt, avgx, std):
+def normalized(data, std, avgt, avgx):
 
     def normalize(img, avgt):
         return (img - avgt - avgx) / std

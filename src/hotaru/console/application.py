@@ -14,7 +14,7 @@ from .config import ConfigCommand
 from .update import UpdateCommand
 from .run import RunCommand
 
-#from .output import OutputCommand
+from .output import OutputCommand
 #from .history import HistoryCommand
 #from .test import TestCommand
 
@@ -37,7 +37,7 @@ class Application(ApplicationBase):
             UpdateCommand(),
             RunCommand(),
 
-            #OutputCommand(),
+            OutputCommand(),
             #HistoryCommand(),
             #TestCommand(),
         )

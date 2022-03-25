@@ -8,6 +8,7 @@ from ..util.pickle import load_pickle
 p = dict(
     data_tag='default',
     peak_tag='default',
+    init_tag='default',
     tag='default',
     imgs_path='imgs.tif',
     mask_type='0.pad',
@@ -43,6 +44,7 @@ if os.path.exists('hotaru/config.pickle'):
 short = dict(
     data_tag=None,
     peak_tag=None,
+    init_tag=None,
     tag=None,
     imgs_path=None,
     mask_type=None,
@@ -75,6 +77,7 @@ short = dict(
 desc = dict(
     data_tag='',
     peak_tag='',
+    init_tag='',
     tag='',
     imgs_path='',
     mask_type='',
@@ -101,6 +104,39 @@ desc = dict(
     step='',
     window='',
     batch='',
+)
+
+
+option_type = dict(
+    data_tag=str,
+    peak_tag=str,
+    init_tag=str,
+    tag=str,
+    imgs_path=str,
+    mask_type=str,
+    radius_kind=str,
+    radius_min=float,
+    radius_max=float,
+    radius_num=int,
+    radius=lambda x: [float(v) for v in x],
+    shard=int,
+    distance=float,
+    thr_area_abs=float,
+    thr_area_rel=float,
+    hz=float,
+    tau_rise=float,
+    tau_fall=float,
+    tau_scale=float,
+    lu=float,
+    la=float,
+    bt=float,
+    bx=float,
+    lr=float,
+    tol=float,
+    epoch=int,
+    step=int,
+    window=int,
+    batch=int,
 )
 
 

@@ -1,5 +1,3 @@
-import numpy as np
-
 from .base import CommandBase
 from .options import tag_options
 from .options import options
@@ -8,6 +6,7 @@ from .options import radius_options
 from ..footprint.clean import clean_footprint
 from ..footprint.clean import to_be_removed
 from ..util.numpy import load_numpy
+from ..util.pickle import load_pickle
 from ..util.numpy import save_numpy
 from ..util.csv import save_csv
 from ..util.pickle import save_pickle
@@ -22,7 +21,6 @@ class CleanCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        options['data_tag'],
         tag_options['footprint_tag'],
     ] + radius_options + [
         options['thr_area_abs'],
@@ -34,8 +32,8 @@ class CleanCommand(CommandBase):
         footprint_tag = self.option('footprint-tag') + '_orig'
         footprint_base = f'hotaru/footprint/{footprint_tag}'
         footprint = load_numpy(f'{footprint_base}.npy')
+        mask = load_pickle(f'{footprint_base}_log.pickle')['mask']
 
-        mask = self.mask()
         radius = self.radius()
         batch = self.option('batch')
         verbose = self.verbose()
@@ -57,16 +55,15 @@ class CleanCommand(CommandBase):
         save_numpy(f'{base}.npy', footprint[cond])
         save_numpy(f'{base}_removed.npy', footprint[~cond])
 
-        if np.any(cond):
+        if nk > 0:
             for l in str(peaks[cond]).split('\n'):
                 self.line(l)
-        if np.any(~cond):
+        if nk == old_nk:
             for l in str(peaks[~cond]).split('\n'):
                 self.line(l)
 
         save_pickle(f'{base}_log.pickle', dict(
             kind='clean',
-            data=self.option('data-tag'),
             footprint=self.option('footprint-tag'),
             mask=mask, radius=radius,
             thr_area_abs=thr_abs, thr_area_rel=thr_rel,

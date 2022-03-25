@@ -53,5 +53,5 @@ class SpatialCommand(CommandBase, ModelMixin):
         save_pickle(f'{base}_log.pickle', dict(
             data=self.option('data-tag'),
             footprint=self.option('spike-tag'),
-            **tau, **regularization,
+            mask=self.mask(), **tau, **regularization,
         ))

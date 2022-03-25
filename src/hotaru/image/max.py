@@ -1,8 +1,16 @@
 import tensorflow.keras.backend as K
+import tensorflow as tf
+from tqdm import trange
 
-from ..util.distributed import distributed, ReduceOp
+from ..util.distribute import distributed, ReduceOp
 
 
-@distributed(ReduceOp.MAX)
-def calc_max(imgs):
-    return K.max(imgs, axis=0)
+def calc_max(data, nt=None, verbose=1):
+
+    @distributed(ReduceOp.SUM)
+    def _calc(imgs):
+        return K.sum(imgs, axis=0)
+
+    with trange(nt, desc='Calc Stats', disable=verbose == 0) as prog:
+        max_t = _calc(data, prog=prog)
+    return max_t.numpy()

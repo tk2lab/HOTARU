@@ -2,6 +2,7 @@ from cleo import Command
 
 from .options import tag_options
 from .options import options
+from .options import option_type
 from ..util.pickle import save_pickle
 
 
@@ -15,7 +16,10 @@ class ConfigCommand(Command):
     options = list(options.values())
 
     def handle(self):
-        p = {k: self.option(k.replace('_', '-')) for k in options.keys()}
+        p = {
+            k: f(self.option(k.replace('_', '-')))
+            for k, f in option_type.items()
+        }
         for k, v in p.items():
             self.line(f'{k:15}: {v}')
         save_pickle('hotaru/config.pickle', p)

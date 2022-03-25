@@ -65,7 +65,7 @@ def clean_footprint(data, mask, radius, batch, verbose):
     r, y, x = np.array(ps).T
     r = radius[r]
     f = np.array(fs)
-    peaks = pd.DataFrame(dict(firmness=f, radius=r, y=y, x=x))
+    peaks = pd.DataFrame(dict(firmness=f, radius=r, x=x, y=y))
     return np.array(ss)[:, mask], peaks
 
 

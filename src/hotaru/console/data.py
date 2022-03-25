@@ -1,5 +1,5 @@
 from .base import CommandBase
-from .base import option
+from .options import options
 
 from ..image.load import load_data
 from ..image.mask import get_mask
@@ -22,9 +22,9 @@ class DataCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        option('imgs-path', 'i', '', False, False, False, 'imgs.tif'),
-        option('mask-type', 'm', '', False, False, False, '0.pad'),
-        option('batch', 'b', '', False, False, False, 100),
+        options['imgs_path'],
+        options['mask_type'],
+        options['batch'],
     ]
 
     def _handle(self, base):

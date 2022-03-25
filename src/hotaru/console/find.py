@@ -1,26 +1,27 @@
-import pandas as pd
-
 from .base import CommandBase
-from .radius import RadiusMixin
-from .base import option
+from .options import tag_options
+from .options import options
+from .options import radius_options
 
 from ..footprint.find import find_peak
+from ..util.csv import save_csv
 from ..util.pickle import save_pickle
 
 
-class FindCommand(CommandBase, RadiusMixin):
+class FindCommand(CommandBase):
 
     name = 'find'
+    _suff = '_find'
     _type = 'peak'
     description = 'Find peaks'
     help = '''
 '''
 
     options = CommandBase.options + [
-        option('data-tag', 'd', '', False, False, False, 'default'),
-        option('shard', 's', '', False, False, False, 1),
-    ] + RadiusMixin._options + [
-        option('batch', 'b', '', False, False, False, 100),
+        tag_options['data_tag'],
+        options['shard'],
+    ] + radius_options + [
+        options['batch'],
     ]
 
     def _handle(self, base):
@@ -31,9 +32,10 @@ class FindCommand(CommandBase, RadiusMixin):
         batch = int(self.option('batch'))
         verbose = self.verbose()
 
-        find_peak(
+        peaks = find_peak(
             data, mask, radius, shard, batch, nt, verbose,
-        ).to_csv(f'{base}.csv')
+        )
+        save_csv(f'{base}.csv', peaks)
 
         save_pickle(f'{base}_log.pickle', dict(
             kind='find',

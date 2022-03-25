@@ -1,6 +1,9 @@
 from .base import CommandBase
 from .model import ModelMixin
-from .base import option
+from .options import tag_options
+from .options import options
+from .options import model_options
+from .options import optimizer_options
 
 from ..train.spike import SpikeModel
 from ..util.numpy import load_numpy
@@ -18,9 +21,11 @@ class TemporalCommand(CommandBase, ModelMixin):
 '''
 
     options = CommandBase.options + [
-        option('data-tag', 'd', '', False, False, False, 'default'),
-        option('footprint-tag', 'p', '', False, False, False, 'default'),
-    ] + ModelMixin._options + CommandBase.optimizer_options
+        tag_options['data_tag'],
+        tag_options['footprint_tag'],
+    ] + model_options + optimizer_options + [
+        options['batch'],
+    ]
 
     def _handle(self, base):
         footprint_tag = self.option('footprint-tag')

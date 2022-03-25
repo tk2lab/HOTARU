@@ -10,8 +10,10 @@ from .temporal import TemporalCommand
 from .spatial import SpatialCommand
 from .clean import CleanCommand
 
-#from .config import ConfigCommand
-#from .run import RunCommand
+from .config import ConfigCommand
+from .update import UpdateCommand
+from .run import RunCommand
+
 #from .output import OutputCommand
 #from .history import HistoryCommand
 #from .test import TestCommand
@@ -31,8 +33,10 @@ class Application(ApplicationBase):
             SpatialCommand(),
             CleanCommand(),
 
-            #ConfigCommand(),
-            #RunCommand(),
+            ConfigCommand(),
+            UpdateCommand(),
+            RunCommand(),
+
             #OutputCommand(),
             #HistoryCommand(),
             #TestCommand(),

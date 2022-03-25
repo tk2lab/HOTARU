@@ -1,17 +1,21 @@
+import shutil
+
 import numpy as np
-import pandas as pd
 
 from .base import CommandBase
-from .radius import RadiusMixin
-from .base import option
+from .options import tag_options
+from .options import options
+from .options import radius_options
 
 from ..footprint.clean import clean_footprint
+from ..footprint.clean import to_be_removed
 from ..util.numpy import load_numpy
 from ..util.numpy import save_numpy
+from ..util.csv import save_csv
 from ..util.pickle import save_pickle
 
 
-class CleanCommand(CommandBase, RadiusMixin):
+class CleanCommand(CommandBase):
 
     name = 'clean'
     _type = 'footprint'
@@ -20,16 +24,16 @@ class CleanCommand(CommandBase, RadiusMixin):
 '''
 
     options = CommandBase.options + [
-        option('data-tag', 'd', '', False, False, False, 'default'),
-        option('footprint-tag', 'p', '', False, False, False, 'default'),
-    ] + RadiusMixin._options + [
-        option('thr-area-abs', None, '', False, False, False, 100),
-        option('thr-area-rel', None, '', False, False, False, 2.0),
-        option('batch', 'b', '', False, False, False, 100),
+        tag_options['data_tag'],
+        tag_options['footprint_tag'],
+    ] + radius_options + [
+        options['thr_area_abs'],
+        options['thr_area_rel'],
+        options['batch'],
     ]
 
     def _handle(self, base):
-        footprint_tag = self.option('footprint-tag')
+        footprint_tag = self.option('footprint-tag') + '_orig'
         footprint_base = f'hotaru/footprint/{footprint_tag}'
         footprint = load_numpy(f'{footprint_base}.npy')
 
@@ -42,24 +46,16 @@ class CleanCommand(CommandBase, RadiusMixin):
             footprint, mask, radius, batch, verbose,
         )
 
-        idx = np.argsort(peaks['firmness'].values)[::-1]
-        footprint = footprint[idx]
-        peaks = peaks.iloc[idx].copy()
-        area = np.sum(footprint > 0.5, axis=1)
-        peaks['area'] = area
-        peaks.reset_index()
-
         thr_abs = self.option('thr-area-abs')
         thr_rel = self.option('thr-area-rel')
-        x = peaks['radius']
-        cond = (radius[0] < x) & (x < radius[-1])
-        cond &= (area <= thr_abs + thr_rel * np.pi * x ** 2)
+        cond = to_be_removed(footprint, peaks, radius, thr_abs, thr_rel)
         peaks['accepted'] = False
         peaks.loc[cond, 'accepted'] = True
+
         old_nk = footprint.shape[0]
         nk = np.count_nonzero(cond)
         self.line(f'ncell: {old_nk} -> {nk}', 'comment')
-        peaks.to_csv(f'{base}_peaks.csv')
+        save_csv(f'{base}_peaks.csv', peaks)
         save_numpy(f'{base}.npy', footprint[cond])
         save_numpy(f'{base}_removed.npy', footprint[~cond])
 
@@ -69,14 +65,6 @@ class CleanCommand(CommandBase, RadiusMixin):
         if np.any(~cond):
             for l in str(peaks[~cond]).split('\n'):
                 self.line(l)
-        '''
-        self.line(f'id, pos, firmness, rad, size')
-        for i in peaks.index: 
-            x, y, g, r, a = peaks.loc[i, ['x', 'y', 'firmness', 'radius', 'area']]
-            self.line(f'{i:5}, ({x:>4},{y:>4}), {g:.3f}, {r:7.3f}, {a:5}')
-            if not cond[i]:
-                self.line('-------')
-        '''
 
         save_pickle(f'{base}_log.pickle', dict(
             kind='clean',

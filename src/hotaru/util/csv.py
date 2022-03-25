@@ -1,12 +1,12 @@
 import tensorflow as tf
-import numpy as np
+import pandas as pd
 
 
-def load_csv(base):
-    with tf.io.gfile.GFile(f'{base}.csv', 'r') as fp:
-        return np.loadtxt(fp, delimiter=',', skiprows=1)
+def load_csv(path):
+    with tf.io.gfile.GFile(path, 'r') as fp:
+        return pd.read_csv(fp, index_col=0)
 
 
-def save_csv(base, data, fmt, header):
-    with tf.io.gfile.GFile(f'{base}.csv', 'w') as fp:
-        np.savetxt(fp, data, fmt, ',', header=header)
+def save_csv(path, data):
+    with tf.io.gfile.GFile(path, 'w') as fp:
+        data.to_csv(fp)

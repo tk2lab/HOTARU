@@ -1,7 +1,8 @@
 import pandas as pd
 
 from .base import CommandBase
-from .base import option
+from .options import tag_options
+from .options import options
 
 from ..footprint.make import make_segment
 from ..util.numpy import save_numpy
@@ -17,9 +18,9 @@ class InitCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        option('data-tag', 'd', '', False, False, False, 'default'),
-        option('peak-tag', 'p', '', False, False, False, 'default'),
-        option('batch', 'b', '', False, False, False, 100),
+        tag_options['data_tag'],
+        tag_options['peak_tag'],
+        options['batch'],
     ]
 
     def _handle(self, base):

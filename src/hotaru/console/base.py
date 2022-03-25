@@ -1,5 +1,7 @@
 import os
 
+import numpy as np
+
 from cleo import Command
 from cleo import option
 
@@ -14,23 +16,20 @@ class CommandBase(Command):
         option('force', 'f', '', False, False, False, False),
     ]
 
-    optimizer_options = [
-        option('lr', 'l', '', False, False, False, 0.01),
-        option('tol', 'o', '', False, False, False, 0.001),
-        option('epoch', None, '', False, False, False, 100),
-        option('step', None, '', False, False, False, 100),
-        option('batch', None, '', False, False, False, 100),
-    ]
+    _suff = ''
 
     def handle(self):
         tag = self.option("tag")
         base_path = f'hotaru/{self._type}'
         os.makedirs(base_path, exist_ok=True)
 
-        base = f'{base_path}/{tag}'
+        self.line(f'{self.name}: {tag}')
+        base = f'{base_path}/{tag}{self._suff}'
         log_path = f'{base}_log.pickle'
         if self.option('force') or not os.path.exists(log_path):
             self._handle(base)
+        else:
+            self.line('...skip')
 
     def verbose(self):
         if self.option('quiet'):
@@ -61,8 +60,25 @@ class CommandBase(Command):
         log = load_pickle(f'{base}_log.pickle')
         return log['mask']
 
-    def used_radius(self):
-        tag = self.option('peak-tag')
+    def radius(self):
+        kind = self.option('radius-kind')
+        if kind == 'manual':
+            return np.array(
+                [float(v) for v in self.option('radius')], dtype=np.float32,
+            )
+        else:
+            rmin = float(self.option('radius-min'))
+            rmax = float(self.option('radius-max'))
+            rnum = int(self.option('radius-num'))
+            if kind == 'linear':
+                return np.linspace(rmin, rmax, rmin, dtype=np.float32)
+            elif kind == 'log':
+                return np.logspace(
+                    np.log10(rmin), np.log10(rmax), rnum, dtype=np.float32,
+                )
+        self.line(f'<error>bad radius kind</error>: {kind}')
+
+    def used_radius(self, tag):
         base = f'hotaru/peak/{tag}'
         log = load_pickle(f'{base}_log.pickle')
         return log['radius']

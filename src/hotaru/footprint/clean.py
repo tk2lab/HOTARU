@@ -11,6 +11,15 @@ from ..image.filter.laplace import gaussian_laplace_multi
 from .segment import get_segment_index_py
 
 
+def to_be_removed(footprint, peaks, radius, thr_abs, thr_rel):
+    area = np.sum(footprint > 0.5, axis=1)
+    peaks['area'] = area
+    x = peaks['radius']
+    cond = (radius[0] < x) & (x < radius[-1])
+    cond &= (area <= thr_abs + thr_rel * np.pi * x ** 2)
+    return cond
+
+
 def clean_footprint(data, mask, radius, batch, verbose):
     dataset = tf.data.Dataset.from_tensor_slices(data)
     dataset = unmasked(dataset, mask)

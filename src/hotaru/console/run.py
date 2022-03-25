@@ -1,48 +1,30 @@
-import time
+from cleo import Command
 
-from .base import Command, _option
+from .options import options
 
 
 class RunCommand(Command):
 
     name = 'run'
-    description = 'Execute all'
+    description = 'Run'
     help = '''
 '''
 
     options = [
-        _option('job-dir', 'j', 'target directory'),
-        _option('goal'),
+        options['tag'],
     ]
 
     def handle(self):
-        start = time.time()
-
-        self.set_job_dir()
-
-        name = self.status.params['name']
-        goal_stage = int(self.option('goal') or 30)
-
-        stage = len(self.status.history.get(name, ()))
-        for s in range(stage, goal_stage + 1):
-            if s == 0:
-                self.call('data')
-            elif s == 1:
-                self.call('peak')
-            elif s == 2:
-                self.call('segment')
-            elif s % 3 == 0:
-                self.call('spike')
-            elif s % 3 == 1:
-                self.call('footprint')
-            elif s % 3 == 2:
-                self.call('clean')
-
-        self.call('output')
-
-        s = time.time() - start
-        h = int(s / 3600)
-        s -= 3600 * h
-        m = int(s / 60)
-        s -= 60 * m
-        self.line(f'{h}:{m}:{s}', 'comment')
+        tag = self.option('tag')
+        stage = 10
+        self.call('data')
+        self.call('find')
+        self.call('reduce')
+        self.call('init', f'--tag {tag}000')
+        self.call('temporal', f'--tag {tag}000 --footprint-tag {tag}000')
+        for s in range(1, stage):
+            prev = f'{tag}{s-1:03}'
+            curr = f'{tag}{s:03}'
+            self.call('spatial', f'--tag {curr} --spike-tag {prev}')
+            self.call('clean', f'-f --tag {curr} --footprint-tag {curr}')
+            self.call('temporal', f'--tag {curr} --footprint-tag {curr}')

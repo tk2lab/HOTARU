@@ -15,7 +15,7 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ### Require
 - python >= 3.8
-- tensorflow >= 2.6.1
+- tensorflow >= 2.8
 
 ### Install Procedure (using venv)
 - Create venv environment for hotaru
@@ -28,14 +28,10 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ## Usage
 
-### Apply Method
-- (in hotaru venv)
+### Prepare
 - `mkdir work`
 - `cd work`
 - `cp somewhere/TARGET.tif imgs.tif`
-- `hotaru config`
-- `hotaru run`
-- (see outs directory)
 
 ### Config Option
 - Set sampling rate of movie  
@@ -45,11 +41,14 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 - Set calcium dynamics  
   `hotaru config --tau-rise 0.08 --tau-fall 0.16`
 - Set cell size candidate  
-  `hotaru config --radius-type log --radius "2.0,40.0,13"`  
-  `hotaru config --radius-type linear --radius "2.0,11.0,10"`  
-  `hotaru config --radius-type manual --radius "2,3,4,5,6,7,8,9,10"`    
+  `hotaru config --radius-type log --radius-min 2.0 --radius-max 16.0 --radius-num 13`
+  `hotaru config --radius-type linear --radius-min 2.0 --radius-max 11.0 --radius-num 10`
+  `hotaru config --radius-type manual --radius-manual "2,3,4,5,6,7,8,9,10"`    
+
+### Apply Method
+- `hotaru run`
   
 ### Check Resutls
-- (in hotaru venv and in work dir)
+- see `outs` directory
 - `tensorboard --logidr logs`
 - open in web browser `http://localhost:6006`

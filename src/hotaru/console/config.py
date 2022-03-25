@@ -1,3 +1,5 @@
+import os
+
 from cleo import Command
 
 from .options import tag_options
@@ -22,4 +24,5 @@ class ConfigCommand(Command):
         }
         for k, v in p.items():
             self.line(f'{k:15}: {v}')
+        os.makedirs('hotaru', exist_ok=True)
         save_pickle('hotaru/config.pickle', p)

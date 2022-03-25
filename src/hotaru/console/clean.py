@@ -24,7 +24,7 @@ class CleanCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        tag_options['data_tag'],
+        options['data_tag'],
         tag_options['footprint_tag'],
     ] + radius_options + [
         options['thr_area_abs'],

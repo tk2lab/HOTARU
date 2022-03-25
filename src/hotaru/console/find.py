@@ -18,7 +18,7 @@ class FindCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        tag_options['data_tag'],
+        options['data_tag'],
         options['shard'],
     ] + radius_options + [
         options['batch'],

@@ -18,8 +18,8 @@ class InitCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        tag_options['data_tag'],
-        tag_options['peak_tag'],
+        options['data_tag'],
+        options['peak_tag'],
         options['batch'],
     ]
 

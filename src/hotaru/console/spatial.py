@@ -21,7 +21,7 @@ class SpatialCommand(CommandBase, ModelMixin):
 '''
 
     options = CommandBase.options + [
-        tag_options['data_tag'],
+        options['data_tag'],
         tag_options['spike_tag'],
     ] + model_options + optimizer_options + [
         options['batch'],

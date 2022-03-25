@@ -20,7 +20,7 @@ class ReduceCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        tag_options['peak_tag'],
+        options['peak_tag'],
         options['distance'],
         options['window'],
         options['batch'],

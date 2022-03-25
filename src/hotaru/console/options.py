@@ -6,6 +6,8 @@ from ..util.pickle import load_pickle
 
 
 p = dict(
+    data_tag='default',
+    peak_tag='default',
     tag='default',
     imgs_path='imgs.tif',
     mask_type='0.pad',
@@ -39,6 +41,8 @@ if os.path.exists('hotaru/config.pickle'):
 
 
 short = dict(
+    data_tag=None,
+    peak_tag=None,
     tag=None,
     imgs_path=None,
     mask_type=None,
@@ -69,6 +73,8 @@ short = dict(
 
 
 desc = dict(
+    data_tag='',
+    peak_tag='',
     tag='',
     imgs_path='',
     mask_type='',
@@ -99,10 +105,10 @@ desc = dict(
 
 
 tag_options = dict(
-    data_tag=option('data-tag', 'D', '', False, False, False, p['tag']),
-    peak_tag=option('peak-tag', 'P', '', False, False, False, p['tag']),
     spike_tag=option('spike-tag', 'P', '', False, False, False, p['tag']),
     footprint_tag=option('footprint-tag', 'P', '', False, False, False, p['tag']),
+    start=option('start', None, '', False, False, False, 0),
+    goal=option('goal', None, '', False, False, False, 10),
 )
 
 

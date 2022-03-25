@@ -36,5 +36,5 @@ class InitCommand(CommandBase):
         save_numpy(f'{base}.npy', segment)
 
         save_pickle(f'{base}_log.pickle', dict(
-            peak=peak_tag,
+            peak=peak_tag, mask=mask,
         ))

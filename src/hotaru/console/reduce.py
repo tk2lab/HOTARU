@@ -38,7 +38,7 @@ class ReduceCommand(CommandBase):
         idx = reduce_peak_idx_mp(peaks, distance, window, verbose)
         peaks = peaks.iloc[idx]
 
-        radius = self.used_radius(peak_tag)
+        radius = self.used_radius()
         peaks, removed_index = remove_out_of_range(peaks, radius)
         save_csv(f'{base}.csv', peaks)
 

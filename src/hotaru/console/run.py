@@ -29,7 +29,7 @@ class RunCommand(Command):
             self.call('init', f'--tag {tag}000')
             self.call('temporal', f'--tag {tag}000 --footprint-tag {tag}000')
             start = 1
-        for s in range(start, goal):
+        for s in range(start, goal + 1):
             prev = f'{tag}{s-1:03}'
             curr = f'{tag}{s:03}'
             self.call('spatial', f'--tag {curr} --spike-tag {prev}')

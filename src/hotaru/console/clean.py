@@ -1,5 +1,3 @@
-import shutil
-
 import numpy as np
 
 from .base import CommandBase
@@ -53,7 +51,7 @@ class CleanCommand(CommandBase):
         peaks.loc[cond, 'accepted'] = True
 
         old_nk = footprint.shape[0]
-        nk = np.count_nonzero(cond)
+        nk = cond.sum()
         self.line(f'ncell: {old_nk} -> {nk}', 'comment')
         save_csv(f'{base}_peaks.csv', peaks)
         save_numpy(f'{base}.npy', footprint[cond])
@@ -70,5 +68,6 @@ class CleanCommand(CommandBase):
             kind='clean',
             data=self.option('data-tag'),
             footprint=self.option('footprint-tag'),
-            radius=radius, thr_area_abs=thr_abs, thr_area_rel=thr_rel,
+            mask=mask, radius=radius,
+            thr_area_abs=thr_abs, thr_area_rel=thr_rel,
         ))

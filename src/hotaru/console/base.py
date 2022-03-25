@@ -45,8 +45,9 @@ class CommandBase(Command):
             return 4
         return int(v)
 
-    def data(self):
-        tag = self.option('data-tag')
+    def data(self, tag=None):
+        if tag is None:
+            tag = self.option('data-tag')
         base = f'hotaru/data/{tag}'
         log = load_pickle(f'{base}_log.pickle')
         mask = log['mask']
@@ -54,8 +55,9 @@ class CommandBase(Command):
         data = load_tfrecord(f'{base}.tfrecord')
         return data, mask, nt
 
-    def mask(self):
-        tag = self.option('data-tag')
+    def mask(self, tag=None):
+        if tag is None:
+            tag = self.option('data-tag')
         base = f'hotaru/data/{tag}'
         log = load_pickle(f'{base}_log.pickle')
         return log['mask']
@@ -78,7 +80,9 @@ class CommandBase(Command):
                 )
         self.line(f'<error>bad radius kind</error>: {kind}')
 
-    def used_radius(self, tag):
+    def used_radius(self, tag=None):
+        if tag is None:
+            tag = self.option('peak-tag') + '_find'
         base = f'hotaru/peak/{tag}'
         log = load_pickle(f'{base}_log.pickle')
         return log['radius']

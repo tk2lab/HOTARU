@@ -36,20 +36,17 @@ class MpegCommand(Command):
         mask = p['mask']
         avgt = p['avgt']
         avgx = p['avgx']
-        mmin = p['mmin']
-        mmax = p['mmax']
-        mstd = p['mstd']
+        smin = p['smin']
+        smax = p['smax']
+        sstd = p['sstd']
         h, w = mask.shape
 
         data = load_tfrecord(f'hotaru/data/{tag}.tfrecord')
         data = unmasked(data, mask)
 
-        smin, smax = np.inf, -np.inf
         with MpegStream(w, h, hz, f'hotaru/fig/{tag}.mp4') as mpeg:
             for i, d in enumerate(data.as_numpy_iterator()):
-                img = d * mstd + avgt[i] + avgx
-                smin = min(smin, img.min())
-                smax = max(smax, img.max())
-                img = (img - mmin) / (mmax - mmin)
+                img = d * sstd + avgt[i] + avgx
+                img = (img - smin) / (smax - smin)
                 img = (255 * cmap(img)).astype(np.uint8)
                 mpeg.write(img)

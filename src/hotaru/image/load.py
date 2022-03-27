@@ -62,8 +62,9 @@ class TifData(Data):
 class RawData(Data):
 
     def _load(self):
-        in_type = self._path.split('.')[-1]
-        _, dtype, h, w, endian = in_type.split('_')
+        with open(f'{self._path}.info', 'r') as fp:
+            info = fp.readline().replace('\n', '')
+        dtype, h, w, endian = info.split(',')
         h, w = int(h), int(w)
         dtype = np.dtype(dtype).newbyteorder('<' if endian == 'l' else '>')
-        return np.memmap(filename, dtype, 'r', shape=(-1, h, w))
+        return np.memmap(self._path, dtype, 'r').reshape(-1, h, w)

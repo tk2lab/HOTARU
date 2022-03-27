@@ -19,7 +19,7 @@ class SpatialCommand(CommandBase, ModelMixin):
     help = '''
 '''
 
-    options = CommandBase.options + [
+    options = CommandBase.base_options('work') + [
         options['data-tag'],
         tag_options['spike-tag'],
     ] + model_options + optimizer_options + [
@@ -37,7 +37,7 @@ class SpatialCommand(CommandBase, ModelMixin):
         model = FootprintModel(**models)
         model.set_penalty(**regularization)
         model.compile()
-        model.fit(
+        log = model.fit(
             spike, lr=p['lr'], min_delta=p['tol'],
             epochs=p['epoch'], steps_per_epoch=p['step'],
             batch=p['batch'], verbose=p['verbose'],
@@ -46,4 +46,4 @@ class SpatialCommand(CommandBase, ModelMixin):
         footprint = model.get_footprints()
         save_numpy(f'{base}.npy', footprint)
 
-        p.update(dict(mask=mask, nt=nt, nk=nk))
+        p.update(dict(mask=mask, nt=nt, nk=nk, log=log))

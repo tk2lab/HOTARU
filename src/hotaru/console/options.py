@@ -145,8 +145,8 @@ option_type = {k.replace('_', '-'): v for k, v in option_type.items()}
 
 
 tag_options = {
-    'spike-tag': option('spike-tag', 'P', '', False, False, False, p['tag']),
-    'footprint-tag': option('footprint-tag', 'P', '', False, False, False, p['tag']),
+    'spike-tag': option('spike-tag', 'P', '', False, False, False, p['tag'] + 'work'),
+    'footprint-tag': option('footprint-tag', 'P', '', False, False, False, p['tag'] + 'work'),
     'start': option('start', None, '', False, False, False, 0),
     'goal': option('goal', None, '', False, False, False, 10),
 }

@@ -18,7 +18,7 @@ class TemporalCommand(CommandBase, ModelMixin):
     help = '''
 '''
 
-    options = CommandBase.options + [
+    options = CommandBase.base_options('work') + [
         options['data-tag'],
         tag_options['footprint-tag'],
     ] + model_options + optimizer_options + [
@@ -34,7 +34,7 @@ class TemporalCommand(CommandBase, ModelMixin):
         model = SpikeModel(**models)
         model.set_penalty(**regularization)
         model.compile()
-        model.fit(
+        log = model.fit(
             footprint, lr=p['lr'], min_delta=p['tol'],
             epochs=p['epoch'], steps_per_epoch=p['step'],
             batch=p['batch'], verbose=p['verbose'],
@@ -43,4 +43,4 @@ class TemporalCommand(CommandBase, ModelMixin):
         save_numpy(f'{base}.npy', model.spike.val)
 
         mask, nt = self.data_prop()
-        p.update(dict(mask=mask, nk=nk, nt=nt))
+        p.update(dict(mask=mask, nk=nk, nt=nt, log=log.history))

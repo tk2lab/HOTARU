@@ -20,7 +20,7 @@ class OutputCommand(CommandBase):
     help = '''
 '''
 
-    options = CommandBase.options + [
+    options = CommandBase.base_options('work') + [
         options['data-tag'],
     ]
 

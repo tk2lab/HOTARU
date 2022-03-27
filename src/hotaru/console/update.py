@@ -18,7 +18,6 @@ class UpdateCommand(Command):
         tag = self.option('tag')
         self.call('data')
         self.call('find')
-        self.call('reduce')
         self.call('init')
         self.call('temporal')
         self.call('spatial', '-f')

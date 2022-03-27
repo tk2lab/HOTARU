@@ -20,7 +20,7 @@ class InitCommand(CommandBase):
     help = '''
 '''
 
-    options = CommandBase.options + [
+    options = CommandBase.base_options('work') + [
         options['data-tag'],
         options['peak-tag'],
     ] + radius_options + [

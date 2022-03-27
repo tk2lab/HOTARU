@@ -20,7 +20,7 @@ class CleanCommand(CommandBase):
     help = '''The clean command 
 '''
 
-    options = CommandBase.options + [
+    options = CommandBase.base_options('work') + [
         options['data-tag'],
         tag_options['footprint-tag'],
     ] + radius_options + [

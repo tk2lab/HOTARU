@@ -15,8 +15,11 @@ from ..util.pickle import save_pickle
 
 class CommandBase(Command):
 
-    options = [
+    @staticmethod
+    def base_options(default=''):
+        return [
         option('tag', 't', '', False, False, False, 'default'),
+        option('suffix', 's', '', False, False, False, default),
         option('force', 'f', '', False, False, False, False),
     ]
 
@@ -29,7 +32,7 @@ class CommandBase(Command):
         base_path = f'hotaru/{self._type}'
         os.makedirs(base_path, exist_ok=True)
 
-        tag = self.option("tag")
+        tag = self.option('tag') + self.option('suffix')
         self.line(f'{self.name}: {tag}')
         base = f'{base_path}/{tag}{self._suff}'
         log_path = f'{base}_log.pickle'

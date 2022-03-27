@@ -32,7 +32,7 @@ class FootprintModel(BaseModel):
         self.start(batch, verbose)
         self.footprint.val = np.zeros((nk, nx))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
-        self.fit_common(FootprintCallback, verbose=verbose, **kwargs)
+        return self.fit_common(FootprintCallback, verbose=verbose, **kwargs)
 
     def start(self, batch, verbose):
         data = self.variance._data.enumerate().batch(batch)

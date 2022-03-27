@@ -32,7 +32,7 @@ class SpikeModel(BaseModel):
         self.start(batch, verbose)
         self.spike.val = np.zeros((nk, nu))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
-        self.fit_common(SpikeCallback, verbose=verbose, **kwargs)
+        return self.fit_common(SpikeCallback, verbose=verbose, **kwargs)
 
     def start(self, batch, verbose):
         data = self.variance._data.batch(batch)

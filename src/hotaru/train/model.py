@@ -74,7 +74,7 @@ class BaseModel(tf.keras.Model):
 
         dummy = tf.zeros((1, 1))
         data = tf.data.Dataset.from_tensor_slices((dummy, dummy)).repeat()
-        super().fit(
+        return super().fit(
             data,
             steps_per_epoch=steps_per_epoch,
             epochs=epochs,

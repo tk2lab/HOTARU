@@ -16,7 +16,7 @@ p = dict(
     radius_min=2.0,
     radius_max=24.0,
     radius_num=13,
-    radius=None,
+    radius_elem=None,
     shard=1,
     distance=1.6,
     thr_area_abs=100.0,
@@ -36,6 +36,7 @@ p = dict(
     window=100,
     batch=100,
 )
+p = {k.replace('_', '-'): v for k, v in p.items()}
 
 if os.path.exists('hotaru/config.pickle'):
     p.update(load_pickle('hotaru/config.pickle'))
@@ -52,7 +53,7 @@ short = dict(
     radius_min=None,
     radius_max=None,
     radius_num=None,
-    radius='r',
+    radius_elem='r',
     shard=None,
     distance=None,
     thr_area_abs=None,
@@ -72,6 +73,7 @@ short = dict(
     window=None,
     batch=None,
 )
+short = {k.replace('_', '-'): v for k, v in short.items()}
 
 
 desc = dict(
@@ -85,7 +87,7 @@ desc = dict(
     radius_min='',
     radius_max='',
     radius_num='',
-    radius='',
+    radius_elem='',
     shard='',
     distance='',
     thr_area_abs='',
@@ -105,6 +107,7 @@ desc = dict(
     window='',
     batch='',
 )
+desc = {k.replace('_', '-'): v for k, v in desc.items()}
 
 
 option_type = dict(
@@ -118,7 +121,7 @@ option_type = dict(
     radius_min=float,
     radius_max=float,
     radius_num=int,
-    radius=lambda x: [float(v) for v in x],
+    radius_elem=lambda x: [float(v) for v in x],
     shard=int,
     distance=float,
     thr_area_abs=float,
@@ -138,30 +141,30 @@ option_type = dict(
     window=int,
     batch=int,
 )
+option_type = {k.replace('_', '-'): v for k, v in option_type.items()}
 
 
-tag_options = dict(
-    spike_tag=option('spike-tag', 'P', '', False, False, False, p['tag']),
-    footprint_tag=option('footprint-tag', 'P', '', False, False, False, p['tag']),
-    start=option('start', None, '', False, False, False, 0),
-    goal=option('goal', None, '', False, False, False, 10),
-)
+tag_options = {
+    'spike-tag': option('spike-tag', 'P', '', False, False, False, p['tag']),
+    'footprint-tag': option('footprint-tag', 'P', '', False, False, False, p['tag']),
+    'start': option('start', None, '', False, False, False, 0),
+    'goal': option('goal', None, '', False, False, False, 10),
+}
 
 
 options = {
-    k: option(k.replace('_', '-'), 
-              short[k], desc[k], False, p[k] is None, p[k] is None, p[k])
+    k: option(k, short[k], desc[k], False, p[k] is None, p[k] is None, p[k])
     for k in p.keys()
 }
 
 
 radius_options = [options[k] for k in [
-    f'radius{p}' for p in ['_kind', '_min', '_max', '_num', '']
+    f'radius{p}' for p in ['-kind', '-min', '-max', '-num', '-elem']
 ]]
 
 
 model_options = [options[k] for k in [
-    'hz', 'tau_rise', 'tau_fall', 'tau_scale', 'lu', 'la', 'bt', 'bx',
+    'hz', 'tau-rise', 'tau-fall', 'tau-scale', 'lu', 'la', 'bt', 'bx',
 ]]
 
 

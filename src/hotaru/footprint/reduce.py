@@ -3,12 +3,11 @@ import multiprocessing as mp
 import numpy as np
 from tqdm import tqdm
 
-def remove_out_of_range(peaks, radius):
+def label_out_of_range(peaks, radius):
     r = peaks['radius']
     cond = (radius[0] < r) & (r < radius[-1])
-    removed_index = peaks.index[~cond]
-    peaks = peaks[cond]
-    return peaks, removed_index
+    peaks['accept'] = np.where(cond, 'yes', 'no')
+    return peaks
 
 
 def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):

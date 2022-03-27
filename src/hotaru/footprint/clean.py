@@ -11,7 +11,7 @@ from ..image.filter.laplace import gaussian_laplace_multi
 from .segment import get_segment_index_py
 
 
-def to_be_removed(footprint, peaks, radius, thr_abs, thr_rel):
+def check_accept(footprint, peaks, radius, thr_abs, thr_rel):
     area = np.sum(footprint > 0.5, axis=1)
     peaks['area'] = area
     x = peaks['radius']

@@ -5,8 +5,12 @@ import numpy as np
 from cleo import Command
 from cleo import option
 
-from ..util.pickle import load_pickle
+from ..util.timer import Timer
+
+from .options import option_type
 from ..util.tfrecord import load_tfrecord
+from ..util.pickle import load_pickle
+from ..util.pickle import save_pickle
 
 
 class CommandBase(Command):
@@ -18,16 +22,28 @@ class CommandBase(Command):
 
     _suff = ''
 
+    def p(self, name):
+        return option_type.get(name, str)(self.option(name))
+
     def handle(self):
-        tag = self.option("tag")
         base_path = f'hotaru/{self._type}'
         os.makedirs(base_path, exist_ok=True)
 
+        tag = self.option("tag")
         self.line(f'{self.name}: {tag}')
         base = f'{base_path}/{tag}{self._suff}'
         log_path = f'{base}_log.pickle'
         if self.option('force') or not os.path.exists(log_path):
-            self._handle(base)
+            options = {
+                o.long_name: self.p(o.long_name)
+                for o in self.options
+            }
+            options['verbose'] = self.verbose()
+            with Timer() as timer:
+                self._handle(base, options)
+            options['time'] = timer.get()
+            save_pickle(log_path, options)
+            self.call(f'fig{self.name}', f'--tag {tag}')
         else:
             self.line('...skip')
 
@@ -45,44 +61,35 @@ class CommandBase(Command):
             return 4
         return int(v)
 
-    def data(self, tag=None):
-        if tag is None:
-            tag = self.option('data-tag')
-        base = f'hotaru/data/{tag}'
-        log = load_pickle(f'{base}_log.pickle')
-        mask = log['mask']
-        nt = log['nt']
-        data = load_tfrecord(f'{base}.tfrecord')
-        return data, mask, nt
-
-    def mask(self, tag=None):
-        if tag is None:
-            tag = self.option('data-tag')
-        base = f'hotaru/data/{tag}'
-        log = load_pickle(f'{base}_log.pickle')
-        return log['mask']
-
     def radius(self):
-        kind = self.option('radius-kind')
+        kind = self.p('radius-kind')
         if kind == 'manual':
-            return np.array(
-                [float(v) for v in self.option('radius')], dtype=np.float32,
-            )
+            return np.array(self.p('radius-elem'), np.float32)
         else:
-            rmin = float(self.option('radius-min'))
-            rmax = float(self.option('radius-max'))
-            rnum = int(self.option('radius-num'))
+            rmin = self.p('radius-min')
+            rmax = self.p('radius-max')
+            rnum = self.p('radius-num')
             if kind == 'linear':
                 return np.linspace(rmin, rmax, rmin, dtype=np.float32)
             elif kind == 'log':
                 return np.logspace(
                     np.log10(rmin), np.log10(rmax), rnum, dtype=np.float32,
                 )
-        self.line(f'<error>bad radius kind</error>: {kind}')
+        self.line_error(f'bad radius kind: {kind}')
 
-    def used_radius(self, tag=None):
+    def data(self, tag=None):
         if tag is None:
-            tag = self.option('peak-tag') + '_find'
-        base = f'hotaru/peak/{tag}'
+            tag = self.option('data-tag')
+        base = f'hotaru/data/{tag}'
+        data = load_tfrecord(f'{base}.tfrecord')
+        return data
+
+    def data_prop(self, tag=None, avgx=False):
+        if tag is None:
+            tag = self.option('data-tag')
+        base = f'hotaru/data/{tag}'
         log = load_pickle(f'{base}_log.pickle')
-        return log['radius']
+        if avgx:
+            return log['mask'], log['nt'], log['avgx'] / log['sstd']
+        else:
+            return log['mask'], log['nt']

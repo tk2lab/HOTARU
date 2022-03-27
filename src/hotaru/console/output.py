@@ -21,7 +21,7 @@ class OutputCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        options['data_tag'],
+        options['data-tag'],
     ]
 
     def _handle(self, base):

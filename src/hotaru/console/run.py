@@ -14,9 +14,9 @@ class RunCommand(Command):
 
     options = [
         options['tag'],
-        options['data_tag'],
-        options['peak_tag'],
-        options['init_tag'],
+        options['data-tag'],
+        options['peak-tag'],
+        options['init-tag'],
         tag_options['start'],
         tag_options['goal'],
     ]

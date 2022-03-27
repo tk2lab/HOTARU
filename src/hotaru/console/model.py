@@ -6,12 +6,13 @@ from ..train.variance import Variance
 
 class ModelMixin:
 
-    def models(self, nk):
-        data, mask, nt = self.data()
+    def models(self, p, nk):
+        data = self.data()
+        mask, nt = self.data_prop()
         nx = np.count_nonzero(mask)
 
-        tau = self.tau()
-        regularization = self.regularization()
+        tau = self.tau(p)
+        regularization = self.regularization(p)
 
         variance = Variance(data, nk, nx, nt)
         variance.set_double_exp(**tau)
@@ -24,18 +25,18 @@ class ModelMixin:
         model = dict(footprint=footprint, spike=spike, variance=variance)
         return tau, regularization, model
 
-    def tau(self):
+    def tau(self, p):
         return dict(
-            hz=self.option('hz'),
-            tau1=self.option('tau-rise'),
-            tau2=self.option('tau-fall'),
-            tscale=self.option('tau-scale'),
+            hz=p['hz'],
+            tau1=p['tau-rise'],
+            tau2=p['tau-fall'],
+            tscale=p['tau-scale'],
         )
 
-    def regularization(self):
+    def regularization(self, p):
         return dict(
-            lu=self.option('lu'),
-            la=self.option('la'),
-            bt=self.option('bt'),
-            bx=self.option('bx'),
+            lu=p['lu'],
+            la=p['la'],
+            bt=p['bt'],
+            bx=p['bx'],
         )

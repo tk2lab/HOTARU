@@ -1,12 +1,15 @@
 import pandas as pd
 
 from .base import CommandBase
-from .options import tag_options
 from .options import options
+from .options import radius_options
 
+from ..util.csv import load_csv
+from ..footprint.reduce import reduce_peak_idx_mp
+from ..footprint.reduce import label_out_of_range
 from ..footprint.make import make_segment
+from ..util.csv import save_csv
 from ..util.numpy import save_numpy
-from ..util.pickle import save_pickle
 
 
 class InitCommand(CommandBase):
@@ -18,23 +21,32 @@ class InitCommand(CommandBase):
 '''
 
     options = CommandBase.options + [
-        options['data_tag'],
-        options['peak_tag'],
+        options['data-tag'],
+        options['peak-tag'],
+    ] + radius_options + [
+        options['distance'],
+        options['window'],
         options['batch'],
     ]
 
-    def _handle(self, base):
-        data, mask, nt = self.data()
+    def _handle(self, base, p):
+        data = self.data()
+        mask, nt = self.data_prop()
+        radius = self.radius()
 
-        peak_tag = self.option('peak-tag')
-        peak_base = f'hotaru/peak/{peak_tag}'
-        peaks = pd.read_csv(f'{peak_base}.csv')
+        peak_tag = p['peak-tag']
+        peaks = load_csv(f'hotaru/peak/{peak_tag}.csv')
 
-        batch = int(self.option('batch'))
-        verbose = self.verbose()
-        segment, ok_mask = make_segment(data, mask, peaks, batch, verbose)
+        idx = reduce_peak_idx_mp(
+            peaks, p['distance'], p['window'], p['verbose'],
+        )
+        peaks = label_out_of_range(peaks.loc[idx], radius)
+        save_csv(f'{base}_peaks.csv', peaks)
+
+        peaks = peaks.query('accept == "yes"')
+        segment, ok_mask = make_segment(
+            data, mask, peaks, p['batch'], p['verbose'],
+        )
         save_numpy(f'{base}.npy', segment)
 
-        save_pickle(f'{base}_log.pickle', dict(
-            peak=peak_tag, mask=mask,
-        ))
+        p.update(dict(radius=radius, mask=mask, nt=nt))

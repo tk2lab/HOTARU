@@ -18,6 +18,7 @@ class FigInitCommand(FigCommandBase):
 '''
 
     def _handle(self, base, p, fig):
+        mask = p['mask']
         radius = p['radius']
         distance = p['distance']
         h, w = mask.shape
@@ -25,9 +26,9 @@ class FigInitCommand(FigCommandBase):
 
         peaks = load_csv(f'{base}_peaks.csv')
         val = load_numpy(f'{base}.npy')
+        nk = val.shape[0]
         footprint = np.zeros((nk, h, w), np.float32)
         footprint[:, mask] = val
-        nk = footprint.shape[0]
 
         ax = fig.add_axes([0.5, 0.5, 5, 3])
         plot_radius(

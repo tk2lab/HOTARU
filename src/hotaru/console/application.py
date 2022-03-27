@@ -6,15 +6,17 @@ from .config import ConfigCommand
 from .update import UpdateCommand
 from .run import RunCommand
 
+from .stat import StatCommand
 from .data import DataCommand
 from .find import FindCommand
 from .init import InitCommand
 from .temporal import TemporalCommand
 from .spatial import SpatialCommand
 from .clean import CleanCommand
-
 from .output import OutputCommand
+
 from .fig.mpeg import MpegCommand
+from .fig.stat import FigStatCommand
 from .fig.data import FigDataCommand 
 from .fig.find import FigFindCommand 
 from .fig.init import FigInitCommand
@@ -35,6 +37,7 @@ class Application(ApplicationBase):
             OutputCommand(),
             MpegCommand(),
 
+            StatCommand(),
             DataCommand(),
             FindCommand(),
             InitCommand(),
@@ -42,6 +45,7 @@ class Application(ApplicationBase):
             SpatialCommand(),
             CleanCommand(),
 
+            FigStatCommand(),
             FigDataCommand(),
             FigFindCommand(),
             FigInitCommand(),

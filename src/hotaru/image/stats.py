@@ -5,7 +5,7 @@ from tqdm import trange
 from ..util.distribute import distributed, ReduceOp
 
 
-def calc_std(data, mask, nt=None, verbose=1):
+def calc_stats(data, mask, nt=None, verbose=1):
 
     @distributed(ReduceOp.MIN, ReduceOp.MAX, ReduceOp.CONCAT, ReduceOp.SUM, ReduceOp.SUM, ReduceOp.SUM)
     def _calc(imgs, mask):

@@ -5,9 +5,10 @@ import tensorflow as tf
 
 class ReduceOp(Enum):
     CONCAT = 0
-    SUM = 1
-    MAX = 2
-    STACK = 3
+    STACK = 1
+    SUM = 2
+    MIN = 3
+    MAX = 4
 
 
 def distributed(*types, loop=True):
@@ -15,6 +16,8 @@ def distributed(*types, loop=True):
     def make_init(t):
         if t == ReduceOp.SUM:
             return tf.constant(0, tf.float32)
+        elif t == ReduceOp.MIN:
+            return ()
         elif t == ReduceOp.MAX:
             return ()
         elif t == ReduceOp.CONCAT:
@@ -27,6 +30,8 @@ def distributed(*types, loop=True):
     def serialize(x, t):
         if t == ReduceOp.SUM:
             return strategy.reduce(tf.distribute.ReduceOp.SUM, x, axis=None)
+        elif t == ReduceOp.MIN:
+            return strategy.experimental_local_results(x)
         elif t == ReduceOp.MAX:
             return strategy.experimental_local_results(x)
         elif t == ReduceOp.CONCAT:
@@ -39,6 +44,8 @@ def distributed(*types, loop=True):
     def finish(o, t):
         if t == ReduceOp.SUM:
             return o
+        elif t == ReduceOp.MIN:
+            return tf.reduce_min(o, axis=0)
         elif t == ReduceOp.MAX:
             return tf.reduce_max(o, axis=0)
         elif t == ReduceOp.CONCAT:

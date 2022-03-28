@@ -18,16 +18,31 @@ class TemporalCommand(CommandBase, ModelMixin):
     help = '''
 '''
 
-    options = CommandBase.base_options('work') + [
+    options = CommandBase.base_options() + [
         options['data-tag'],
         tag_options['footprint-tag'],
+        options['stage'],
     ] + model_options + optimizer_options + [
         options['batch'],
     ]
 
-    def _handle(self, base, p):
+    def log_path(self):
+        tag = self.p('tag')
+        stage = self.p('stage')
+        if stage < 0:
+            curr = ''
+        else:
+            curr = f'_{stage:03}'
+        return f'hotaru/{self._type}/{tag}{curr}_log.pickle'
+
+    def _handle(self, p):
         footprint_tag = p['footprint-tag']
-        footprint = load_numpy(f'hotaru/footprint/{footprint_tag}.npy')
+        tag = p['tag']
+        stage = p['stage']
+        curr = '' if stage < 0 else f'_{stage:03}'
+        self.line(f'{tag}, {stage}')
+
+        footprint = load_numpy(f'hotaru/footprint/{footprint_tag}{curr}.npy')
         nk = footprint.shape[0]
 
         tau, regularization, models = self.models(p, nk)
@@ -40,7 +55,9 @@ class TemporalCommand(CommandBase, ModelMixin):
             batch=p['batch'], verbose=p['verbose'],
             #log_dir=logs, stage=base,
         )
-        save_numpy(f'{base}.npy', model.spike.val)
+        save_numpy(f'hotaru/spike/{tag}{curr}.npy', model.spike.val)
+        if stage >= 0:
+            save_numpy(f'hotaru/spike/{tag}.npy', model.spike.val)
 
         mask, nt = self.data_prop()
         p.update(dict(mask=mask, nk=nk, nt=nt, log=log.history))

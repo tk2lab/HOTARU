@@ -10,6 +10,7 @@ p = dict(
     peak_tag='default',
     init_tag='default',
     tag='default',
+    stage=-1,
     imgs_path='imgs.tif',
     mask_type='0.pad',
     radius_kind='log',
@@ -43,17 +44,18 @@ if os.path.exists('hotaru/config.pickle'):
 
 
 short = dict(
-    data_tag=None,
-    peak_tag=None,
-    init_tag=None,
-    tag=None,
+    data_tag='D',
+    peak_tag='P',
+    init_tag='I',
+    tag='t',
+    stage='s',
     imgs_path=None,
     mask_type=None,
     radius_kind=None,
     radius_min=None,
     radius_max=None,
     radius_num=None,
-    radius_elem='r',
+    radius_elem=None,
     shard=None,
     distance=None,
     thr_area_abs=None,
@@ -80,7 +82,8 @@ desc = dict(
     data_tag='',
     peak_tag='',
     init_tag='',
-    tag='',
+    tag='t',
+    stage='',
     imgs_path='',
     mask_type='',
     radius_kind='',
@@ -115,6 +118,7 @@ option_type = dict(
     peak_tag=str,
     init_tag=str,
     tag=str,
+    stage=int,
     imgs_path=str,
     mask_type=str,
     radius_kind=str,
@@ -145,8 +149,9 @@ option_type = {k.replace('_', '-'): v for k, v in option_type.items()}
 
 
 tag_options = {
-    'spike-tag': option('spike-tag', 'P', '', False, False, False, p['tag'] + 'work'),
-    'footprint-tag': option('footprint-tag', 'P', '', False, False, False, p['tag'] + 'work'),
+    'force': option('force', None, '', False, False, False, False),
+    'spike-tag': option('spike-tag', 'P', '', False, False, False, p['tag']),
+    'footprint-tag': option('footprint-tag', 'P', '', False, False, False, p['tag']),
     'start': option('start', None, '', False, False, False, 0),
     'goal': option('goal', None, '', False, False, False, 10),
 }

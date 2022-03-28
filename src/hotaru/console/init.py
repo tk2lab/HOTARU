@@ -16,11 +16,12 @@ class InitCommand(CommandBase):
 
     name = 'init'
     _type = 'footprint'
+    _suff = '_000'
     description = 'Make initial segment'
     help = '''
 '''
 
-    options = CommandBase.base_options('work') + [
+    options = CommandBase.base_options() + [
         options['data-tag'],
         options['peak-tag'],
     ] + radius_options + [
@@ -29,9 +30,9 @@ class InitCommand(CommandBase):
         options['batch'],
     ]
 
-    def _handle(self, base, p):
+    def _handle(self, p):
         data = self.data()
-        mask, nt = self.data_prop()
+        mask, nt, avgx = self.data_prop(avgx=True)
         radius = self.radius()
 
         peak_tag = p['peak-tag']
@@ -40,13 +41,16 @@ class InitCommand(CommandBase):
         idx = reduce_peak_idx_mp(
             peaks, p['distance'], p['window'], p['verbose'],
         )
-        peaks = label_out_of_range(peaks.loc[idx], radius)
-        save_csv(f'{base}_peaks.csv', peaks)
+        tag = p['tag']
+        peaks = label_out_of_range(peaks.loc[idx], radius[0], radius[-1])
+        save_csv(f'hotaru/footprint/{tag}_000_peaks.csv', peaks)
 
         peaks = peaks.query('accept == "yes"')
         segment, ok_mask = make_segment(
-            data, mask, peaks, p['batch'], p['verbose'],
+            data, mask, avgx, peaks, p['batch'], p['verbose'],
         )
-        save_numpy(f'{base}.npy', segment)
+        tag = p['tag']
+        save_numpy(f'hotaru/footprint/{tag}_000.npy', segment)
+        save_numpy(f'hotaru/footprint/{tag}.npy', segment)
 
         p.update(dict(radius=radius, mask=mask, nt=nt))

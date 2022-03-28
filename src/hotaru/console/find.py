@@ -21,7 +21,7 @@ class FindCommand(CommandBase):
         options['batch'],
     ]
 
-    def _handle(self, base, p):
+    def _handle(self, p):
         data = self.data()
         mask, nt, avgx = self.data_prop(avgx=True)
         radius = self.radius()
@@ -29,6 +29,7 @@ class FindCommand(CommandBase):
         peaks = find_peak(
             data, mask, avgx, radius, p['shard'], p['batch'], nt, p['verbose'],
         )
-        save_csv(f'{base}.csv', peaks)
+        tag = p['tag']
+        save_csv(f'hotaru/peak/{tag}.csv', peaks)
 
         p.update(dict(mask=mask, nt=nt, radius=radius))

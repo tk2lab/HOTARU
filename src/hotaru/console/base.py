@@ -3,10 +3,11 @@ import os
 import numpy as np
 
 from cleo import Command
-from cleo import option
 
 from ..util.timer import Timer
 
+from .options import options
+from .options import tag_options
 from .options import option_type
 from ..util.tfrecord import load_tfrecord
 from ..util.pickle import load_pickle
@@ -16,11 +17,10 @@ from ..util.pickle import save_pickle
 class CommandBase(Command):
 
     @staticmethod
-    def base_options(default=''):
+    def base_options():
         return [
-        option('tag', 't', '', False, False, False, 'default'),
-        option('suffix', 's', '', False, False, False, default),
-        option('force', 'f', '', False, False, False, False),
+            options['tag'],
+            tag_options['force'],
     ]
 
     _suff = ''
@@ -28,14 +28,16 @@ class CommandBase(Command):
     def p(self, name):
         return option_type.get(name, str)(self.option(name))
 
+    def log_path(self):
+        tag = self.option('tag')
+        return f'hotaru/{self._type}/{tag}{self._suff}_log.pickle'
+
     def handle(self):
         base_path = f'hotaru/{self._type}'
         os.makedirs(base_path, exist_ok=True)
-
-        tag = self.option('tag') + self.option('suffix')
-        self.line(f'{self.name}: {tag}')
-        base = f'{base_path}/{tag}{self._suff}'
-        log_path = f'{base}_log.pickle'
+        log_path = self.log_path()
+        tag = self.p('tag')
+        self.line(f'{self.name} {tag}')
         if self.option('force') or not os.path.exists(log_path):
             options = {
                 o.long_name: self.p(o.long_name)
@@ -43,12 +45,10 @@ class CommandBase(Command):
             }
             options['verbose'] = self.verbose()
             with Timer() as timer:
-                self._handle(base, options)
+                self._handle(options)
             options['time'] = timer.get()
             save_pickle(log_path, options)
-            self.call(f'fig{self.name}', f'--tag {tag}')
-        else:
-            self.line('...skip')
+            #self.call(f'fig{self.name}', f'--tag {tag}')
 
     def verbose(self):
         if self.option('quiet'):

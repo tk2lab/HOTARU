@@ -24,7 +24,7 @@ class DataCommand(CommandBase):
         options['batch'],
     ]
 
-    def _handle(self, base, p):
+    def _handle(self, p):
         batch = p['batch']
         verbose = p['verbose']
 
@@ -40,7 +40,8 @@ class DataCommand(CommandBase):
         stats = calc_stats(data.batch(batch), mask, nt, verbose)
         smin, smax, sstd, avgt, avgx = stats
 
-        data_path = f'{base}.tfrecord'
+        tag = p['tag']
+        data_path = f'hotaru/data/{tag}.tfrecord'
         normalized_data = normalized(data, sstd, avgt, avgx)
         masked_data = masked(normalized_data, mask)
         save_tfrecord(data_path, masked_data, nt, p['verbose'])

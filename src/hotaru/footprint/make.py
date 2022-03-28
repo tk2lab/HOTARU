@@ -10,7 +10,8 @@ from .segment import get_segment_index
 from .util import get_normalized_val, get_magnitude, ToDense
 
 
-def make_segment(dataset, mask, peaks, batch, verbose):
+def make_segment(dataset, mask, avgx, peaks, batch, verbose):
+    avgx = tf.convert_to_tensor(avgx, tf.float32)
     nk = peaks.shape[0]
     ts = tf.convert_to_tensor(peaks['t'].values, tf.int32)
     xs = tf.convert_to_tensor(peaks['x'].values, tf.int32)
@@ -25,14 +26,13 @@ def make_segment(dataset, mask, peaks, batch, verbose):
     dataset = dataset.batch(batch)
     to_dense = ToDense(mask)
 
-    fps = [] #tf.TensorArray(tf.float32, 0, True)
-    out_mask = []
+    fps = []
     e = K.constant(0, tf.int32)
     with trange(nk, desc='Make', disable=verbose==0) as prog:
         for imgs in dataset:
             s, e = e, e + tf.shape(imgs)[0]
             gl, yl, xl = _prepare(
-                imgs, s, e, ts, rs, ys, xs, radius,
+                imgs + avgx, s, e, ts, rs, ys, xs, radius,
             )
             mk = tf.size(yl)
             for k in tf.range(mk):
@@ -41,14 +41,9 @@ def make_segment(dataset, mask, peaks, batch, verbose):
                 val = get_normalized_val(g, pos)
                 if get_magnitude(g, pos) > 0.0:
                     footprint = to_dense(pos, val)
-                    #fps = fps.write(fps.size(), footprint)
                     fps.append(footprint.numpy())
-                    out_mask.append(True)
-                else:
-                    out_mask.append(False)
                 prog.update(1)
-    #return fps.stack().numpy()
-    return np.array(fps), np.array(out_mask)
+    return np.array(fps)
 
 
 @distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)

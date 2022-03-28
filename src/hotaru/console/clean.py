@@ -20,21 +20,33 @@ class CleanCommand(CommandBase):
     help = '''The clean command 
 '''
 
-    options = CommandBase.base_options('work') + [
+    options = CommandBase.base_options() + [
         options['data-tag'],
         tag_options['footprint-tag'],
+        options['stage'],
     ] + radius_options + [
         options['thr-area-abs'],
         options['thr-area-rel'],
         options['batch'],
     ]
 
-    def _handle(self, base, p):
+    def log_path(self):
+        tag = self.p('tag')
+        stage = self.p('stage')
+        if stage < 0:
+            curr = ''
+        else:
+            curr = f'_{stage:03}'
+        return f'hotaru/{self._type}/{tag}{curr}_log.pickle'
+
+    def _handle(self, p):
         mask, nt = self.data_prop()
         radius = self.radius()
 
-        footprint_tag = p['footprint-tag'] + '_orig'
-        footprint = load_numpy(f'hotaru/footprint/{footprint_tag}.npy')
+        footprint_tag = p['footprint-tag']
+        stage = p['stage']
+        curr = '' if stage < 0 else f'_{stage:03}'
+        footprint = load_numpy(f'hotaru/footprint/{footprint_tag}{curr}_orig.npy')
 
         footprint, peaks = clean_footprint(
             footprint, mask, radius, p['batch'], p['verbose'],
@@ -45,9 +57,13 @@ class CleanCommand(CommandBase):
             p['thr-area-abs'], p['thr-area-rel']
         )
         peaks['accept'] = np.where(cond, 'yes', 'no')
+        tag = p['tag']
+        base = f'hotaru/footprint/{tag}{curr}'
         save_csv(f'{base}_peaks.csv', peaks)
         save_numpy(f'{base}.npy', footprint[cond])
         save_numpy(f'{base}_removed.npy', footprint[~cond])
+        if stage >= 0:
+            save_numpy(f'hotaru/footprint/{tag}.npy', footprint[cond])
 
         old_nk = footprint.shape[0]
         nk = cond.sum()

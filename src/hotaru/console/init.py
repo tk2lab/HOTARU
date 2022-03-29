@@ -46,7 +46,7 @@ class InitCommand(CommandBase):
         save_csv(f'hotaru/footprint/{tag}_000_peaks.csv', peaks)
 
         peaks = peaks.query('accept == "yes"')
-        segment, ok_mask = make_segment(
+        segment = make_segment(
             data, mask, avgx, peaks, p['batch'], p['verbose'],
         )
         tag = p['tag']

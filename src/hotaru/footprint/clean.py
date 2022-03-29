@@ -8,16 +8,30 @@ from ..util.distribute import distributed, ReduceOp
 from ..util.dataset import unmasked
 from ..image.filter.gaussian import gaussian
 from ..image.filter.laplace import gaussian_laplace_multi
+from ..eval.footprint import calc_sim_cos
+from ..eval.footprint import calc_sim_area
 from .segment import get_segment_index_py
 
 
-def check_accept(footprint, peaks, radius, thr_abs, thr_rel):
-    area = np.sum(footprint > 0.5, axis=1)
-    peaks['area'] = area
+def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
+    peaks['accept'] = 'yes'
     x = peaks['radius']
-    cond = (radius[0] < x) & (x < radius[-1])
-    cond &= (area <= thr_abs + thr_rel * np.pi * x ** 2)
-    return cond
+    cond1 = radius[0] == x
+    cond2 = radius[-1] == x
+
+    segment = (footprint > 0.5).astype(np.float32)
+    area = np.sum(segment, axis=1)
+    peaks['area'] = area
+    cond3 = (area >= thr_abs + thr_rel * np.pi * x ** 2)
+
+    sim = calc_sim_area(segment, ~(cond1 ^ cond2 ^ cond3))
+    peaks['sim'] = sim
+    cond4 = sim >= thr_sim
+
+    peaks.loc[cond4, 'accept'] = 'large_sim'
+    peaks.loc[cond3, 'accept'] = 'large_area'
+    peaks.loc[cond2, 'accept'] = 'large_r'
+    peaks.loc[cond1, 'accept'] = 'small_r'
 
 
 def clean_footprint(data, mask, radius, batch, verbose):

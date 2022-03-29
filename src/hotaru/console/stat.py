@@ -24,7 +24,7 @@ class StatCommand(CommandBase):
         options['batch'],
     ]
 
-    def _handle(self, base, p):
+    def _handle(self, p):
         batch = p['batch']
         verbose = p['verbose']
 

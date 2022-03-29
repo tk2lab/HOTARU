@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 from matplotlib import cm
 
-from ..footprint.util import footprint_contour
+from ..eval.footprint import footprint_contour
 
 
 _jet = cm.get_cmap('jet')

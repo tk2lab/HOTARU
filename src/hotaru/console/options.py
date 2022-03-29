@@ -22,6 +22,7 @@ p = dict(
     distance=1.6,
     thr_area_abs=100.0,
     thr_area_rel=2.0,
+    thr_sim=0.9,
     hz=20.0,
     tau_rise=0.08,
     tau_fall=0.16,
@@ -60,6 +61,7 @@ short = dict(
     distance=None,
     thr_area_abs=None,
     thr_area_rel=None,
+    thr_sim=None,
     hz=None,
     tau_rise=None,
     tau_fall=None,
@@ -95,6 +97,7 @@ desc = dict(
     distance='',
     thr_area_abs='',
     thr_area_rel='',
+    thr_sim='',
     hz='',
     tau_rise='',
     tau_fall='',
@@ -130,6 +133,7 @@ option_type = dict(
     distance=float,
     thr_area_abs=float,
     thr_area_rel=float,
+    thr_sim=float,
     hz=float,
     tau_rise=float,
     tau_fall=float,
@@ -149,7 +153,7 @@ option_type = {k.replace('_', '-'): v for k, v in option_type.items()}
 
 
 tag_options = {
-    'force': option('force', None, '', False, False, False, False),
+    'force': option('force', 'f', '', False, False, False, False),
     'spike-tag': option('spike-tag', 'P', '', False, False, False, p['tag']),
     'footprint-tag': option('footprint-tag', 'P', '', False, False, False, p['tag']),
     'start': option('start', None, '', False, False, False, 0),

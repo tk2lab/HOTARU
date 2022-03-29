@@ -1,11 +1,13 @@
 import numpy as np
 
+from hotaru.util.numpy import load_numpy
+from hotaru.util.csv import load_csv
+from hotaru.eval.radius import plot_radius
+from hotaru.eval.footprint import plot_maximum
+from hotaru.eval.footprint import plot_contour
+from hotaru.eval.footprint import calc_sim_cos
+
 from .base import FigCommandBase
-from ...util.numpy import load_numpy
-from ...util.csv import load_csv
-from ...eval.radius import plot_radius
-from ...eval.footprint import plot_maximum
-#from ...eval.footprint import plot_contour
 
 
 class FigCleanCommand(FigCommandBase):
@@ -23,6 +25,8 @@ class FigCleanCommand(FigCommandBase):
         radius = p['radius']
 
         val = load_numpy(f'{base}.npy')
+        np.set_printoptions(3, suppress=True)
+        print(np.sort(calc_sim_cos(val)))
         nk = val.shape[0]
         footprint = np.zeros((nk, h, w), np.float32)
         footprint[:, mask] = val
@@ -35,10 +39,12 @@ class FigCleanCommand(FigCommandBase):
             edgecolor='none', alpha=0.5, size=2, legend=False,
         )
 
+        thr = 0.7
+        footprint -= thr
+        footprint[footprint < 0.0] = 0.0
+        footprint /= (1 - thr)
         ax = fig.add_axes([0.5, 4.0, 5, 5 * aspect])
         plot_maximum(ax, footprint)
 
-        '''
-        ax = fig.add_axes([1.0 + 5 * aspect, 4.0, 5, 5 * aspect])
-        plot_contour(ax, footprint)
-        '''
+        ax = fig.add_axes([0.5, 4.5 + 5 * aspect, 5, 5 * aspect])
+        plot_contour(ax, footprint, gauss=2.0, thr_out=0.9)

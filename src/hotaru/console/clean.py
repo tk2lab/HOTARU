@@ -27,6 +27,7 @@ class CleanCommand(CommandBase):
     ] + radius_options + [
         options['thr-area-abs'],
         options['thr-area-rel'],
+        options['thr-sim'],
         options['batch'],
     ]
 
@@ -47,16 +48,18 @@ class CleanCommand(CommandBase):
         stage = p['stage']
         curr = '' if stage < 0 else f'_{stage:03}'
         footprint = load_numpy(f'hotaru/footprint/{footprint_tag}{curr}_orig.npy')
+        old_nk = footprint.shape[0]
 
         footprint, peaks = clean_footprint(
             footprint, mask, radius, p['batch'], p['verbose'],
         )
 
-        cond = check_accept(
+        check_accept(
             footprint, peaks, radius,
-            p['thr-area-abs'], p['thr-area-rel']
+            p['thr-area-abs'], p['thr-area-rel'], p['thr-sim'],
         )
-        peaks['accept'] = np.where(cond, 'yes', 'no')
+
+        cond = peaks['accept'] == 'yes'
         tag = p['tag']
         base = f'hotaru/footprint/{tag}{curr}'
         save_csv(f'{base}_peaks.csv', peaks)
@@ -65,7 +68,6 @@ class CleanCommand(CommandBase):
         if stage >= 0:
             save_numpy(f'hotaru/footprint/{tag}.npy', footprint[cond])
 
-        old_nk = footprint.shape[0]
         nk = cond.sum()
         self.line(f'ncell: {old_nk} -> {nk}', 'comment')
         if nk > 0:

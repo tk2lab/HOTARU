@@ -4,7 +4,7 @@ import seaborn as sns
 from matplotlib.ticker import ScalarFormatter, NullFormatter
 
 
-def plot_radius(ax, df, yname, cname, radius, ylabel=True, **args):
+def plot_radius(ax, df, yname, cname, radius, xlabel=True, ylabel=True, **args):
     rmin = radius[0]
     rmax = radius[-1]
     logr = np.log(radius)
@@ -15,13 +15,17 @@ def plot_radius(ax, df, yname, cname, radius, ylabel=True, **args):
     y = df[yname]
     df['rj'] = np.exp(np.log(r) + 0.8 * diff * (np.random.random(r.size) - 0.5))
     sns.scatterplot(x='rj', y=yname, hue=cname, data=df, ax=ax, **args)
-    ax.set_xlabel('radius (pt)')
     ax.set_xscale('log')
+    ax.set_xticks(rlist[1:-1])
     ax.xaxis.set_major_formatter(ScalarFormatter())
     ax.xaxis.set_minor_formatter(NullFormatter())
-    ax.set_xticks(rlist[1:-1])
     ax.set_xlim(rlist[0]*0.8, rlist[-1]*1.2)
     ax.set_ylim(0, y.max() * 1.1)
+    if xlabel:
+        ax.set_xlabel('radius (pt)')
+    else:
+        ax.set_xlabel('')
+        ax.set_xticklabels([])
     if not ylabel:
         ax.set_ylabel('')
         ax.set_yticklabels([])

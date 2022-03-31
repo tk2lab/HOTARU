@@ -28,11 +28,9 @@ def init(obj, distance, window, batch):
 
     data = obj.data()
     mask = obj.mask()
-    avgx = obj.avgx()
-    avgx[:] = 0.0
 
     accept = peaks.query('accept == "yes"')
-    segment, ng = make_segment(data, mask, avgx, accept, batch, obj.verbose)
+    segment, ng = make_segment(data, mask, accept, batch, obj.verbose)
 
     peaks.loc[ng, 'accept'] = 'no_seg'
     obj.save_csv(peaks, 'peak', stage='_init')

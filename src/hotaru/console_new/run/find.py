@@ -20,12 +20,10 @@ def find(obj, radius, shard, batch):
 
     data = obj.data()
     mask = obj.mask()
-    avgx = obj.avgx()
-    avgx[:] = 0.0
     nt = obj.nt()
 
     peaks = find_peak(
-        data, mask, avgx, radius, shard, batch, nt, obj.verbose,
+        data, mask, radius, shard, batch, nt, obj.verbose,
     )
 
     obj.save_csv(peaks, 'peak', stage='_find')

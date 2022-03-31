@@ -10,8 +10,7 @@ from .segment import get_segment_index
 from .util import get_normalized_val, get_magnitude, ToDense
 
 
-def make_segment(dataset, mask, avgx, peaks, batch, verbose):
-    avgx = tf.convert_to_tensor(avgx, tf.float32)
+def make_segment(dataset, mask, peaks, batch, verbose):
     nk = peaks.shape[0]
     index = tf.convert_to_tensor(peaks.index.values, tf.int32)
     ts = tf.convert_to_tensor(peaks['t'].values, tf.int32)
@@ -34,7 +33,7 @@ def make_segment(dataset, mask, avgx, peaks, batch, verbose):
         for imgs in dataset:
             s, e = e, e + tf.shape(imgs)[0]
             il, gl, yl, xl = _prepare(
-                imgs + avgx, s, e, index, ts, rs, ys, xs, radius,
+                imgs, s, e, index, ts, rs, ys, xs, radius,
             )
             mk = tf.size(yl)
             for k in tf.range(mk):

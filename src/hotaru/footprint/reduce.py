@@ -4,9 +4,10 @@ import numpy as np
 from tqdm import tqdm
 
 def label_out_of_range(peaks, radius_min, radius_max):
-    r = peaks['radius']
-    cond = (radius_min < r) & (r < radius_max)
-    peaks['accept'] = np.where(cond, 'yes', 'no')
+    r = peaks['radius'].values
+    peaks['accept'] = 'yes'
+    peaks.loc[r == radius_min, 'accept'] = 'small_r'
+    peaks.loc[r == radius_max, 'accept'] = 'large_r'
     return peaks
 
 

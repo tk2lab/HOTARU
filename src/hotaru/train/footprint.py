@@ -47,15 +47,6 @@ class FootprintModel(BaseModel):
                 prog.update(tf.size(t).numpy())
         self.variance._cache(1, calcium, vdat)
 
-    def get_footprints(self):
-        footprint = self.footprint.val
-        i = np.arange(footprint.shape[0])
-        j = np.argpartition(-footprint, 1)
-        footprint[i, j[:, 0]] = footprint[i, j[:, 1]]
-        cond = footprint.max(axis=1) > 0.0
-        footprint = footprint[cond]
-        return footprint
-
 
 class FootprintCallback(tf.keras.callbacks.TensorBoard):
 

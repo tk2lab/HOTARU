@@ -5,7 +5,7 @@ from hotaru.util.csv import load_csv
 from hotaru.eval.radius import plot_radius
 from hotaru.eval.footprint import plot_maximum
 from hotaru.eval.footprint import plot_contour
-from hotaru.eval.footprint import calc_sim_cos
+from hotaru.eval.footprint import calc_sim_area
 
 from .base import FigCommandBase
 
@@ -26,7 +26,7 @@ class FigCleanCommand(FigCommandBase):
 
         val = load_numpy(f'{base}.npy')
         np.set_printoptions(3, suppress=True)
-        print(np.sort(calc_sim_cos(val)))
+        print(np.sort(calc_sim_area(val > 0.5)))
         nk = val.shape[0]
         footprint = np.zeros((nk, h, w), np.float32)
         footprint[:, mask] = val
@@ -39,7 +39,7 @@ class FigCleanCommand(FigCommandBase):
             edgecolor='none', alpha=0.5, size=2, legend=False,
         )
 
-        thr = 0.7
+        thr = 0.5
         footprint -= thr
         footprint[footprint < 0.0] = 0.0
         footprint /= (1 - thr)

@@ -15,14 +15,14 @@ p = dict(
     mask_type='0.pad',
     radius_kind='log',
     radius_min=2.0,
-    radius_max=24.0,
+    radius_max=20.0,
     radius_num=13,
     radius_elem=None,
     shard=1,
     distance=1.6,
-    thr_area_abs=100.0,
-    thr_area_rel=2.0,
-    thr_sim=0.9,
+    thr_area_abs=10000.0,
+    thr_area_rel=0.0,
+    thr_sim=1.0,
     hz=20.0,
     tau_rise=0.08,
     tau_fall=0.16,
@@ -154,8 +154,7 @@ option_type = {k.replace('_', '-'): v for k, v in option_type.items()}
 
 tag_options = {
     'force': option('force', 'f', '', False, False, False, False),
-    'spike-tag': option('spike-tag', 'P', '', False, False, False, p['tag']),
-    'footprint-tag': option('footprint-tag', 'P', '', False, False, False, p['tag']),
+    'prev-tag': option('prev-tag', 'P', '', False, False, False, p['tag']),
     'start': option('start', None, '', False, False, False, 0),
     'goal': option('goal', None, '', False, False, False, 10),
 }

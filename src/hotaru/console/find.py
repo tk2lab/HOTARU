@@ -1,3 +1,5 @@
+import numpy as np
+
 from .base import CommandBase
 from .options import options
 from .options import radius_options
@@ -25,6 +27,7 @@ class FindCommand(CommandBase):
         data = self.data()
         mask, nt, avgx = self.data_prop(avgx=True)
         radius = self.radius()
+        avgx = np.zeros_like(avgx)
 
         peaks = find_peak(
             data, mask, avgx, radius, p['shard'], p['batch'], nt, p['verbose'],

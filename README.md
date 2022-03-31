@@ -28,12 +28,9 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ## Usage
 
-### Make Workspace
-- `mkdir work`
-- `cd work`
-- `cp somewhere/TARGET.tif imgs.tif`
-
 ### Config and Prepare
+- Move to your workspace
+  `cd work`
 - Set data file and sampling rate of movie  
   `hotaru config --imgs-path XXX.{tif,npy,raw} --hz 20.0`
 - Set mask file (tif or npy) [optional] 
@@ -49,14 +46,10 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 - Check peaks stats
   [see hotaru/fig/default_find.pdf]
 - Set cell size candidate if you need
-  `hotaru config --radius-type log --radius-min 2.0 --radius-max 16.0 --radius-num 13`
-  `hotaru config --radius-type linear --radius-min 2.0 --radius-max 11.0 --radius-num 10`
-  `hotaru config --radius-type manual --radius-manual "2,3,4,5,6,7,8,9,10"`    
+  `hotaru config --radius-max 16.0`
 
 ### Apply
 - `hotaru run`
   
 ### Check Resutls
-- see `outs` directory
-- `tensorboard --logidr logs`
-- open in web browser `http://localhost:6006`
+- see `hotaru/fig` and `hotaru/out` directory

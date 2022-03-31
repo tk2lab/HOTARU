@@ -6,7 +6,9 @@ from .options import model_options
 from .options import optimizer_options
 
 from ..train.spike import SpikeModel
+from ..util.csv import load_csv
 from ..util.numpy import load_numpy
+from ..util.csv import save_csv
 from ..util.numpy import save_numpy
 
 
@@ -20,7 +22,6 @@ class TemporalCommand(CommandBase, ModelMixin):
 
     options = CommandBase.base_options() + [
         options['data-tag'],
-        tag_options['footprint-tag'],
         options['stage'],
     ] + model_options + optimizer_options + [
         options['batch'],
@@ -36,13 +37,12 @@ class TemporalCommand(CommandBase, ModelMixin):
         return f'hotaru/{self._type}/{tag}{curr}_log.pickle'
 
     def _handle(self, p):
-        footprint_tag = p['footprint-tag']
         tag = p['tag']
         stage = p['stage']
         curr = '' if stage < 0 else f'_{stage:03}'
         self.line(f'{tag}, {stage}')
 
-        footprint = load_numpy(f'hotaru/footprint/{footprint_tag}{curr}.npy')
+        footprint = load_numpy(f'hotaru/footprint/{tag}{curr}.npy')
         nk = footprint.shape[0]
 
         tau, regularization, models = self.models(p, nk)
@@ -59,5 +59,5 @@ class TemporalCommand(CommandBase, ModelMixin):
         if stage >= 0:
             save_numpy(f'hotaru/spike/{tag}.npy', model.spike.val)
 
-        mask, nt = self.data_prop()
-        p.update(dict(mask=mask, nk=nk, nt=nt, log=log.history))
+        index = load_pickle(f'hotaru/footprint/{tag}{curr}_log.pickle')['peaks'].query('accetp == "yes"').index
+        p.update(dict(index=index, log=log.history))

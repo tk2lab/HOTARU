@@ -13,11 +13,20 @@ from ..eval.footprint import calc_sim_area
 from .segment import get_segment_index_py
 
 
+def modify_footprint(footprint):
+    i = np.arange(footprint.shape[0])
+    j = np.argpartition(-footprint, 1)
+    second = footprint[i, j[:, 1]]
+    footprint[i, j[:, 0]] = second
+    cond = second > 0.0
+    return cond
+
+
 def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
     peaks['accept'] = 'yes'
     x = peaks['radius']
-    cond1 = radius[0] == x
-    cond2 = radius[-1] == x
+    cond1 = x == radius[0]
+    cond2 = x == radius[-1]
 
     segment = (footprint > 0.5).astype(np.float32)
     area = np.sum(segment, axis=1)
@@ -34,7 +43,7 @@ def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
     peaks.loc[cond1, 'accept'] = 'small_r'
 
 
-def clean_footprint(data, mask, radius, batch, verbose):
+def clean_footprint(data, index, mask, radius, batch, verbose):
     dataset = tf.data.Dataset.from_tensor_slices(data)
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
@@ -79,7 +88,7 @@ def clean_footprint(data, mask, radius, batch, verbose):
     r, y, x = np.array(ps).T
     r = radius[r]
     f = np.array(fs)
-    peaks = pd.DataFrame(dict(firmness=f, radius=r, x=x, y=y))
+    peaks = pd.DataFrame(dict(firmness=f, radius=r, x=x, y=y), index=index)
     return np.array(ss)[:, mask], peaks
 
 

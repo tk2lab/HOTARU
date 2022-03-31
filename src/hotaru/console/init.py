@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from .base import CommandBase
@@ -31,9 +32,12 @@ class InitCommand(CommandBase):
     ]
 
     def _handle(self, p):
+        tag = p['tag']
+
         data = self.data()
         mask, nt, avgx = self.data_prop(avgx=True)
         radius = self.radius()
+        avgx = np.zeros_like(avgx)
 
         peak_tag = p['peak-tag']
         peaks = load_csv(f'hotaru/peak/{peak_tag}.csv')
@@ -41,16 +45,22 @@ class InitCommand(CommandBase):
         idx = reduce_peak_idx_mp(
             peaks, p['distance'], p['window'], p['verbose'],
         )
-        tag = p['tag']
-        peaks = label_out_of_range(peaks.loc[idx], radius[0], radius[-1])
-        save_csv(f'hotaru/footprint/{tag}_000_peaks.csv', peaks)
+        peaks = peaks.iloc[idx]
+        label_out_of_range(peaks, radius[0], radius[-1])
 
-        peaks = peaks.query('accept == "yes"')
-        segment = make_segment(
-            data, mask, avgx, peaks, p['batch'], p['verbose'],
+        n0 = peaks.shape[0]
+        n1 = (peaks['accept'] == 'yes').values.sum()
+        segment, ng_index = make_segment(
+            data, mask, avgx, peaks.query('accept=="yes"'), p['batch'], p['verbose'],
         )
+        peaks.loc[ng_index, 'accept'] = 'no_seg'
+        n2 = (peaks['accept'] == 'yes').values.sum()
+        n3 = segment.shape[0]
+
         tag = p['tag']
         save_numpy(f'hotaru/footprint/{tag}_000.npy', segment)
-        save_numpy(f'hotaru/footprint/{tag}.npy', segment)
 
-        p.update(dict(radius=radius, mask=mask, nt=nt))
+        print(peaks.query('accept=="yes"'))
+        print(peaks.query('accept!="yes"'))
+        self.line(f'{n0} -> {n1} -> {n2}')
+        p.update(dict(radius=radius, peaks=peaks))

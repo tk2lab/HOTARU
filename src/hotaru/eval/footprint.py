@@ -19,14 +19,17 @@ def calc_sim_cos(segment):
     return max_cor
 
 
-def calc_sim_area(segment, mask):
+def calc_sim_area(segment, mask=None):
     nk = segment.shape[0]
-    segment = segment.reshape(nk, -1)
+    segment = segment.reshape(nk, -1).astype(np.float32)
     scale = segment.sum(axis=1)
     cor = (segment @ segment.T) / scale
     max_cor = np.zeros(nk)
     for j in np.arange(1, nk)[::-1]:
-        max_cor[j] = cor[j, :j][mask[:j]].max()
+        if mask is None:
+            max_cor[j] = cor[j, :j].max()
+        elif np.any(mask[:j]):
+            max_cor[j] = cor[j, :j][mask[:j]].max()
     return max_cor
 
 

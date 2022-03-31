@@ -45,7 +45,16 @@ def plot_comp_a(ax, pair, a1, a2, gamma=1.0, thr=0.6):
 '''
 
 
-def plot_comp_v(ax, pair, time, v1, v2, npair=None, n1=None, n2=None):
+def plot_comp_v(ax, pair, time, v1, v2, cond=None, npair=None, n1=None, n2=None):
+    time = time[cond]
+    v1mean = v1.mean(axis=1)
+    v1min = v1.min(axis=1)
+    v1max = v1.max(axis=1)
+    v1 = (v1[:, cond] - v1mean[:, None]) / (v1max - v1min)[:, None]
+    v2mean = v2.mean(axis=1)
+    v2min = v2.min(axis=1)
+    v2max = v2.max(axis=1)
+    v2 = (v2[:, cond] - v2mean[:, None]) / (v2max - v2min)[:, None]
     n = v1.shape[0]
     m = v2.shape[0]
     k = 0

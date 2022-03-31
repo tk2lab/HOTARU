@@ -34,8 +34,8 @@ class RunCommand(Command):
                 self.call('data', f'-t {data_tag}')
                 self.call('find', f'-t {peak_tag} -D {data_tag}')
                 self.call('init', f'-t {init_tag} -D {data_tag} -P {peak_tag}')
-                self.call('temporal', f'-t {tag} -s 0 -D {data_tag} -P {init_tag}')
+                self.call('temporal', f'-t {tag} -s 0 -D {data_tag}')
             else:
                 self.call('spatial', f'-t {tag} -s {s} -D {data_tag} -P {tag}')
-                self.call('clean', f'-t {tag} -s {s} -P {tag}')
-                self.call('temporal', f'-t {tag} -s {s} -D {data_tag} -P {tag}')
+                self.call('clean', f'-t {tag} -s {s}')
+                self.call('temporal', f'-t {tag} -s {s} -D {data_tag}')

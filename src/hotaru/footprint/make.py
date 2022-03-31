@@ -13,6 +13,7 @@ from .util import get_normalized_val, get_magnitude, ToDense
 def make_segment(dataset, mask, avgx, peaks, batch, verbose):
     avgx = tf.convert_to_tensor(avgx, tf.float32)
     nk = peaks.shape[0]
+    index = tf.convert_to_tensor(peaks.index.values, tf.int32)
     ts = tf.convert_to_tensor(peaks['t'].values, tf.int32)
     xs = tf.convert_to_tensor(peaks['x'].values, tf.int32)
     ys = tf.convert_to_tensor(peaks['y'].values, tf.int32)
@@ -27,33 +28,37 @@ def make_segment(dataset, mask, avgx, peaks, batch, verbose):
     to_dense = ToDense(mask)
 
     fps = []
+    ng_index = []
     e = K.constant(0, tf.int32)
     with trange(nk, desc='Make', disable=verbose==0) as prog:
         for imgs in dataset:
             s, e = e, e + tf.shape(imgs)[0]
-            gl, yl, xl = _prepare(
-                imgs + avgx, s, e, ts, rs, ys, xs, radius,
+            il, gl, yl, xl = _prepare(
+                imgs + avgx, s, e, index, ts, rs, ys, xs, radius,
             )
             mk = tf.size(yl)
             for k in tf.range(mk):
-                g, y, x = gl[k], yl[k], xl[k]
+                idx, g, y, x = il[k], gl[k], yl[k], xl[k]
                 pos = get_segment_index(g, y, x, mask)
                 val = get_normalized_val(g, pos)
                 if get_magnitude(g, pos) > 0.0:
                     footprint = to_dense(pos, val)
                     fps.append(footprint.numpy())
+                else:
+                    ng_index.append(idx.numpy())
                 prog.update(1)
-    return np.array(fps)
+    return np.array(fps), np.array(ng_index)
 
 
 @distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)
-def _prepare(imgs, start, end, ts, rs, ys, xs, radius):
+def _prepare(imgs, start, end, index, ts, rs, ys, xs, radius):
     cond = (start <= ts) & (ts < end)
     ids = tf.cast(tf.where(cond)[:, 0], tf.int32)
+    il = tf.gather(index, ids)
     tl = tf.gather(ts, ids) - start
     rl = tf.gather(rs, ids)
     yl = tf.gather(ys, ids)
     xl = tf.gather(xs, ids)
     gls = gaussian_laplace_multi(imgs, radius)
     gl = tf.gather_nd(gls, tf.stack([tl, rl], 1))
-    return gl, yl, xl
+    return il, gl, yl, xl

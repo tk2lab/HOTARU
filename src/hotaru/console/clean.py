@@ -8,6 +8,7 @@ from .options import radius_options
 from ..footprint.clean import clean_footprint
 from ..footprint.clean import check_accept
 from ..util.numpy import load_numpy
+from ..util.csv import load_csv
 from ..util.numpy import save_numpy
 from ..util.csv import save_csv
 
@@ -22,7 +23,6 @@ class CleanCommand(CommandBase):
 
     options = CommandBase.base_options() + [
         options['data-tag'],
-        tag_options['footprint-tag'],
         options['stage'],
     ] + radius_options + [
         options['thr-area-abs'],
@@ -44,15 +44,23 @@ class CleanCommand(CommandBase):
         mask, nt = self.data_prop()
         radius = self.radius()
 
-        footprint_tag = p['footprint-tag']
         stage = p['stage']
         curr = '' if stage < 0 else f'_{stage:03}'
-        footprint = load_numpy(f'hotaru/footprint/{footprint_tag}{curr}_orig.npy')
+        footprint = load_numpy(f'hotaru/footprint/{tag}{curr}_orig.npy')
+        index = load_pickle(f'hotaru/footprint/{tag}{curr}_orig_log.npy')
         old_nk = footprint.shape[0]
 
+        cond = modify_footprint(footprint)
+
         footprint, peaks = clean_footprint(
-            footprint, mask, radius, p['batch'], p['verbose'],
+            footprint[cond], index[cond].index,
+            mask, radius, p['batch'], p['verbose'],
         )
+        peaks.loc[index[~cond], 'accept'] = 'no_seg'
+
+        idx = np.argsort(peaks['firmness'].values)[::-1]
+        foooprint = footprint[idx]
+        peaks = peaks.iloc[idx].copy()
 
         check_accept(
             footprint, peaks, radius,
@@ -66,15 +74,19 @@ class CleanCommand(CommandBase):
         save_numpy(f'{base}.npy', footprint[cond])
         save_numpy(f'{base}_removed.npy', footprint[~cond])
         if stage >= 0:
+            save_csv(f'hotaru/footprint/{tag}_peaks.csv', peaks)
             save_numpy(f'hotaru/footprint/{tag}.npy', footprint[cond])
 
         nk = cond.sum()
-        self.line(f'ncell: {old_nk} -> {nk}', 'comment')
+        #print(peaks.query('accept=="yes"'))
+        #print(peaks.query('accept!="yes"'))
         if nk > 0:
             for l in str(peaks[cond]).split('\n'):
                 self.line(l)
         if nk != old_nk:
             for l in str(peaks[~cond]).split('\n'):
                 self.line(l)
-
+        sim = peaks.query('accept=="yes"')['sim'].values
+        print('sim', np.sort(sim[sim > 0]))
+        self.line(f'ncell: {old_nk} -> {nk}', 'comment')
         p.update(dict(mask=mask, nt=nt, old_nk=old_nk, nk=nk, radius=radius))

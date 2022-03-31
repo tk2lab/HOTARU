@@ -1,6 +1,6 @@
 import sys
 
-from .console import main
+from .console.app import app
 
 
-sys.exit(main())
+sys.exit(app())

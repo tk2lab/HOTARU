@@ -5,6 +5,8 @@ import click
 from hotaru.util.timer import Timer
 
 from ..obj import Obj
+from .radius import radius_options
+from .radius import radius_wrap
 from .tau import tau_options
 from .tau import tau_wrap
 from .reg import reg_options
@@ -38,15 +40,29 @@ def run_base(func):
 @click.option('--data-tag', '-D', show_default='auto')
 @click.option('--prev-tag', '-T', show_default='auto')
 @click.option('--prev-stage', '-S', type=int, show_default='auto')
+@click.option(
+    '--imgs-path',
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    default='imgs.tif',
+    show_default=True,
+)
+@click.option(
+    '--mask-type',
+    default='0.pad',
+    show_default=True,
+)
+@radius_options
+@click.option('--distance', type=float, default=1.6, show_default=True)
 @tau_options
 @reg_options
 @opt_options
 @click.option('--force', '-f', is_flag=True)
+@radius_wrap
 @tau_wrap
 @reg_wrap
 @opt_wrap
 @click.pass_obj
-def run(obj, tag, stage, data_tag, prev_tag, prev_stage, tau, reg, opt, force):
+def run(obj, tag, stage, data_tag, prev_tag, prev_stage, imgs_path, mask_type, radius, distance, tau, reg, opt, force):
     '''Run'''
 
     obj.tag = tag
@@ -57,6 +73,10 @@ def run(obj, tag, stage, data_tag, prev_tag, prev_stage, tau, reg, opt, force):
     obj.prev_tag = prev_tag or tag
     obj.prev_stage = prev_stage
 
+    obj.imgs_path = imgs_path
+    obj.mask_type = mask_type
+    obj.radius = radius
+    obj.distance = distance
     obj.tau = tau
     obj.reg = reg
     obj.opt = opt

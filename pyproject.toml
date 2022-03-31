@@ -27,7 +27,7 @@ pyformat = "^0.7"
 ipykernel = "^6.9.2"
 
 [tool.poetry.scripts]
-hotaru = "hotaru.console:main"
+hotaru = "hotaru.console.app:app"
 
 [build-system]
 requires = ["poetry>=0.12"]

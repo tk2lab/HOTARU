@@ -13,32 +13,22 @@ from .base import run_base
 
 @click.command()
 @click.option(
-    '--imgs-path',
-    type=click.Path(exists=True, dir_okay=False, readable=True),
-    default='imgs.tif',
-    show_default=True,
-)
-@click.option(
-    '--mask-type',
-    default='0.pad',
-    show_default=True,
-)
-@click.option(
     '--batch',
     type=int,
     default=100,
     show_default=True,
 )
 @run_base
-def data(obj, imgs_path, mask_type, batch):
+def data(obj, batch):
     '''Data'''
 
+    print(obj.imgs_path, obj.mask_type)
     obj.stage = None
 
-    imgs = load_data(imgs_path)
+    imgs = load_data(obj.imgs_path)
     nt, h, w = imgs.shape()
 
-    mask = get_mask(mask_type, h, w)
+    mask = get_mask(obj.mask_type, h, w)
     y0, y1, x0, x1 = get_mask_range(mask)
 
     data = imgs.clipped_dataset(y0, y1, x0, x1)

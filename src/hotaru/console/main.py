@@ -5,6 +5,9 @@ import click
 from .obj import Obj
 from .run import run
 
+commands = dict(run=[
+    'data', 'find', 'init', 'spatial', 'temporal', 'clean', 'auto',
+])
 
 def configure(ctx, param, filename):
     cfg = ConfigParser()
@@ -14,17 +17,19 @@ def configure(ctx, param, filename):
         ctx.default_map.update(cfg['DEFAULT'])
     if 'hotaru' in cfg:
         ctx.default_map.update(cfg['hotaru'])
-    for cmdname in ['data']:
-        defaults = ctx.default_map.setdefault(cmdname, {})
+    for cmdname in ['run']:
+        defaults1 = ctx.default_map.setdefault(cmdname, {})
         if 'DEFAULT' in cfg:
-            defaults.update(cfg['DEFAULT'])
-        if f'hotaru.{cmdname}' in cfg:
-            defaults.update(cfg[f'hotaru.{cmdname}'])
+            defaults1.update(cfg['DEFAULT'])
+        for cmd in commands[cmdname]:
+            defaults2 = defaults1.setdefault(cmd, {})
+            if 'DEFAULT' in cfg:
+                defaults2.update(cfg['DEFAULT'])
 
 
 @click.group()
 @click.option(
-    '--config', '-c', type=click.Path(dir_okay=False), default='hotaru/config.ini',
+    '--config', '-c', type=click.Path(dir_okay=False), default='hotaru.ini',
     callback=configure, is_eager=True, expose_value=False, show_default=True,
     help='',
 )

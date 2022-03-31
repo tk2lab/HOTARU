@@ -10,11 +10,10 @@ from .base import run_base
 
 
 @click.command()
-@click.option('--distance', type=float, default=1.6, show_default=True)
 @click.option('--window', type=int, default=100, show_default=True)
 @click.option('--batch', type=int, default=100, show_default=True)
 @run_base
-def init(obj, distance, window, batch):
+def init(obj, window, batch):
     '''Init'''
 
     obj.stage = None
@@ -23,7 +22,7 @@ def init(obj, distance, window, batch):
     radius_min = obj.radius_min()
     radius_max = obj.radius_max()
 
-    idx = reduce_peak_idx_mp(peaks, distance, window, obj.verbose)
+    idx = reduce_peak_idx_mp(peaks, obj.distance, window, obj.verbose)
     peaks = label_out_of_range(peaks.loc[idx], radius_min, radius_max)
 
     data = obj.data()

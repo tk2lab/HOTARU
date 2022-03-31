@@ -7,20 +7,16 @@ from hotaru.footprint.clean import clean_footprint
 from hotaru.footprint.clean import check_accept
 
 from .base import run_base
-from .radius import radius_options
-from .radius import radius_wrap
 
 
 @click.command()
-@radius_options
 @click.option('--thr-area-abs', type=float, default=np.inf, show_default=True)
 @click.option('--thr-area-rel', type=float, default=0.0, show_default=True)
 @click.option('--thr-sim', type=float, default=1.0, show_default=True)
 @click.option('--initial', is_flag=True)
 @click.option('--batch', type=int, default=100, show_default=True)
-@radius_wrap
 @run_base
-def clean(obj, radius, thr_area_abs, thr_area_rel, thr_sim, initial, batch):
+def clean(obj, thr_area_abs, thr_area_rel, thr_sim, initial, batch):
     '''Clean'''
 
     if obj.prev_stage is None:
@@ -47,7 +43,7 @@ def clean(obj, radius, thr_area_abs, thr_area_rel, thr_sim, initial, batch):
 
     segment, peaks = clean_footprint(
         footprint[cond], index[cond],
-        mask, radius, batch, obj.verbose,
+        mask, obj.radius, batch, obj.verbose,
     )
 
     idx = np.argsort(peaks['firmness'].values)[::-1]
@@ -55,7 +51,7 @@ def clean(obj, radius, thr_area_abs, thr_area_rel, thr_sim, initial, batch):
     peaks = peaks.iloc[idx].copy()
 
     check_accept(
-        segment, peaks, radius,
+        segment, peaks, obj.radius,
         thr_area_abs, thr_area_rel, thr_sim,
     )
 

@@ -7,6 +7,7 @@ import numpy as np
 from ..optimizer.prox_nesterov import ProxNesterov as Optimizer
 from ..optimizer.callback import Callback as OptCallback
 from .variance import Variance
+from .progress import ProgressCallback
 
 
 class BaseModel(tf.keras.Model):
@@ -53,6 +54,7 @@ class BaseModel(tf.keras.Model):
             ),
         ]
 
+        '''
         verbose = kwargs.pop('verbose', 1)
         if verbose != 0:
             callbacks += [
@@ -63,6 +65,10 @@ class BaseModel(tf.keras.Model):
                     show_overall_progress=True,
                 ),
             ]
+        '''
+        callbacks += [
+            ProgressCallback('Training', epochs),
+        ]
 
         if log_dir is not None:
             callbacks += [

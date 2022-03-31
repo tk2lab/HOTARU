@@ -3,7 +3,7 @@ import os
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
-from tqdm import trange
+import click
 
 from .model import BaseModel
 from .summary import summary_stat, summary_spike
@@ -25,21 +25,20 @@ class SpikeModel(BaseModel):
         self.add_metric(footprint_penalty, 'penalty')
         return loss
 
-    def fit(self, footprint, lr, batch, verbose, **kwargs):
+    def fit(self, footprint, lr, batch, **kwargs):
         nk = footprint.shape[0]
         nu = self.variance.nu
         self.set_footprint(footprint)
-        self.start(batch, verbose)
+        self.start(batch)
         self.spike.val = np.zeros((nk, nu))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
-        return self.fit_common(SpikeCallback, verbose=verbose, **kwargs)
+        return self.fit_common(SpikeCallback, **kwargs)
 
-    def start(self, batch, verbose):
+    def start(self, batch):
         data = self.variance._data.batch(batch)
         footprint = self.footprint_tensor()
         adat = tf.TensorArray(tf.float32, 0, True)
-        with trange(self.variance.nt,
-                    desc='Initialize', disable=verbose == 0) as prog:
+        with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
             for d in data:
                 adat_p = tf.matmul(d, footprint, False, True)
                 for p in adat_p:

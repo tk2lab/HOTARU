@@ -18,14 +18,18 @@ def temporal(obj, initial, batch):
 
     if obj.prev_stage is None:
         obj.prev_stage = obj.stage
-    if obj.stage == 0:
+
+    if obj.prev_stage == 0:
         initial = True
 
     data = obj.data()
     nt = obj.nt()
 
-    footprint = obj.footprint(initial)
-    nk, nx = footprint.shape
+    print(obj.stage)
+    print(obj.prev_stage)
+    segment = obj.segment(initial)
+    nk, nx = segment.shape
+    print(segment.shape)
 
     variance = Variance(data, nk, nx, nt)
     variance.set_double_exp(**obj.tau)
@@ -38,8 +42,7 @@ def temporal(obj, initial, batch):
     model.set_penalty(**obj.reg)
     model.compile()
     log = model.fit(
-        footprint, **obj.opt,
-        batch=batch, verbose=obj.verbose,
+        segment, **obj.opt, batch=batch,
         #log_dir=logs, stage=base,
     )
 

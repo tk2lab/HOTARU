@@ -3,7 +3,7 @@ import os
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
-from tqdm import trange
+import click
 
 from .model import BaseModel
 from .summary import normalized_and_sort
@@ -25,22 +25,21 @@ class FootprintModel(BaseModel):
         self.add_metric(footprint_penalty, 'penalty')
         return loss
 
-    def fit(self, spike, lr, batch, verbose, **kwargs):
+    def fit(self, spike, lr, batch, **kwargs):
         nk = spike.shape[0]
         nx = self.variance.nx
         self.set_spike(spike)
-        self.start(batch, verbose)
+        self.start(batch)
         self.footprint.val = np.zeros((nk, nx))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
-        return self.fit_common(FootprintCallback, verbose=verbose, **kwargs)
+        return self.fit_common(FootprintCallback, **kwargs)
 
-    def start(self, batch, verbose):
+    def start(self, batch):
         data = self.variance._data.enumerate().batch(batch)
         spike = self.spike_tensor()
         calcium = self.variance.spike_to_calcium(spike)
         vdat = K.constant(0.0)
-        with trange(self.variance.nt,
-                    desc='Initialize', disable=verbose == 0) as prog:
+        with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
             for t, d in data:
                 c_p = tf.gather(calcium, t, axis=1)
                 vdat += tf.matmul(c_p, d)

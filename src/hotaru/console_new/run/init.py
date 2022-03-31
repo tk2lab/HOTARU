@@ -17,7 +17,9 @@ from .base import run_base
 def init(obj, distance, window, batch):
     '''Init'''
 
-    peaks = obj.peak('_find')
+    obj.stage = None
+
+    peaks = obj.peak(initial=True)
     radius_min = obj.radius_min()
     radius_max = obj.radius_max()
 
@@ -27,11 +29,12 @@ def init(obj, distance, window, batch):
     data = obj.data()
     mask = obj.mask()
     avgx = obj.avgx()
+    avgx[:] = 0.0
 
     accept = peaks.query('accept == "yes"')
     segment, ng = make_segment(data, mask, avgx, accept, batch, obj.verbose)
 
     peaks.loc[ng, 'accept'] = 'no_seg'
     obj.save_csv(peaks, 'peak', stage='_init')
-    obj.save_numpy(segment, 'footprint', stage='_init')
+    obj.save_numpy(segment, 'segment', stage='_init')
     return dict()

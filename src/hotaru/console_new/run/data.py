@@ -33,6 +33,8 @@ from .base import run_base
 def data(obj, imgs_path, mask_type, batch):
     '''Data'''
 
+    obj.stage = None
+
     imgs = load_data(imgs_path)
     nt, h, w = imgs.shape()
 

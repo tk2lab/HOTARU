@@ -20,22 +20,37 @@ class Obj:
         path = self.out_path('data', self.data_tag, '')
         return load_tfrecord(f'{path}.tfrecord')
 
-    def peak(self, stage=None):
-        if stage is None:
+    def peak(self, initial=False):
+        if initial:
+            stage = '_find'
+        else:
             stage = self.prev_stage
         path = self.out_path('peak', self.prev_tag, stage)
         return load_csv(f'{path}.csv')
 
-    def footprint(self, initial):
+    def segment(self, initial=False):
         if initial:
             stage = '_init'
         else:
             stage = self.prev_stage
-        path = self.out_path('footprint', self.prev_tag, stage)
+        path = self.out_path('segment', self.prev_tag, stage)
+        print(path)
         return load_numpy(f'{path}.npy')
+
+    def index(self, initial=False):
+        if initial:
+            stage = '_init'
+        else:
+            stage = self.prev_stage
+        path = self.out_path('peak', self.prev_tag, stage)
+        return load_csv(f'{path}.csv').query('accept == "yes"').index
 
     def spike(self):
         path = self.out_path('spike', self.prev_tag, self.prev_stage)
+        return load_numpy(f'{path}.npy')
+
+    def footprint(self):
+        path = self.out_path('footprint', self.prev_tag, self.prev_stage)
         return load_numpy(f'{path}.npy')
 
     def log(self, kind, tag=None, stage=None):
@@ -48,7 +63,6 @@ class Obj:
             stage = self.prev_stage
         key = kind, tag, stage
         if key not in self._log:
-            print(key)
             path = self.log_path(*key)
             self._log[key] = load_pickle(path)
         return self._log[key]
@@ -66,10 +80,10 @@ class Obj:
         return self.log('data', self.data_tag, '')['nt']
 
     def radius_min(self):
-        return self.log('find', self.prev_tag, self.prev_stage)['radius'][0]
+        return self.log('find', self.prev_tag, '')['radius'][0]
 
     def radius_max(self):
-        return self.log('find', self.prev_tag, self.prev_stage)['radius'][-1]
+        return self.log('find', self.prev_tag, '')['radius'][-1]
 
     def out_path(self, kind, tag=None, stage=None):
         if tag is None:

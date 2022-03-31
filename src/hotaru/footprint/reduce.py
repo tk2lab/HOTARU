@@ -12,6 +12,7 @@ def label_out_of_range(peaks, radius_min, radius_max):
 
 
 def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):
+    ind = peaks.index.values
     rs = peaks['radius'].values
     ys = peaks['y'].values
     xs = peaks['x'].values
@@ -27,7 +28,7 @@ def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):
             y0 = max(y - margin, 0)
             y1 = min(y + size + margin, ymax)
             cond = (x0 <= xs) & (xs <= x1) & (y0 <= ys) & (ys <= y1)
-            index = np.where(cond)[0]
+            index = ind[cond]
             xtmp = xs[cond]
             ytmp = ys[cond]
             rtmp = rs[cond]
@@ -55,18 +56,6 @@ def _reduce_peak_idx_mp_local(data):
         return np.array([], np.int32)
 
 
-def reduce_peak(peaks, radius, thr_distance, verbose=1):
-    idx = reduce_peak_idx(peaks, radius, thr_distance, verbose)
-    return tuple(v[idx] for v in peaks)
-
-
-def reduce_peak_idx(peaks, radius, thr_distance, verbose=1):
-    ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
-    rs = np.array(radius)[rs]
-    idx = _reduce_peak_idx(ys, xs, rs, thr_distance, verbose)
-    return np.array(idx, np.int32)
-
-
 def _reduce_peak_idx(ys, xs, rs, thr_distance, verbose=1):
     flg = np.arange(rs.size, dtype=np.int32)
     idx = []
@@ -86,3 +75,15 @@ def _reduce_peak_idx(ys, xs, rs, thr_distance, verbose=1):
             prog.set_postfix(dict(done=len(idx), rest=flg.size))
             prog.update()
     return idx
+
+
+def reduce_peak(peaks, radius, thr_distance, verbose=1):
+    idx = reduce_peak_idx(peaks, radius, thr_distance, verbose)
+    return tuple(v[idx] for v in peaks)
+
+
+def reduce_peak_idx(peaks, radius, thr_distance, verbose=1):
+    ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
+    rs = np.array(radius)[rs]
+    idx = _reduce_peak_idx(ys, xs, rs, thr_distance, verbose)
+    return np.array(idx, np.int32)

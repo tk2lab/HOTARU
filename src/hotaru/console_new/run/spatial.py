@@ -15,14 +15,15 @@ from .base import run_base
 def spatial(obj, batch):
     '''Update footprint'''
 
-    if (obj.prev_stage is None) and isinstance(obj.stage, int):
-        obj.prev_stage = obj.stage - 1
+    if obj.prev_stage is None:
+        obj.prev_stage = obj.stage
 
     data = obj.data()
     spike = obj.spike()
     nk = spike.shape[0]
     nx = obj.nx()
     nt = obj.nt()
+    print(spike.shape)
 
     variance = Variance(data, nk, nx, nt)
     variance.set_double_exp(**obj.tau)
@@ -35,8 +36,7 @@ def spatial(obj, batch):
     model.set_penalty(**obj.reg)
     model.compile()
     log = model.fit(
-        spike, **obj.opt,
-        batch=batch, verbose=obj.verbose,
+        spike, **obj.opt, batch=batch,
         #log_dir=logs, stage=base,
     )
 

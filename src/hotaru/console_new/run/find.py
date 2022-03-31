@@ -16,9 +16,12 @@ from .radius import radius_wrap
 def find(obj, radius, shard, batch):
     '''Find'''
 
+    obj.stage = None
+
     data = obj.data()
     mask = obj.mask()
     avgx = obj.avgx()
+    avgx[:] = 0.0
     nt = obj.nt()
 
     peaks = find_peak(

@@ -18,12 +18,13 @@ def spatial(obj, batch):
     if obj.prev_stage is None:
         obj.prev_stage = obj.stage
 
+    click.echo(obj.reg)
+
     data = obj.data()
     spike = obj.spike()
     nk = spike.shape[0]
     nx = obj.nx()
     nt = obj.nt()
-    print(spike.shape)
 
     variance = Variance(data, nk, nx, nt)
     variance.set_double_exp(**obj.tau)

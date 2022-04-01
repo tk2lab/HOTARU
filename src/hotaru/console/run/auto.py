@@ -6,6 +6,7 @@ from .init import init
 from .temporal import temporal
 from .spatial import spatial
 from .clean import clean
+from .output import output
 
 
 @click.command()
@@ -25,7 +26,8 @@ from .clean import clean
 def auto(ctx, start, end):
     '''Auto'''
 
-    for i in range(start, end + 1):
+    ctx.obj.prev_stage = None
+    for i in range(start, end):
         print(i)
         if i == 0:
             ctx.obj.stage = None
@@ -35,8 +37,10 @@ def auto(ctx, start, end):
             ctx.obj.stage = 0
         else:
             ctx.obj.stage = i
-            ctx.obj.prev_stage = i - 1
             ctx.invoke(clean)
-            ctx.obj.prev_stage = i
         ctx.invoke(temporal)
         ctx.invoke(spatial)
+    ctx.obj.stage = end
+    ctx.invoke(clean)
+    ctx.invoke(temporal)
+    ctx.invoke(output)

@@ -22,14 +22,13 @@ def temporal(obj, initial, batch):
     if obj.prev_stage == 0:
         initial = True
 
+    click.echo(obj.reg)
+
     data = obj.data()
     nt = obj.nt()
 
-    print(obj.stage)
-    print(obj.prev_stage)
     segment = obj.segment(initial)
     nk, nx = segment.shape
-    print(segment.shape)
 
     variance = Variance(data, nk, nx, nt)
     variance.set_double_exp(**obj.tau)

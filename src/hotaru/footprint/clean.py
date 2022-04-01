@@ -2,7 +2,7 @@ import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from tqdm import trange
+import click
 
 from ..util.distribute import distributed, ReduceOp
 from ..util.dataset import unmasked
@@ -60,7 +60,7 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
     ps = []
     fs = []
     #i = tf.constant(0)
-    with trange(nk, desc='Clean', disable=verbose==0) as prog:
+    with click.progressbar(length=nk, label='Clean') as prog:
         for data in dataset:
             gl, ll, rl, yl, xl = _prepare(data, mask, radius_)
             _gl = gl.numpy()

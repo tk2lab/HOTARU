@@ -1,14 +1,13 @@
 import tensorflow as tf
-from tqdm import trange
+import click
 
 
 def save_tfrecord(path, data, nt=None, verbose=1):
     with tf.io.TFRecordWriter(path) as writer:
-        with trange(nt, desc='Save', disable=verbose == 0) as prog:
+        with click.progressbar(length=nt, label='Save') as prog:
             for d in data:
                 writer.write(tf.io.serialize_tensor(d).numpy())
-                if prog is not None:
-                    prog.update(1)
+                prog.update(1)
 
 
 def load_tfrecord(path):

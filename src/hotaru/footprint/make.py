@@ -1,7 +1,7 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
-from tqdm import trange
+import click
 
 from ..util.distribute import distributed, ReduceOp
 from ..util.dataset import unmasked
@@ -18,9 +18,6 @@ def make_segment(dataset, mask, peaks, batch, verbose):
     ys = tf.convert_to_tensor(peaks['y'].values, tf.int32)
     rs = tf.convert_to_tensor(peaks['radius'].values, tf.float32)
     radius, rs = tf.unique(rs)
-    idx = tf.argsort(radius)
-    radius = tf.gather(radius, idx)
-    rs = tf.gather(rs, idx)
 
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
@@ -29,7 +26,7 @@ def make_segment(dataset, mask, peaks, batch, verbose):
     fps = []
     ng_index = []
     e = K.constant(0, tf.int32)
-    with trange(nk, desc='Make', disable=verbose==0) as prog:
+    with click.progressbar(length=nk, label='Make') as prog:
         for imgs in dataset:
             s, e = e, e + tf.shape(imgs)[0]
             il, gl, yl, xl = _prepare(
@@ -44,6 +41,7 @@ def make_segment(dataset, mask, peaks, batch, verbose):
                     footprint = to_dense(pos, val)
                     fps.append(footprint.numpy())
                 else:
+                    val = tf.gather_nd(g, pos)
                     ng_index.append(idx.numpy())
                 prog.update(1)
     return np.array(fps), np.array(ng_index)

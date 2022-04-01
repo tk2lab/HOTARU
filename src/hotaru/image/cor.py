@@ -1,6 +1,6 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
-from tqdm import trange
+import click
 
 from ..util.distribute import distributed, ReduceOp
 from .filter.neighbor import neighbor
@@ -20,7 +20,7 @@ def calc_cor(imgs, nt=None, verbose=1):
         ntf = K.cast_to_floatx(K.shape(img)[0])
         return sx1, sy1, sx2, sxy, sy2, ntf
 
-    with trange(nt, desc='Calc Cor', disable=verbose == 0) as prog:
+    with click.progressbar(length=nt, label='Calc Cor') as prog:
         sx1, sy1, sx2, sxy, sy2, ntf = _calc(imgs, prog=prog)
     avg_x = sx1 / ntf
     avg_y = sy1 / ntf

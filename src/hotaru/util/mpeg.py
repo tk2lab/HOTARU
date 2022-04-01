@@ -13,7 +13,7 @@ class MpegStream:
 
     def __enter__(self):
         w, h, hz, outfile = self.args
-        p = ffmpeg.input('pipe:', f='rawvideo', pix_fmt='rgba', s=f'{w}x{h}')
+        p = ffmpeg.input('pipe:', f='rawvideo', pix_fmt='rgba', s=f'{w}x{h}', r=hz)
         for a, b in self.filters:
             if a == 'drawtext':
                 p = p.drawtext(**b)

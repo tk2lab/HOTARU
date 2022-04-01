@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from tqdm import trange
+import click
 
 from ..util.distribute import distributed, ReduceOp
 from ..util.dataset import unmasked
@@ -33,7 +33,7 @@ def find_peak(data, mask, radius, shard, batch, nt=None, verbose=1):
     mask = tf.convert_to_tensor(mask, tf.bool)
     radius_ = tf.convert_to_tensor(radius, tf.float32)
     total = (nt + shard - 1) // shard
-    with trange(total, desc='Find', disable=verbose == 0) as prog:
+    with click.progressbar(length=total, label='Find') as prog:
         t, r, g = _find(data, mask, radius_, prog=prog)
 
     idx = tf.math.argmax(g, axis=0, output_type=tf.int32)

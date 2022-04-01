@@ -22,18 +22,22 @@ class Obj:
 
     def peak(self, initial=False):
         if initial:
+            tag = self.find_tag
             stage = '_find'
         else:
+            tag = self.prev_tag
             stage = self.prev_stage
-        path = self.out_path('peak', self.prev_tag, stage)
+        path = self.out_path('peak', tag, stage)
         return load_csv(f'{path}.csv')
 
     def segment(self, initial=False):
         if initial:
+            tag = self.init_tag
             stage = '_init'
         else:
+            tag = self.prev_tag
             stage = self.prev_stage
-        path = self.out_path('segment', self.prev_tag, stage)
+        path = self.out_path('segment', tag, stage)
         print(path)
         return load_numpy(f'{path}.npy')
 
@@ -79,6 +83,9 @@ class Obj:
     def nt(self):
         return self.log('data', self.data_tag, '')['nt']
 
+    def radius(self):
+        return self.log('find', self.prev_tag, '')['radius']
+
     def radius_min(self):
         return self.log('find', self.prev_tag, '')['radius'][0]
 
@@ -122,7 +129,19 @@ class Obj:
             return True
         if (kind in ('temporal', 'spatiol', 'clean')) and (self.stage == ''):
             return True
-        return not os.path.exists(self.log_path(kind))
+        elif kind == 'data' and self.data_tag is not None:
+            tag = self.data_tag
+            stage = ''
+        elif kind == 'find' and self.find_tag is not None:
+            tag = self.find_tag
+            stage = ''
+        elif kind == 'init' and self.init_tag is not None:
+            tag = self.init_tag
+            stage = ''
+        else:
+            tag = self.tag
+            stage = self.tag
+        return not os.path.exists(self.log_path(kind, tag, stage))
 
     def save_log(self, kind, log):
         path = self.log_path(kind)

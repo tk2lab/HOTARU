@@ -1,7 +1,7 @@
 import multiprocessing as mp
 
 import numpy as np
-from tqdm import tqdm
+import click
 
 def label_out_of_range(peaks, radius_min, radius_max):
     r = peaks['radius'].values
@@ -36,11 +36,11 @@ def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):
 
     total = int(np.ceil((xmax - margin) / size) * np.ceil((ymax - margin) / size))
     with mp.Pool() as pool:
-        with tqdm(total=total, desc='Reduce', disable=verbose == 0) as prog:
+        with click.progressbar(length=total, label='Reduce') as prog:
             ind = []
             for x in pool.imap_unordered(_reduce_peak_idx_mp_local, data):
                 ind.append(x)
-                prog.update()
+                prog.update(1)
     return np.unique(np.concatenate(ind, 0))
 
 
@@ -59,21 +59,18 @@ def _reduce_peak_idx_mp_local(data):
 def _reduce_peak_idx(ys, xs, rs, thr_distance, verbose=1):
     flg = np.arange(rs.size, dtype=np.int32)
     idx = []
-    with tqdm(leave=False, disable=verbose == 0) as prog:
-        while flg.size > 0:
-            i, j = flg[0], flg[1:]
-            y0, x0 = ys[i], xs[i]
-            y1, x1 = ys[j], xs[j]
-            ya, xa = ys[idx], xs[idx]
-            thr = np.square(thr_distance * rs[i])
-            if not idx or np.all(np.square(ya - y0) + np.square(xa - x0) >= thr):
-                cond = np.square(y1 - y0) + np.square(x1 - x0) >= thr
-                flg = j[cond]
-                idx.append(i)
-            else:
-                flg = j
-            prog.set_postfix(dict(done=len(idx), rest=flg.size))
-            prog.update()
+    while flg.size > 0:
+        i, j = flg[0], flg[1:]
+        y0, x0 = ys[i], xs[i]
+        y1, x1 = ys[j], xs[j]
+        ya, xa = ys[idx], xs[idx]
+        thr = np.square(thr_distance * rs[i])
+        if not idx or np.all(np.square(ya - y0) + np.square(xa - x0) >= thr):
+            cond = np.square(y1 - y0) + np.square(x1 - x0) >= thr
+            flg = j[cond]
+            idx.append(i)
+        else:
+            flg = j
     return idx
 
 

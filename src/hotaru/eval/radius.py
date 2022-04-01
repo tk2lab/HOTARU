@@ -22,7 +22,7 @@ def plot_radius(ax, df, yname, cname, radius, xlabel=True, ylabel=True, **args):
     ax.set_xlim(rlist[0]*0.8, rlist[-1]*1.2)
     ax.set_ylim(0, y.max() * 1.1)
     if xlabel:
-        ax.set_xlabel('radius (pt)')
+        ax.set_xlabel('radius (pixel)')
     else:
         ax.set_xlabel('')
         ax.set_xticklabels([])

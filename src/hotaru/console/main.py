@@ -4,6 +4,7 @@ import click
 
 from .obj import Obj
 from .run import run
+#from .fig import fig
 
 commands = dict(run=[
     'data', 'find', 'init', 'spatial', 'temporal', 'clean', 'auto',
@@ -46,3 +47,4 @@ def main(ctx, workdir, quit, verbose):
 
 
 main.add_command(run)
+#main.add_command(fig)

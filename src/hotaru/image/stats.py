@@ -1,6 +1,6 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
-from tqdm import trange
+import click
 
 from ..util.distribute import distributed, ReduceOp
 
@@ -20,7 +20,7 @@ def calc_stats(data, mask, nt=None, verbose=1):
 
     mask = K.constant(mask, tf.bool)
     nx = K.cast_to_floatx(tf.math.count_nonzero(mask))
-    with trange(nt, desc='Calc Stats', disable=verbose == 0) as prog:
+    with click.progressbar(length=nt, label='Calc Stats') as prog:
         min_t, max_t, avg_t, sum_x, sumsq, nt = _calc(data, mask, prog=prog)
     avg_x = sum_x / nt
     avg_0 = K.mean(avg_t)

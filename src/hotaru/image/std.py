@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tqdm import trange
+import click
 
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
@@ -15,6 +15,6 @@ def calc_std(imgs, nt=None, verbose=1):
         n = tf.cast(tf.shape(img)[0], tf.float32)
         return s, n
 
-    with trange(nt, desc='Calc Std', disable=verbose == 0) as prog:
+    with click.progressbar(length=nt, label='Calc Std') as prog:
         s, n = _calc(imgs, prog=prog)
     return tf.math.sqrt(s / n)

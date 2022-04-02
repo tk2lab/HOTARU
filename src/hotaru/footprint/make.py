@@ -2,11 +2,12 @@ import tensorflow as tf
 import numpy as np
 import click
 
-from ..util.distribute import distributed, ReduceOp
+from ..util.distribute import distributed
+from ..util.distribute import ReduceOp
 from ..util.dataset import unmasked
 from ..image.filter.laplace import gaussian_laplace_multi
+
 from .segment import get_segment
-from .util import get_normalized_val, get_magnitude, ToDense
 
 
 def make_segment(dataset, mask, peaks, batch, verbose):
@@ -15,11 +16,10 @@ def make_segment(dataset, mask, peaks, batch, verbose):
     def _make(data, mask, index, ts, rs, ys, xs, radius):
         idx, imgs = data
         idx = tf.cast(idx, tf.int32)
-        start, end = idx[0], idx[-1]
-        cond = (start <= ts) & (ts < end)
+        cond = (idx[0] <= ts) & (ts <= idx[-1])
         ids = tf.cast(tf.where(cond)[:, 0], tf.int32)
         il = tf.gather(index, ids)
-        tl = tf.gather(ts, ids) - start
+        tl = tf.gather(ts, ids) - idx[0]
         rl = tf.gather(rs, ids)
         yl = tf.gather(ys, ids)
         xl = tf.gather(xs, ids)
@@ -27,8 +27,7 @@ def make_segment(dataset, mask, peaks, batch, verbose):
         gl = tf.gather_nd(gls, tf.stack([tl, rl], 1))
 
         out = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        mk = tf.size(ids)
-        for k in tf.range(mk):
+        for k in tf.range(tf.size(ids)):
             idx, g, y, x = il[k], gl[k], yl[k], xl[k]
             seg = get_segment(g, y, x, mask)
             sg = tf.boolean_mask(g, seg)

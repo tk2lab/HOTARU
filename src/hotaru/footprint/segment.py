@@ -11,9 +11,7 @@ def get_segment_simple_py(img, y, x, thr):
 
 
 def get_segment(gl, y, x, mask):
-    pos = tf.numpy_function(
-        get_segment_index_py, [gl, y, x, mask], tf.int32,
-    )
+    pos = get_segment_index(gl, y, x, mask)
     npos = tf.shape(pos)[0]
     return tf.scatter_nd(pos, tf.ones((npos,), tf.bool), tf.shape(mask))
 

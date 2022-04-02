@@ -1,17 +1,22 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
 
-from hotaru.train.dynamics import SpikeToCalcium, CalciumToSpike
+from ..util.distribute import ReduceOp
+from ..util.distribute import distributed
+
+from .dynamics import SpikeToCalcium
+from .dynamics import CalciumToSpike
 
 
 class Variance(tf.keras.layers.Layer):
 
-    def __init__(self, data, nk, nx, nt, name='Variance'):
+    def __init__(self, data, nk, nx, nt, batch=100, name='Variance'):
         super().__init__(name=name, dtype=tf.float32)
 
         self._data = data
         self.nx = nx
         self.nt = nt
+        self._batch = batch
 
         self.spike_to_calcium = SpikeToCalcium(name='to_cal')
         self.calcium_to_spike = CalciumToSpike(name='to_spk')
@@ -46,8 +51,19 @@ class Variance(tf.keras.layers.Layer):
         K.set_value(self._nm, nm)
 
     def call(self, xdat):
+
+        '''
+        @distributed(ReduceOp.CONCAT)
+        def _matmul(dat, xdat):
+            print(tf.shape(dat), tf.shape(xdat))
+            return tf.linalg.matmul(dat, xdat, False, True),
+        '''
+
         nk, nx = tf.shape(xdat)[0], tf.shape(xdat)[1]
-        xcov = tf.matmul(xdat, xdat, False, True)
+        data = tf.data.Dataset.from_tensor_slices(xdat).batch(self._batch)
+
+        #xcov, = _matmul(data, xdat)
+        xcov = tf.linalg.matmul(xdat, xdat, False, True)
         xsum = tf.math.reduce_sum(xdat, axis=1)
         xout = xsum[:, None] * xsum / tf.cast(nx, tf.float32)
 
@@ -56,12 +72,11 @@ class Variance(tf.keras.layers.Layer):
         yout = tf.slice(self._out, [0, 0], [nk, nk])
 
         variance = (
-            self._nn
-            + tf.math.reduce_sum(ydat * xdat)
+              tf.math.reduce_sum(ydat * xdat)
             + tf.math.reduce_sum(ycov * xcov)
             + tf.math.reduce_sum(yout * xout)
-        ) / self._nm
-        return variance
+        )
+        return (self._nn + variance) / self._nm
 
     def _cache(self, mode, yval, dat):
         if mode == 0:

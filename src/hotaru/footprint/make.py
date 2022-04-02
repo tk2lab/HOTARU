@@ -33,7 +33,8 @@ def make_segment(dataset, mask, peaks, batch, verbose):
             sg = tf.boolean_mask(g, seg)
             gmin = tf.math.reduce_min(sg)
             gmax = tf.math.reduce_max(sg)
-            out = out.write(k, tf.boolean_mask((g - gmin) / (gmax - gmin) * tf.cast(seg, tf.float32), mask))
+            img = (g - gmin) / (gmax - gmin)
+            out = out.write(k, tf.boolean_mask(img, mask))
         return out.stack(),
 
     nk = peaks.shape[0]

@@ -11,8 +11,7 @@ from ..image.filter.laplace import gaussian_laplace_multi
 from ..eval.footprint import calc_sim_cos
 from ..eval.footprint import calc_sim_area
 
-from .segment import get_segment
-from .segment import get_segment_index_py
+from .segment import get_segment_index
 
 
 def modify_footprint(footprint):
@@ -64,14 +63,16 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
         nx = tf.size(rs)
         for k in tf.range(nx):
             img, log, r, y, x = imgs[k], logs[k], rs[k], ys[k], xs[k]
-            seg = get_segment(log, y, x, mask)
-            slog = tf.boolean_mask(log, seg)
+            pos = get_segment_index(log, y, x, mask)
+            slog = tf.gather_nd(log, pos)
             slogmin = tf.math.reduce_min(slog)
             slogmax = tf.math.reduce_max(slog)
-            simg = tf.boolean_mask(img, seg)
+            simg = tf.gather_nd(img, pos)
             simgmin = tf.math.reduce_min(simg)
             simgmax = tf.math.reduce_max(simg)
-            out = out.write(k, tf.boolean_mask((img - simgmin) * tf.cast(seg, tf.float32), mask))
+            val = (simg - simgmin) / (simgmax - simgmin)
+            img = tf.scatter_nd(pos, val, [h, w])
+            out = out.write(k, tf.boolean_mask(img, mask))
             firmness = firmness.write(k, (slogmax - slogmin) / (simgmax - simgmin))
         return out.stack(), firmness.stack(), rs, ys, xs
 

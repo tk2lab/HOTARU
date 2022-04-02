@@ -43,10 +43,12 @@ class Obj:
 
     def index(self, initial=False):
         if initial:
+            tag = self.init_tag
             stage = '_init'
         else:
+            tag = self.prev_tag
             stage = self.prev_stage
-        path = self.out_path('peak', self.prev_tag, stage)
+        path = self.out_path('peak', tag, stage)
         return load_csv(f'{path}.csv').query('accept == "yes"').index
 
     def spike(self):

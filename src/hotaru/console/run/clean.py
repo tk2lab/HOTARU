@@ -30,12 +30,8 @@ def clean(obj, thr_area_abs, thr_area_rel, thr_sim, initial, batch):
 
     mask = obj.mask()
 
-    print(obj.stage)
-    print(obj.prev_stage)
     footprint = obj.footprint()
     index = obj.index(initial)
-    print(footprint.shape)
-    print(len(index))
 
     cond = modify_footprint(footprint)
     no_seg = pd.DataFrame(index=index[~cond])

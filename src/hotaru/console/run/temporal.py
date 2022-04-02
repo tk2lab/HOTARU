@@ -22,8 +22,6 @@ def temporal(obj, initial, batch):
     if obj.prev_stage == 0:
         initial = True
 
-    click.echo(obj.reg)
-
     data = obj.data()
     nt = obj.nt()
 

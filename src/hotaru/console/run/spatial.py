@@ -18,8 +18,6 @@ def spatial(obj, batch):
     if obj.prev_stage is None:
         obj.prev_stage = obj.stage
 
-    click.echo(obj.reg)
-
     data = obj.data()
     spike = obj.spike()
     nk = spike.shape[0]

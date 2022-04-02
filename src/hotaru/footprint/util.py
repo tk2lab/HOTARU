@@ -1,4 +1,3 @@
-import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
 from scipy.ndimage import gaussian_filter as gaussian
@@ -7,25 +6,22 @@ from scipy.ndimage import generate_binary_structure, binary_dilation
 from matplotlib import cm
 
 
-_greens = cm.get_cmap('Greens')
-
-
 def get_normalized_val(img, pos):
     val = tf.gather_nd(img, pos)
-    min_val = K.min(val)
-    max_val = K.max(val)
+    min_val = tf.math.reduce_min(val)
+    max_val = tf.math.reduce_max(val)
     return (val - min_val) / (max_val - min_val)
 
 
 def get_magnitude(img, pos):
     val = tf.gather_nd(img, pos)
-    return K.max(val) - K.min(val)
+    return tf.math.redeuce_max(val) - tf.math.reduce_min(val)
 
 
 class ToDense(object):
 
     def __init__(self, mask):
-        mask = K.constant(mask, tf.bool)
+        mask = tf.convert_to_tensor(mask, tf.bool)
         nx = tf.cast(tf.math.count_nonzero(mask), tf.int32)
         ids = tf.cast(tf.where(mask), tf.int32)
         rmap = tf.scatter_nd(ids, tf.range(nx) + 1, tf.shape(mask)) - 1

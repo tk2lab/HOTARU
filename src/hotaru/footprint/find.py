@@ -34,7 +34,8 @@ def find_peak(data, mask, radius, shard, batch, nt=None, verbose=1):
     radius_ = tf.convert_to_tensor(radius, tf.float32)
     total = (nt + shard - 1) // shard
     with click.progressbar(length=total, label='Find') as prog:
-        t, r, g = _find(data, mask, radius_, prog=prog)
+        strategy = tf.distribute.MirroredStrategy()
+        t, r, g = _find(data, mask, radius_, prog=prog, strategy=strategy)
 
     idx = tf.math.argmax(g, axis=0, output_type=tf.int32)
     shape = tf.shape(mask)

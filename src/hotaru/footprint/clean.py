@@ -10,6 +10,8 @@ from ..image.filter.gaussian import gaussian
 from ..image.filter.laplace import gaussian_laplace_multi
 from ..eval.footprint import calc_sim_cos
 from ..eval.footprint import calc_sim_area
+
+from .segment import get_segment
 from .segment import get_segment_index_py
 
 
@@ -44,63 +46,47 @@ def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
 
 
 def clean_footprint(data, index, mask, radius, batch, verbose):
+
+    @distributed(ReduceOp.CONCAT, ReduceOp.CONCAT, ReduceOp.CONCAT, ReduceOp.CONCAT, ReduceOp.CONCAT)
+    def _clean(imgs, mask, radius):
+        logs = gaussian_laplace_multi(imgs, radius)
+        nk, h, w = tf.shape(logs)[0], tf.shape(logs)[2], tf.shape(logs)[3]
+        hw = h * w
+        lsr = tf.reshape(logs, (nk, -1))
+        pos = tf.cast(tf.argmax(lsr, axis=1), tf.int32)
+        rs = pos // hw
+        ys = (pos % hw) // w
+        xs = (pos % hw) % w
+        logs = tf.gather_nd(logs, tf.stack([tf.range(nk), rs], axis=1))
+
+        out = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        firmness = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        nx = tf.size(rs)
+        for k in tf.range(nx):
+            img, log, r, y, x = imgs[k], logs[k], rs[k], ys[k], xs[k]
+            seg = get_segment(log, y, x, mask)
+            slog = tf.boolean_mask(log, seg)
+            slogmin = tf.math.reduce_min(slog)
+            slogmax = tf.math.reduce_max(slog)
+            simg = tf.boolean_mask(img, seg)
+            simgmin = tf.math.reduce_min(simg)
+            simgmax = tf.math.reduce_max(simg)
+            out = out.write(k, tf.boolean_mask((img - simgmin) * tf.cast(seg, tf.float32), mask))
+            firmness = firmness.write(k, (slogmax - slogmin) / (simgmax - simgmin))
+
+        return out.stack(), firmness.stack(), rs, ys, xs
+
+    nk = data.shape[0]
     dataset = tf.data.Dataset.from_tensor_slices(data)
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
-    #to_dense = ToDense(mask)
 
-    _mask = mask
-    mask = K.constant(mask, tf.bool)
-    radius_ = K.constant(radius)
+    mask = tf.convert_to_tensor(mask, tf.bool)
+    radius = tf.convert_to_tensor(radius, tf.float32)
 
-    thr = 0.01
-    nk = data.shape[0]
-    i = 0
-    ss = []
-    ps = []
-    fs = []
-    #i = tf.constant(0)
     with click.progressbar(length=nk, label='Clean') as prog:
-        for data in dataset:
-            gl, ll, rl, yl, xl = _prepare(data, mask, radius_)
-            _gl = gl.numpy()
-            _ll = ll.numpy()
-            _rl = rl.numpy()
-            _yl = yl.numpy()
-            _xl = xl.numpy()
-            nx = _rl.size
-            for k in range(nx):
-                img, log, r, y, x = _gl[k], _ll[k], _rl[k], _yl[k], _xl[k]
-                pos = get_segment_index_py(log, y, x, _mask)
-                slog = log[pos[:, 0], pos[:, 1]]
-                simg = img[pos[:, 0], pos[:, 1]]
-                firmness = (slog.max() - slog.min()) / (simg.max() - simg.min())
-                img = simg.min() * np.ones_like(img)
-                img[pos[:, 0], pos[:, 1]] = simg
-                img -= img.min()
-                if img.max() > 0.0:
-                    img /= img.max()
-                ss.append(img)
-                ps.append([r, y, x])
-                fs.append(firmness)
-                i += 1
-                prog.update(1)
-    r, y, x = np.array(ps).T
-    r = radius[r]
-    f = np.array(fs)
-    peaks = pd.DataFrame(dict(firmness=f, radius=r, x=x, y=y), index=index)
-    return np.array(ss)[:, mask], peaks
-
-
-@distributed(*[ReduceOp.CONCAT for _ in range(5)], loop=False)
-def _prepare(imgs, mask, radius):
-    ls = gaussian_laplace_multi(imgs, radius)
-    nk, h, w = tf.shape(ls)[0], tf.shape(ls)[2], tf.shape(ls)[3]
-    hw = h * w
-    lsr = K.reshape(ls, (nk, -1))
-    pos = tf.cast(K.argmax(lsr, axis=1), tf.int32)
-    rs = pos // hw
-    ys = (pos % hw) // w
-    xs = (pos % hw) % w
-    ls = tf.gather_nd(ls, tf.stack([tf.range(nk), rs], axis=1))
-    return imgs, ls, rs, ys, xs
+        strategy = tf.distribute.MirroredStrategy()
+        footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog, strategy=strategy)
+        strategy._extended._collective_ops._pool.close()
+    peaks = pd.DataFrame(dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()), index=index)
+    return footprint.numpy(), peaks

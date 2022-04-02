@@ -1,9 +1,11 @@
 import os
 
-import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
 import click
+
+from ..util.distribute import ReduceOp
+from ..util.distribute import distributed
 
 from .model import BaseModel
 from .summary import summary_stat, summary_spike
@@ -35,16 +37,17 @@ class SpikeModel(BaseModel):
         return self.fit_common(SpikeCallback, **kwargs)
 
     def start(self, batch):
+
+        @distributed(ReduceOp.CONCAT)
+        def _matmul(data, footprint):
+            return tf.matmul(data, footprint, False, True),
+
         data = self.variance._data.batch(batch)
         footprint = self.footprint_tensor()
-        adat = tf.TensorArray(tf.float32, 0, True)
         with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
-            for d in data:
-                adat_p = tf.matmul(d, footprint, False, True)
-                for p in adat_p:
-                    adat = adat.write(adat.size(), p)
-                    prog.update(1)
-        self.variance._cache(0, footprint, tf.transpose(adat.stack()))
+            strategy = tf.distribute.MirroredStrategy()
+            adat, = _matmul(data, footprint, prog=prog, strategy=strategy)
+        self.variance._cache(0, footprint, tf.transpose(adat))
 
 
 class SpikeCallback(tf.keras.callbacks.TensorBoard):

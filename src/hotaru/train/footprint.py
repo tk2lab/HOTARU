@@ -1,9 +1,11 @@
 import os
 
-import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
 import click
+
+from ..util.distribute import ReduceOp
+from ..util.distribute import distributed
 
 from .model import BaseModel
 from .summary import normalized_and_sort
@@ -35,15 +37,19 @@ class FootprintModel(BaseModel):
         return self.fit_common(FootprintCallback, **kwargs)
 
     def start(self, batch):
+
+        @distributed(ReduceOp.SUM)
+        def _matmul(data, calcium):
+            t, d = data
+            c_p = tf.gather(calcium, t, axis=1)
+            return tf.matmul(c_p, d),
+
         data = self.variance._data.enumerate().batch(batch)
         spike = self.spike_tensor()
         calcium = self.variance.spike_to_calcium(spike)
-        vdat = K.constant(0.0)
         with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
-            for t, d in data:
-                c_p = tf.gather(calcium, t, axis=1)
-                vdat += tf.matmul(c_p, d)
-                prog.update(tf.size(t).numpy())
+            strategy = tf.distribute.MirroredStrategy()
+            vdat, = _matmul(data, calcium, prog=prog, strategy=strategy)
         self.variance._cache(1, calcium, vdat)
 
 

@@ -29,9 +29,8 @@ def init(obj, window, batch):
     mask = obj.mask()
 
     accept = peaks.query('accept == "yes"')
-    segment, ng = make_segment(data, mask, accept, batch, obj.verbose)
+    segment = make_segment(data, mask, accept, batch, obj.verbose)
 
-    peaks.loc[ng, 'accept'] = 'no_seg'
     obj.save_csv(peaks, 'peak', stage='_init')
     obj.save_numpy(segment, 'segment', stage='_init')
     return dict()

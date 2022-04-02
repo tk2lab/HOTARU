@@ -32,8 +32,8 @@ class Variance(tf.keras.layers.Layer):
         self.nu = self.nt + self.calcium_to_spike.pad
 
     def set_baseline(self, bx, bt):
-        nxf = K.constant(self.nx)
-        ntf = K.constant(self.nt)
+        nxf = tf.convert_to_tensor(self.nx, tf.float32)
+        ntf = tf.convert_to_tensor(self.nt, tf.float32)
         nn = nxf * ntf
         nm = nn
         if bx > 0.0:
@@ -48,7 +48,7 @@ class Variance(tf.keras.layers.Layer):
     def call(self, xdat):
         nk, nx = tf.shape(xdat)[0], tf.shape(xdat)[1]
         xcov = tf.matmul(xdat, xdat, False, True)
-        xsum = K.sum(xdat, axis=1)
+        xsum = tf.math.reduce_sum(xdat, axis=1)
         xout = xsum[:, None] * xsum / tf.cast(nx, tf.float32)
 
         ydat = tf.slice(self._dat, [0, 0], [nk, nx])
@@ -57,9 +57,9 @@ class Variance(tf.keras.layers.Layer):
 
         variance = (
             self._nn
-            + K.sum(ydat * xdat)
-            + K.sum(ycov * xcov)
-            + K.sum(yout * xout)
+            + tf.math.reduce_sum(ydat * xdat)
+            + tf.math.reduce_sum(ycov * xcov)
+            + tf.math.reduce_sum(yout * xout)
         ) / self._nm
         return variance
 
@@ -71,20 +71,20 @@ class Variance(tf.keras.layers.Layer):
         max_nk, nmax = tf.shape(self._dat)
 
         ycov = tf.matmul(yval, yval, False, True)
-        ysum = K.sum(yval, axis=1)
+        ysum = tf.math.reduce_sum(yval, axis=1)
         yout = ysum[:, None] * ysum / ny
-        cx = 1.0 - K.square(bx)
-        cy = 1.0 - K.square(by)
+        cx = 1.0 - tf.math.square(bx)
+        cy = 1.0 - tf.math.square(by)
         dat = -2.0 * dat
         cov = ycov - cx * yout
         out = yout - cy * ycov
 
-        lipschitz = K.max(tf.linalg.eigvalsh(cov)) / self._nm
-        gsum = K.sum(self.spike_to_calcium.kernel)
+        lipschitz = tf.math.reduce_max(tf.linalg.eigvalsh(cov)) / self._nm
+        gsum = tf.math.reduce_sum(self.spike_to_calcium.kernel)
         self.lipschitz_a = lipschitz.numpy()
         self.lipschitz_u = (lipschitz * gsum).numpy()
 
-        nk, nx = tf.shape(dat)
+        nk, nx = tf.shape(dat)[0], tf.shape(dat)[1]
         dk = max_nk - nk
         dx = nmax - nx
         dat = tf.pad(dat, [[0, dk], [0, dx]])

@@ -20,7 +20,8 @@ def calc_stats(data, mask, nt=None, verbose=1):
     mask = tf.convert_to_tensor(mask, tf.bool)
     nx = tf.cast(tf.math.count_nonzero(mask), tf.float32)
     with click.progressbar(length=nt, label='Calc Stats') as prog:
-        min_t, max_t, avg_t, sum_x, sumsq, nt = _calc(data, mask, prog=prog)
+        strategy = tf.distribute.MirroredStrategy()
+        min_t, max_t, avg_t, sum_x, sumsq, nt = _calc(data, mask, prog=prog, strategy=strategy)
     avg_x = sum_x / nt
     avg_0 = tf.math.reduce_mean(avg_t)
     avg_x -= avg_0

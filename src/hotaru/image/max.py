@@ -13,6 +13,6 @@ def calc_max(imgs, nt=None, verbose=1):
         return tf.reduce_sum(img, axis=0),
 
     with click.progressbar(length=nt, label='Calc Max') as prog:
-        with tf.distribute.MirroredStrategy():
-            imax, = _calc(imgs, prog=prog)
+        strategy = tf.distribute.MirroredStrategy()
+        imax, = _calc(imgs, prog=prog, strategy=strategy)
     return imax

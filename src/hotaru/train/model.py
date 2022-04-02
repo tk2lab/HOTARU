@@ -32,11 +32,11 @@ class BaseModel(tf.keras.Model):
 
     def call_common(self, val):
         variance = self.variance(val)
-        loss = 0.5 * K.log(variance)
+        loss = 0.5 * tf.math.log(variance)
         footprint_penalty = self.footprint_penalty()
         spike_penalty = self.spike_penalty()
         me = loss + footprint_penalty + spike_penalty
-        self.add_metric(K.sqrt(variance), 'sigma')
+        self.add_metric(tf.math.sqrt(variance), 'sigma')
         self.add_metric(me, 'score')
         return loss, footprint_penalty, spike_penalty
 

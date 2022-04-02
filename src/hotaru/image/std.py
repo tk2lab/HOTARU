@@ -16,6 +16,5 @@ def calc_std(imgs, nt=None, verbose=1):
         return s, n
 
     with click.progressbar(length=nt, label='Calc Std') as prog:
-        strategy = tf.distribute.MirroredStrategy()
-        s, n = _calc(imgs, prog=prog, strategy=strategy)
+        s, n = _calc(imgs, prog=prog)
     return tf.math.sqrt(s / n)

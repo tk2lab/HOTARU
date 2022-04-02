@@ -49,7 +49,5 @@ def make_segment(dataset, mask, peaks, batch, verbose):
     dataset = dataset.enumerate().batch(batch)
 
     with click.progressbar(length=nk, label='Make') as prog:
-        strategy = tf.distribute.MirroredStrategy()
-        segment, = _make(dataset, mask, index, ts, rs, ys, xs, radius, prog=prog, strategy=strategy)
-        strategy._extended._collective_ops._pool.close()
+        segment, = _make(dataset, mask, index, ts, rs, ys, xs, radius, prog=prog)
     return segment.numpy()

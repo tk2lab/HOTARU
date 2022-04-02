@@ -85,8 +85,6 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
     radius = tf.convert_to_tensor(radius, tf.float32)
 
     with click.progressbar(length=nk, label='Clean') as prog:
-        strategy = tf.distribute.MirroredStrategy()
-        footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog, strategy=strategy)
-        strategy._extended._collective_ops._pool.close()
+        footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
     peaks = pd.DataFrame(dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()), index=index)
     return footprint.numpy(), peaks

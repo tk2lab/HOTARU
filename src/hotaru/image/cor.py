@@ -20,8 +20,7 @@ def calc_cor(imgs, nt=None, verbose=1):
         return sx1, sy1, sx2, sxy, sy2, ntf
 
     with click.progressbar(length=nt, label='Calc Cor') as prog:
-        strategy = tf.distribute.MirroredStrategy()
-        sx1, sy1, sx2, sxy, sy2, ntf = _calc(imgs, prog=prog, strategy=strategy)
+        sx1, sy1, sx2, sxy, sy2, ntf = _calc(imgs, prog=prog)
     avg_x = sx1 / ntf
     avg_y = sy1 / ntf
     cov_xx = sx2 / ntf - tf.math.square(avg_x)

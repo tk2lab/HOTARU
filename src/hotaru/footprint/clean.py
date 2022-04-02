@@ -73,7 +73,6 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
             simgmax = tf.math.reduce_max(simg)
             out = out.write(k, tf.boolean_mask((img - simgmin) * tf.cast(seg, tf.float32), mask))
             firmness = firmness.write(k, (slogmax - slogmin) / (simgmax - simgmin))
-
         return out.stack(), firmness.stack(), rs, ys, xs
 
     nk = data.shape[0]

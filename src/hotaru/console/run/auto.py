@@ -28,7 +28,6 @@ def auto(ctx, start, end):
 
     ctx.obj.prev_stage = None
     for i in range(start, end):
-        print(i)
         if i == 0:
             ctx.obj.stage = None
             ctx.invoke(data)

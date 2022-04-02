@@ -73,7 +73,7 @@ def run_base(func):
     @wraps(func)
     @click.pass_obj
     def new_func(obj, **args):
-        click.echo(func.__name__)
+        click.echo(f'{func.__name__}: {obj.tag}, {obj.stage}')
         if not obj.need_exec(func.__name__):
             return
 

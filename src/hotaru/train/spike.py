@@ -45,8 +45,7 @@ class SpikeModel(BaseModel):
         data = self.variance._data.batch(batch)
         footprint = self.footprint_tensor()
         with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
-            strategy = tf.distribute.MirroredStrategy()
-            adat, = _matmul(data, footprint, prog=prog, strategy=strategy)
+            adat, = _matmul(data, footprint, prog=prog)
         self.variance._cache(0, footprint, tf.transpose(adat))
 
 

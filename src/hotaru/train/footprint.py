@@ -48,8 +48,7 @@ class FootprintModel(BaseModel):
         spike = self.spike_tensor()
         calcium = self.variance.spike_to_calcium(spike)
         with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
-            strategy = tf.distribute.MirroredStrategy()
-            vdat, = _matmul(data, calcium, prog=prog, strategy=strategy)
+            vdat, = _matmul(data, calcium, prog=prog)
         self.variance._cache(1, calcium, vdat)
 
 

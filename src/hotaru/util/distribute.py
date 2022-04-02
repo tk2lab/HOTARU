@@ -73,8 +73,11 @@ def distributed(*types, loop=True):
                         dx = d[0]
                     else:
                         dx = d
-                    for di in dx.values:
-                        prog.update(tf.shape(di)[0].numpy())
+                    if isinstance(dx, tf.distribute.DistributedValues):
+                        for di in dx.values:
+                            prog.update(tf.shape(di)[0].numpy())
+                    else:
+                        prog.update(tf.shape(dx)[0].numpy())
             out = tuple(finish(strategy, o, t) for o, t in zip(os, types))
             strategy._extended._collective_ops._pool.close()
             return out

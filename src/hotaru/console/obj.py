@@ -140,7 +140,7 @@ class Obj:
             stage = ''
         else:
             tag = self.tag
-            stage = self.tag
+            stage = self.stage
         return not os.path.exists(self.log_path(kind, tag, stage))
 
     def save_log(self, kind, log):

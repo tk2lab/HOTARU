@@ -40,7 +40,6 @@ def clean(obj):
         else:
             obj['segment_stage'] = obj.stage
             obj['footprint_stage'] = obj.stage
-    print(obj)
 
     mask = obj.mask
 

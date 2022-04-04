@@ -1,11 +1,9 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-import tifffile
 import click
 
 from hotaru.train.dynamics import SpikeToCalcium
-from hotaru.util.csv import save_csv
 
 from .base import run_command
 
@@ -28,7 +26,7 @@ def output(obj):
     
     imgs = np.zeros((nk, h, w))
     imgs[:, mask] = segment
-    tifffile.imsave('footprints.tif', imgs)
+    obj.save_tiff(imgs, 'output', f'footprint_{obj.tag}')
 
     u = obj.spike
     with tf.device('CPU'):
@@ -45,5 +43,5 @@ def output(obj):
     v = pd.DataFrame(v.T, columns=cols)
     v.index = time[gap:]
     v.index.name = 'time'
-    save_csv('spikes.csv', u)
-    save_csv('trace.csv', v)
+    obj.save_csv(u, 'output', f'spike_{obj.tag}')
+    obj.save_csv(v, 'output', f'calcium_{obj.tag}')

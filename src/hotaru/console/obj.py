@@ -10,6 +10,7 @@ from hotaru.util.numpy import load_numpy
 from hotaru.util.numpy import save_numpy
 from hotaru.util.csv import load_csv
 from hotaru.util.csv import save_csv
+from hotaru.util.tiff import save_tiff
 
 
 class Obj(dict):
@@ -46,16 +47,16 @@ class Obj(dict):
     def segment(self):
         path = self.out_path('segment', self.segment_tag, self.segment_stage)
         if self.segment_stage == '_curr':
-            if not os.path.exists(path):
-                path = self.out_path('segment', self.segment_tag, '_000')
+            if not os.path.exists(f'{path}.npy'):
+                path = self.out_path('segment', self.init_tag, '_000')
         return load_numpy(f'{path}.npy')
 
     @property
     def index(self):
         path = self.out_path('peak', self.segment_tag, self.segment_stage)
         if self.segment_stage == '_curr':
-            if not os.path.exists(path):
-                path = self.out_path('peak', self.segment_tag, '_000')
+            if not os.path.exists(f'{path}.csv'):
+                path = self.out_path('peak', self.init_tag, '_000')
         return load_csv(f'{path}.csv').query('accept == "yes"').index
 
     @property
@@ -68,16 +69,13 @@ class Obj(dict):
         path = self.out_path('footprint', self.footprint_tag, self.footprint_stage)
         return load_numpy(f'{path}.npy')
 
-    @property
-    def num_cell(self):
-        if self.stage > 0:
-            path = self.out_path('segment', self.tag, self.stage)
-        elif self.stage == 0:
-            path = self.out_path('segment', self.init_tag, self.stage)
+    def num_cell(self, stage):
+        if stage == -2:
+            path = self.out_path('segment', self.init_tag, 0)
+        elif stage == -1:
+            path = self.out_path('segment', self.tag, -1)
         else:
-            path = self.out_path('segment', self.tag, '_curr')
-            if not os.path.exists(f'{path}.npy'):
-                path = self.out_path('segment', self.init_tag, 0)
+            path = self.out_path('segment', self.tag, stage)
         return load_numpy(f'{path}.npy').shape[0]
 
     @property
@@ -160,8 +158,11 @@ class Obj(dict):
             stage = self.stage
         if stage is None:
             stage = ''
-        elif stage >= 0:
-            stage = f'_{stage:03}'
+        elif isinstance(stage, int):
+            if stage == -1:
+                stage = '_curr'
+            else:
+                stage = f'_{stage:03}'
         os.makedirs(f'{self.workdir}/{kind}', exist_ok=True)
         return f'{self.workdir}/{kind}/{tag}{stage}'
 
@@ -207,6 +208,10 @@ class Obj(dict):
     def save_csv(self, data, kind, tag=None, stage=None):
         out_path = self.out_path(kind, tag, stage)
         save_csv(f'{out_path}.csv', data)
+
+    def save_tiff(self, data, kind, tag=None, stage=None):
+        out_path = self.out_path(kind, tag, stage)
+        save_tiff(f'{out_path}.tif', data)
 
     def save_log(self, log):
         path = self.log_path()

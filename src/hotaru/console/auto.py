@@ -17,7 +17,7 @@ from .run.output import output
     show_default=True,
 )
 @click.option(
-    '--overwrite',
+    '--storing-intermidiate-results',
     is_flag=True,
 )
 @click.option(
@@ -25,24 +25,25 @@ from .run.output import output
     is_flag=True,
 )
 @click.pass_context
-def auto(ctx, max_iteration, overwrite, non_stop):
+def auto(ctx, max_iteration, storing_intermidiate_results, non_stop):
     '''Auto'''
 
     num_cell = -1
     for stage in range(max_iteration):
-        if overwrite:
-            ctx.obj['stage'] = '_curr'
+        if storing_intermidiate_results:
+            _stage = stage
         else:
-            ctx.obj['stage'] = stage 
+            _stage = '_curr'
         if stage == 0:
             ctx.invoke(data)
             ctx.invoke(find)
             ctx.invoke(init)
+            num_cell, old_cell = ctx.obj.num_cell(-2), num_cell
         else:
-            ctx.invoke(clean, stage=stage)
-        num_cell, old_cell = ctx.obj.num_cell, num_cell
-        ctx.invoke(temporal, stage=stage)
+            ctx.invoke(clean, stage=_stage)
+            num_cell, old_cell = ctx.obj.num_cell(_stage), num_cell
+        ctx.invoke(temporal, stage=_stage)
         if not non_stop and (num_cell == old_cell):
             break
-        ctx.invoke(spatial, stage=stage)
-    ctx.invoke(output, stage=stage)
+        ctx.invoke(spatial, stage=_stage)
+    ctx.invoke(output, stage=_stage)

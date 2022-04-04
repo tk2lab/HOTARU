@@ -1,9 +1,11 @@
 import os
 
-import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
-from tqdm import trange
+import click
+
+from ..util.distribute import ReduceOp
+from ..util.distribute import distributed
 
 from .model import BaseModel
 from .summary import summary_stat, summary_spike
@@ -25,27 +27,26 @@ class SpikeModel(BaseModel):
         self.add_metric(footprint_penalty, 'penalty')
         return loss
 
-    def fit(self, footprint, lr, batch, verbose, **kwargs):
+    def fit(self, footprint, lr, batch, **kwargs):
         nk = footprint.shape[0]
         nu = self.variance.nu
         self.set_footprint(footprint)
-        self.start(batch, verbose)
+        self.start(batch)
         self.spike.val = np.zeros((nk, nu))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
-        return self.fit_common(SpikeCallback, verbose=verbose, **kwargs)
+        return self.fit_common(SpikeCallback, **kwargs)
 
-    def start(self, batch, verbose):
+    def start(self, batch):
+
+        @distributed(ReduceOp.CONCAT)
+        def _matmul(data, footprint):
+            return tf.matmul(data, footprint, False, True),
+
         data = self.variance._data.batch(batch)
         footprint = self.footprint_tensor()
-        adat = tf.TensorArray(tf.float32, 0, True)
-        with trange(self.variance.nt,
-                    desc='Initialize', disable=verbose == 0) as prog:
-            for d in data:
-                adat_p = tf.matmul(d, footprint, False, True)
-                for p in adat_p:
-                    adat = adat.write(adat.size(), p)
-                    prog.update(1)
-        self.variance._cache(0, footprint, tf.transpose(adat.stack()))
+        with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
+            adat, = _matmul(data, footprint, prog=prog)
+        self.variance._cache(0, footprint, tf.transpose(adat))
 
 
 class SpikeCallback(tf.keras.callbacks.TensorBoard):

@@ -4,18 +4,22 @@ import ffmpeg
 
 class MpegStream:
 
-    def __init__(self, w, h, hz, outfile):
-        self.args = w, h, str(int(hz)), outfile
+    def __init__(self, w, h, hz, outfile, filters=None, crf=28):
+        self.args = w, h, str(int(hz)), outfile, crf
+        self.filters = filters or []
 
     def write(self, data):
         self.process.stdin.write(data.tobytes())
 
     def __enter__(self):
-        w, h, hz, outfile = self.args
+        w, h, hz, outfile, crf = self.args
+        p = ffmpeg.input('pipe:', f='rawvideo', pix_fmt='rgba', s=f'{w}x{h}', r=hz)
+        for a, b in self.filters:
+            if a == 'drawtext':
+                p = p.drawtext(**b)
         self.process = (
-            ffmpeg
-            .input('pipe:', f='rawvideo', pix_fmt='rgba', s=f'{w}x{h}')
-            .output(outfile, vcodec='libx264', pix_fmt='yuv420p', r=hz)
+            p
+            .output(outfile, vcodec='libx264', pix_fmt='yuv420p', r=hz, crf=crf)
             .overwrite_output()
             .run_async(pipe_stdin=True)
         )

@@ -1,9 +1,11 @@
 import os
 
-import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
-from tqdm import trange
+import click
+
+from ..util.distribute import ReduceOp
+from ..util.distribute import distributed
 
 from .model import BaseModel
 from .summary import normalized_and_sort
@@ -25,36 +27,29 @@ class FootprintModel(BaseModel):
         self.add_metric(footprint_penalty, 'penalty')
         return loss
 
-    def fit(self, spike, lr, batch, verbose, **kwargs):
+    def fit(self, spike, lr, batch, **kwargs):
         nk = spike.shape[0]
         nx = self.variance.nx
         self.set_spike(spike)
-        self.start(batch, verbose)
+        self.start(batch)
         self.footprint.val = np.zeros((nk, nx))
         self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_a
-        return self.fit_common(FootprintCallback, verbose=verbose, **kwargs)
+        return self.fit_common(FootprintCallback, **kwargs)
 
-    def start(self, batch, verbose):
+    def start(self, batch):
+
+        @distributed(ReduceOp.SUM)
+        def _matmul(data, calcium):
+            t, d = data
+            c_p = tf.gather(calcium, t, axis=1)
+            return tf.matmul(c_p, d),
+
         data = self.variance._data.enumerate().batch(batch)
         spike = self.spike_tensor()
         calcium = self.variance.spike_to_calcium(spike)
-        vdat = K.constant(0.0)
-        with trange(self.variance.nt,
-                    desc='Initialize', disable=verbose == 0) as prog:
-            for t, d in data:
-                c_p = tf.gather(calcium, t, axis=1)
-                vdat += tf.matmul(c_p, d)
-                prog.update(tf.size(t).numpy())
+        with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
+            vdat, = _matmul(data, calcium, prog=prog)
         self.variance._cache(1, calcium, vdat)
-
-    def get_footprints(self):
-        footprint = self.footprint.val
-        i = np.arange(footprint.shape[0])
-        j = np.argpartition(-footprint, 1)
-        footprint[i, j[:, 0]] = footprint[i, j[:, 1]]
-        cond = footprint.max(axis=1) > 0.0
-        footprint = footprint[cond]
-        return footprint
 
 
 class FootprintCallback(tf.keras.callbacks.TensorBoard):

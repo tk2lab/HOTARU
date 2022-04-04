@@ -1,5 +1,6 @@
-import tensorflow as tf
 import pickle
+
+import tensorflow as tf
 
 
 def load_pickle(path):

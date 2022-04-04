@@ -1,12 +1,12 @@
 import tensorflow.keras.backend as K
 import tensorflow as tf
-import tensorflow_addons as tfa
 import numpy as np
 
 #from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
 from ..optimizer.prox_nesterov import ProxNesterov as Optimizer
 from ..optimizer.callback import Callback as OptCallback
 from .variance import Variance
+from .progress import ProgressCallback
 
 
 class BaseModel(tf.keras.Model):
@@ -32,11 +32,11 @@ class BaseModel(tf.keras.Model):
 
     def call_common(self, val):
         variance = self.variance(val)
-        loss = 0.5 * K.log(variance)
+        loss = 0.5 * tf.math.log(variance)
         footprint_penalty = self.footprint_penalty()
         spike_penalty = self.spike_penalty()
         me = loss + footprint_penalty + spike_penalty
-        self.add_metric(K.sqrt(variance), 'sigma')
+        self.add_metric(tf.math.sqrt(variance), 'sigma')
         self.add_metric(me, 'score')
         return loss, footprint_penalty, spike_penalty
 
@@ -53,16 +53,9 @@ class BaseModel(tf.keras.Model):
             ),
         ]
 
-        verbose = kwargs.pop('verbose', 1)
-        if verbose != 0:
-            callbacks += [
-                tfa.callbacks.TQDMProgressBar(
-                    leave_epoch_progress=False,
-                    leave_overall_progress=True,
-                    show_epoch_progress=False,
-                    show_overall_progress=True,
-                ),
-            ]
+        callbacks += [
+            ProgressCallback('Training', epochs),
+        ]
 
         if log_dir is not None:
             callbacks += [

@@ -5,16 +5,29 @@ import heapq as hq
 from scipy.ndimage import label
 
 
+def get_segment_simple_py(img, y, x, thr):
+    lbl, n = label(img > thr)
+    return lbl == lbl[y, x]
+
+
+def get_segment(gl, y, x, mask):
+    pos = get_segment_index(gl, y, x, mask)
+    npos = tf.shape(pos)[0]
+    return tf.scatter_nd(pos, tf.ones((npos,), tf.bool), tf.shape(mask))
+
+
 def get_segment_index(gl, y, x, mask):
-    # return get_segment_index_tf(gl, y, x, mask)
     return tf.numpy_function(
-        get_segment_index_py, [gl, y, x, mask], tf.int32
+        get_segment_index_py, [gl, y, x, mask], tf.int32,
     )
 
 
-def get_segment(img, y, x, thr):
-    lbl, n = label(img > thr)
-    return lbl == lbl[y, x]
+def get_segment_py(img, y0, x0, mask):
+    pos = get_segment_index_py(img, y0, x0, mask)
+    h, w = img.shape
+    out = np.zeros((h, w), bool)
+    out[pos[:, 0], pos[:, 1]] = True
+    return out
 
 
 def get_segment_index_py(img, y0, x0, mask):

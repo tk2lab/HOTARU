@@ -27,7 +27,7 @@ def distributed(*types, loop=True):
         else:
             raise NotImplementedError()
 
-    def serialize(x, t):
+    def serialize(strategy, x, t):
         if t == ReduceOp.SUM:
             return strategy.reduce(tf.distribute.ReduceOp.SUM, x, axis=None)
         elif t == ReduceOp.MIN:
@@ -41,7 +41,7 @@ def distributed(*types, loop=True):
         else:
             raise NotImplementedError()
 
-    def finish(o, t):
+    def finish(strategy, o, t):
         if t == ReduceOp.SUM:
             return o
         elif t == ReduceOp.MIN:
@@ -58,27 +58,30 @@ def distributed(*types, loop=True):
     def decorator(func):
 
         @tf.function(experimental_relax_shapes=True)
-        def dist_run(*args, **kwargs):
+        def dist_run(strategy, *args, **kwargs):
             xs = strategy.run(func, args, kwargs)
-            return tuple(serialize(x, t) for x, t in zip(xs, types))
+            return tuple(serialize(strategy, x, t) for x, t in zip(xs, types))
 
         def loop_run(data, *args, prog=None, **kwargs):
+            strategy = tf.distribute.MirroredStrategy()
             os = tuple(make_init(t) for t in types)
             for d in strategy.experimental_distribute_dataset(data):
-                xs = dist_run(d, *args, **kwargs)
+                xs = dist_run(strategy, d, *args, **kwargs)
                 os = tuple(o + x for o, x in zip(os, xs))
                 if prog is not None:
                     if isinstance(d, tuple):
-                        prog.update(tf.shape(d[0])[0].numpy())
+                        dx = d[0]
                     else:
-                        prog.update(tf.shape(d)[0].numpy())
-            return tuple(finish(o, t) for o, t in zip(os, types))
+                        dx = d
+                    if isinstance(dx, tf.distribute.DistributedValues):
+                        for di in dx.values:
+                            prog.update(tf.shape(di)[0].numpy())
+                    else:
+                        prog.update(tf.shape(dx)[0].numpy())
+            out = tuple(finish(strategy, o, t) for o, t in zip(os, types))
+            strategy._extended._collective_ops._pool.close()
+            return out
 
-        def single_run(*args, **kwargs):
-            xs = dist_run(*args, **kwargs)
-            return tuple(finish(x, t) for x, t in zip(xs, types))
+        return loop_run
 
-        return loop_run if loop else single_run
-
-    strategy = tf.distribute.get_strategy()
     return decorator

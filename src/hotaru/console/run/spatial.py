@@ -4,24 +4,27 @@ from hotaru.optimizer.input import MaxNormNonNegativeL1InputLayer as Input
 from hotaru.train.variance import Variance
 from hotaru.train.footprint import FootprintModel
 
-from .base import run_base
+from .base import run_command
 from .options import model_options
 
 
-@click.command()
-@click.option('--stage', '-s', type=int, show_default='no stage')
-@click.option('--data-tag', '-D', show_default='auto')
-@click.option('--spike-tag', '-T', show_default='auto')
-@click.option('--spike-stage', '-S', type=int, show_default='auto')
-@model_options
-@click.option('--batch', type=int, default=100, show_default=True)
-@run_base
+@run_command(
+    click.Option(['--stage', '-s'], type=int),
+    click.Option(['--spike-tag', '-T']),
+    click.Option(['--spike-stage', '-S'], type=int),
+    *model_options(),
+    click.Option(['--batch'], type=int, default=100, show_default=True),
+)
 def spatial(obj):
     '''Update footprint'''
 
-    if obj.spike_tag is None:
+    if obj.stage == -1:
+        obj['stage'] = '_curr'
+
+    if obj.spike_tag == '':
         obj['spike_tag'] = obj.tag
-    if obj.spike_stage is None:
+
+    if obj.spike_stage == -1:
         obj['spike_stage'] = obj.stage
 
     data = obj.data
@@ -46,4 +49,4 @@ def spatial(obj):
     )
 
     obj.save_numpy(model.footprint.val, 'footprint')
-    return dict(log=log.history)
+    return dict(history=log.history)

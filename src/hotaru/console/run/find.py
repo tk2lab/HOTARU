@@ -2,16 +2,15 @@ import click
 
 from hotaru.footprint.find import find_peak
 
-from .base import run_base
+from .base import run_command
 from .options import radius_options
 
 
-@click.command()
-@click.option('--data-tag', '-D', show_default='auto')
-@radius_options
-@click.option('--shard', type=int, default=1, show_default=True)
-@click.option('--batch', type=int, default=100, show_default=True)
-@run_base
+@run_command(
+    *radius_options(),
+    click.Option(['--shard'], type=int),
+    click.Option(['--batch'], type=int),
+)
 def find(obj):
     '''Find'''
 
@@ -23,5 +22,5 @@ def find(obj):
         data, mask, obj.radius, obj.shard, obj.batch, nt, obj.verbose,
     )
 
-    obj.save_csv(peaks, 'peak', stage='_find')
-    return dict(radius=obj.radius, npeaks=peaks.shape[0])
+    obj.save_csv(peaks, 'peak', obj.find_tag, '_find')
+    return dict(npeaks=peaks.shape[0])

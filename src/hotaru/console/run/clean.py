@@ -6,27 +6,30 @@ from hotaru.footprint.clean import modify_footprint
 from hotaru.footprint.clean import clean_footprint
 from hotaru.footprint.clean import check_accept
 
-from .base import run_base
+from .base import run_command
 from .options import radius_options
 
 
-@click.command()
-@click.option('--stage', '-s', type=int, show_default='no stage')
-@click.option('--footprint-tag', '-T', show_default='auto')
-@click.option('--footprint-stage', '-S', type=int, show_default='auto')
-@radius_options
-@click.option('--thr-area-abs', type=click.FloatRange(0.0, np.inf), default=np.inf, show_default=True)
-@click.option('--thr-area-rel', type=click.FloatRange(0.0, np.inf), default=0.0, show_default=True)
-@click.option('--thr-sim', type=click.FloatRange(0.0, 1.0))
-@click.option('--batch', type=int, default=100, show_default=True)
-@run_base
+@run_command(
+    click.Option(['--stage', '-s'], type=int),
+    click.Option(['--footprint-tag'], '-T'),
+    click.Option(['--footprint-stage'], '-S', type=int),
+    *radius_options(),
+    click.Option(['--thr-area-abs'], type=click.FloatRange(0.0)),
+    click.Option(['--thr-area-rel'], type=click.FloatRange(0.0)),
+    click.Option(['--thr-sim'], type=click.FloatRange(0.0, 1.0)),
+    click.Option(['--batch'], type=click.IntRange(0))
+)
 def clean(obj):
     '''Clean'''
 
-    if obj.footprint_tag is None:
+    if obj.footprint_tag == '':
         obj['footprint_tag'] = obj.tag
 
-    if obj.footprint_stage is None:
+    if obj.stage == -1:
+        obj['stage'] = '_curr'
+
+    if obj.footprint_stage == -1:
         if isinstance(obj.stage, int):
             obj['footprint_stage'] = obj.stage - 1
         else:
@@ -73,4 +76,5 @@ def clean(obj):
     click.echo(peaks.loc[~cond])
     click.echo(f'sim: {np.sort(sim[sim > 0])}')
     click.echo(f'ncell: {old_nk} -> {nk}')
-    return dict()
+
+    return dict(num_cell=nk)

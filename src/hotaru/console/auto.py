@@ -11,31 +11,34 @@ from .run.output import output
 
 @click.command()
 @click.option(
-    '--start',
+    '--max-iteration',
     type=int,
-    default=0,
+    default=100,
     show_default=True,
 )
 @click.option(
-    '--end',
-    type=int,
-    default=10,
-    show_default=True,
+    '--overwrite',
+    is_flag=True,
 )
 @click.pass_context
-def auto(ctx, start, end, force):
+def auto(ctx, max_iteration, overwrite):
     '''Auto'''
 
-    for i in range(start, end + 1):
-        ctx.obj['stage'] = i
-        if i == 0:
+    num_cell = -1
+    for stage in range(max_iteration):
+        if overwrite:
+            ctx.obj['stage'] = -1
+        else:
+            ctx.obj['stage'] = stage 
+        if stage == 0:
             ctx.invoke(data)
             ctx.invoke(find)
             ctx.invoke(init)
         else:
-            ctx.invoke(clean)
-        ctx.invoke(temporal)
-        if i != end:
-            ctx.invoke(spatial)
-        else:
-            ctx.invoke(output)
+            ctx.invoke(clean, stage=stage)
+        num_cell, old_cell = ctx.obj.num_cell, num_cell
+        ctx.invoke(temporal, stage=stage)
+        if num_cell == old_cell:
+            break
+        ctx.invoke(spatial, stage=stage)
+    ctx.invoke(output, stage=stage)

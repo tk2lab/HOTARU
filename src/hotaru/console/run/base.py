@@ -7,34 +7,40 @@ from hotaru.util.timer import Timer
 from ..obj import Obj
 
 
-def run_base(func):
+def run_command(*options):
 
-    @wraps(func)
-    @click.pass_obj
-    def new_func(obj, **args):
-        obj['kind'] = func.__name__
+    def deco(command):
 
-        sections = [obj.kind, f'{obj.kind}.{obj.tag}']
-        stage = args.get('stage')
-        if stage is not None:
-            sections.append(f'{obj.kind}.{obj.tag}.{stage}')
-        for sec in sections:
-            if obj.config.has_section(sec):
-                for key in args.keys():
-                    if obj.config.has_option(sec, key):
-                        args[key] = cfg.get(sec, key)
-        obj.update(args)
+        @click.command()
+        @wraps(command)
+        @click.pass_obj
+        def new_command(obj, **args):
+            obj['kind'] = command.__name__
 
-        if not obj.need_exec():
-            return
+            if obj.tag in obj.config:
+                for opt, val in args.items():
+                    if val is None:
+                        args[opt] = types[opt](obj.config.get(obj.tag, opt))
+            obj.update(args)
 
-        with Timer() as timer:
-            log = func(obj)
-        click.echo(f'{timer.get()[0]} sec')
+            if not obj.need_exec():
+                return
 
-        if log is not None:
-            log['time'] = timer.get()
-            log.update(args)
-            obj.save_log(obj.kind, log)
+            click.echo(f'{obj.kind}, {obj.tag}: {args}')
+            with Timer() as timer:
+                log = command(obj)
 
-    return new_func
+            if log is not None:
+                log['time'] = timer.get()
+                log.update(args)
+                obj.save_log(log)
+                click.echo(f'time: {timer.get()[0]}')
+
+        types = {o.name: o.type for o in options}
+
+        for opt in options:
+            new_command.params.append(opt)
+
+        return new_command
+
+    return deco

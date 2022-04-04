@@ -1,3 +1,4 @@
+import pkgutil
 from configparser import ConfigParser
 
 import click
@@ -14,9 +15,11 @@ from .auto import auto
 #from .fig import fig
 
 
-def configure(ctx, param, filename):
+def configure(ctx, param, configfile):
     cfg = ConfigParser()
-    cfg.read(filename)
+    default = pkgutil.get_data('hotaru.console', 'hotaru.ini').decode('utf-8')
+    cfg.read_string(default)
+    cfg.read(configfile)
     return cfg
 
 
@@ -25,29 +28,39 @@ def configure(ctx, param, filename):
     '--config', '-c', type=click.Path(dir_okay=False),
     default='hotaru.ini', callback=configure, show_default=True,
 )
-@click.option('--workdir', '-w', type=str, default='hotaru', show_default=True)
-@click.option('--tag', '-t', default='default', show_default=True)
+@click.option('--tag', '-t')
+@click.option('--workdir', '-w', type=str)
+@click.option('--data-tag', '-D')
+@click.option('--find-tag', '-F')
+@click.option('--init-tag', '-I')
 @click.option('--force', '-f', is_flag=True)
 @click.option('--quit', '-q', is_flag=True)
 @click.option('--verbose', '-v', count=True)
 @click.pass_context
-def main(ctx, config, **args):
+def main(ctx, config, tag, **args):
     '''Main'''
+
+    if tag is None:
+        tag = config.get('main', 'tag')
+
+    if tag in config:
+        for opt, val in args.items():
+            if val is None:
+                args[opt] = config.get(tag, opt)
 
     ctx.ensure_object(Obj)
     obj = ctx.obj
     obj.config = config
-
-    args['verbose'] = 0 if quit else (args.verbose or 1)
-    del args['quit']
-
-    sec = 'main'
-    if obj.config.has_section(sec):
-        for key in args.keys():
-            if obj.config.has_option(sec, key):
-                args[key] = obj.config.get(sec, key)
-
+    obj['tag'] = tag
     obj.update(args)
+    if obj.data_tag == '':
+        obj['data_tag'] = obj.tag
+    if obj.find_tag == '':
+        obj['find_tag'] = obj.tag
+    if obj.init_tag == '':
+        obj['init_tag'] = obj.tag
+    obj['verbose'] = 0 if obj.quit else (obj.verbose or 1)
+    del obj['quit']
 
 
 main.add_command(data)

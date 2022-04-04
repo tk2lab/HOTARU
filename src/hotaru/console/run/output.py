@@ -7,13 +7,12 @@ import click
 from hotaru.train.dynamics import SpikeToCalcium
 from hotaru.util.csv import save_csv
 
-from .base import run_base
+from .base import run_command
 
 
-@click.command()
-@click.option('--stage', '-s', type=int, show_default='no stage')
-@click.option('--data-tag', '-D', show_default='auto')
-@run_base
+@run_command(
+    click.Option(['--stage', '-s'], type=int),
+)
 def output(obj):
     '''Output'''
 

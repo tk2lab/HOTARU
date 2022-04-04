@@ -8,29 +8,23 @@ from hotaru.util.dataset import normalized
 from hotaru.util.dataset import masked
 from hotaru.util.tfrecord import save_tfrecord
 
-from .base import run_base
+from .base import run_command
 
 
-@click.command()
-@click.option(
-    '--imgs-path',
-    type=click.Path(exists=True, dir_okay=False, readable=True),
-    default='imgs.tif',
-    show_default=True,
+@run_command(
+    click.Option(
+        ['--imgs-path'],
+        type=click.Path(exists=True, dir_okay=False, readable=True),
+    ),
+    click.Option(
+        ['--mask-type'],
+    ),
+    click.Option(
+        ['--hz'],
+        type=float,
+    ),
+    click.Option(['--batch'], type=int),
 )
-@click.option(
-    '--mask-type',
-    default='0.pad',
-    show_default=True,
-)
-@click.option(
-    '--hz',
-    type=float,
-    default=20.0,
-    show_default=True,
-)
-@click.option('--batch', type=int, default=100, show_default=True)
-@run_base
 def data(obj):
     '''Data'''
 
@@ -48,7 +42,7 @@ def data(obj):
 
     normalized_data = normalized(data, sstd, avgt, avgx)
     masked_data = masked(normalized_data, mask)
-    out_path = obj.out_path('data')
+    out_path = obj.out_path('data', obj.data_tag, '')
     save_tfrecord(f'{out_path}.tfrecord', masked_data, nt, obj.verbose)
 
     return dict(

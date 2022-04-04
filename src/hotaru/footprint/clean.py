@@ -18,7 +18,10 @@ def modify_footprint(footprint):
     i = np.arange(footprint.shape[0])
     j = np.argpartition(-footprint, 1)
     second = footprint[i, j[:, 1]]
+    print(footprint.max(axis=1)[:3])
     footprint[i, j[:, 0]] = second
+    print(second[:3])
+    print(footprint.max(axis=1)[:3])
     cond = second > 0.0
     return cond
 
@@ -36,8 +39,7 @@ def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
 
     sim = calc_sim_area(segment, ~(cond1 ^ cond2 ^ cond3))
     peaks['sim'] = sim
-    if thr_sim is not None:
-        cond4 = sim >= thr_sim
+    cond4 = sim > thr_sim
 
     peaks.loc[cond4, 'accept'] = 'large_sim'
     peaks.loc[cond3, 'accept'] = 'large_area'

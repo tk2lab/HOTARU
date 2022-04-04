@@ -4,24 +4,26 @@ from hotaru.optimizer.input import MaxNormNonNegativeL1InputLayer as Input
 from hotaru.train.variance import Variance
 from hotaru.train.spike import SpikeModel
 
-from .base import run_base
+from .base import run_command
 from .options import model_options
 
 
-@click.command()
-@click.option('--stage', '-s', type=int, show_default='no stage')
-@click.option('--data-tag', '-D', show_default='auto')
-@click.option('--segment-tag', '-T', show_default='auto')
-@click.option('--segment-stage', '-S', type=int, show_default='auto')
-@model_options
-@run_base
+@run_command(
+    click.Option(['--stage', '-s'], type=int),
+    click.Option(['--segment-tag', '-T']),
+    click.Option(['--segment-stage', '-S'], type=int),
+    *model_options(),
+)
 def temporal(obj):
     '''Update spike'''
 
-    if obj.segment_tag is None:
+    if obj.stage == -1:
+        obj['stage'] = '_curr'
+
+    if obj.segment_tag == '':
         obj['segment_tag'] = obj.tag
 
-    if obj.segment_stage is None:
+    if obj.segment_stage == -1:
         obj['segment_stage'] = obj.stage
 
     data = obj.data
@@ -46,4 +48,4 @@ def temporal(obj):
     )
 
     obj.save_numpy(model.spike.val, 'spike')
-    return dict(log=log.history)
+    return dict(history=log.history)

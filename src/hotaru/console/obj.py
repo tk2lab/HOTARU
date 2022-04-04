@@ -26,16 +26,11 @@ class Obj(dict):
             return True
         if kind == 'output':
             return True
-        if kind in ('data', 'find', 'init'):
-            tag = self.tag
-            stage = ''
-        elif kind in ('temporal', 'spatial', 'clean'):
+        if kind in ('temporal', 'spatial', 'clean'):
             if not isinstance(self.stage, int):
                 return True
-            else:
-                tag = self.tag
-                stage = self.stage
-        return not os.path.exists(self.log_path(kind, tag, stage))
+        path = self.log_path()
+        return not os.path.exists(path)
 
     @property
     def data(self):
@@ -50,11 +45,17 @@ class Obj(dict):
     @property
     def segment(self):
         path = self.out_path('segment', self.segment_tag, self.segment_stage)
+        if self.segment_stage == '_curr':
+            if not os.path.exists(path):
+                path = self.out_path('segment', self.segment_tag, '_000')
         return load_numpy(f'{path}.npy')
 
     @property
     def index(self):
         path = self.out_path('peak', self.footprint_tag, self.footprint_stage)
+        if self.footprint_stage == '_curr':
+            if not os.path.exists(path):
+                path = self.out_path('peak', self.footprint_tag, '_000')
         return load_csv(f'{path}.csv').query('accept == "yes"').index
 
     @property
@@ -66,6 +67,11 @@ class Obj(dict):
     def footprint(self):
         path = self.out_path('footprint', self.footprint_tag, self.footprint_stage)
         return load_numpy(f'{path}.npy')
+
+    @property
+    def num_cell(self):
+        path = self.out_path('segment', self.tag, self.stage)
+        return load_numpy(f'{path}.npy').shape[0]
 
     @property
     def hz(self):
@@ -140,22 +146,6 @@ class Obj(dict):
             batch=self.batch,
         )
 
-    def log(self, kind=None, tag=None, stage=None):
-        if kind is None:
-            kind = self.kind
-        if tag is None:
-            if kind == 'data':
-                tag = self.data_tag
-            else:
-                tag = self.prev_tag
-        if stage is None:
-            stage = self.prev_stage
-        key = kind, tag, stage
-        if key not in self._log:
-            path = self.log_path(*key)
-            self._log[key] = load_pickle(path)
-        return self._log[key]
-
     def out_path(self, kind, tag=None, stage=None):
         if tag is None:
             tag = self.tag
@@ -168,11 +158,34 @@ class Obj(dict):
         os.makedirs(f'{self.workdir}/{kind}', exist_ok=True)
         return f'{self.workdir}/{kind}/{tag}{stage}'
 
-    def log_path(self, kind, tag=None, stage=None):
-        if tag is None:
+    def log(self, kind, tag, stage):
+        key = kind, tag, stage
+        if key not in self._log:
+            if stage is None:
+                stage = ''
+            elif isinstance(stage, int):
+                stage = f'_{stage:03}'
+            path = f'{self.workdir}/log/{tag}{stage}_{kind}.pickle'
+            self._log[key] = load_pickle(path)
+        return self._log[key]
+
+    def log_path(self):
+        kind = self.kind
+        if kind in ('temporal', 'spatial', 'clean', 'output'):
             tag = self.tag
-        if stage is None:
             stage = self.stage
+        else:
+            tag = self.tag
+            stage = None
+            if kind == 'data':
+                if self.data_tag is not None:
+                    tag = self.data_tag
+            if kind == 'find':
+                if self.find_tag is not None:
+                    tag = self.find_tag
+            if kind == 'init':
+                if self.init_tag is not None:
+                    tag = self.init_tag
         if stage is None:
             stage = ''
         elif isinstance(stage, int):
@@ -188,6 +201,6 @@ class Obj(dict):
         out_path = self.out_path(kind, tag, stage)
         save_csv(f'{out_path}.csv', data)
 
-    def save_log(self, kind, log):
-        path = self.log_path(kind)
+    def save_log(self, log):
+        path = self.log_path()
         save_pickle(path, log)

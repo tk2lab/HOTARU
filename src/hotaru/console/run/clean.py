@@ -12,8 +12,8 @@ from .options import radius_options
 
 @run_command(
     click.Option(['--stage', '-s'], type=int),
-    click.Option(['--footprint-tag'], '-T'),
-    click.Option(['--footprint-stage'], '-S', type=int),
+    click.Option(['--footprint-tag']),
+    click.Option(['--footprint-stage'], type=int),
     *radius_options(),
     click.Option(['--thr-area-abs'], type=click.FloatRange(0.0)),
     click.Option(['--thr-area-rel'], type=click.FloatRange(0.0)),
@@ -23,17 +23,24 @@ from .options import radius_options
 def clean(obj):
     '''Clean'''
 
-    if obj.footprint_tag == '':
-        obj['footprint_tag'] = obj.tag
-
     if obj.stage == -1:
         obj['stage'] = '_curr'
 
+    if obj.footprint_tag == '':
+        if obj.stage == 1:
+            obj['segment_tag'] = obj.init_tag
+        else:
+            obj['segment_tag'] = obj.tag
+        obj['footprint_tag'] = obj.tag
+
     if obj.footprint_stage == -1:
         if isinstance(obj.stage, int):
+            obj['segment_stage'] = obj.stage - 1
             obj['footprint_stage'] = obj.stage - 1
         else:
+            obj['segment_stage'] = obj.stage
             obj['footprint_stage'] = obj.stage
+    print(obj)
 
     mask = obj.mask
 
@@ -60,14 +67,13 @@ def clean(obj):
 
     cond = peaks['accept'] == 'yes'
     obj.save_numpy(segment[cond], 'segment')
-
     peaks = pd.concat([peaks, no_seg], axis=0)
+    obj.save_csv(peaks, 'peak')
+
     peaks = peaks.loc[index]
     cond = peaks['accept'] == 'yes'
     obj.save_numpy(footprint[~cond], 'removed')
-
     peaks.sort_values('firmness', ascending=False, inplace=True)
-    obj.save_csv(peaks, 'peak')
 
     old_nk = footprint.shape[0]
     nk = cond.sum()

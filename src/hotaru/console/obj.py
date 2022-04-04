@@ -52,10 +52,10 @@ class Obj(dict):
 
     @property
     def index(self):
-        path = self.out_path('peak', self.footprint_tag, self.footprint_stage)
-        if self.footprint_stage == '_curr':
+        path = self.out_path('peak', self.segment_tag, self.segment_stage)
+        if self.segment_stage == '_curr':
             if not os.path.exists(path):
-                path = self.out_path('peak', self.footprint_tag, '_000')
+                path = self.out_path('peak', self.segment_tag, '_000')
         return load_csv(f'{path}.csv').query('accept == "yes"').index
 
     @property
@@ -70,7 +70,14 @@ class Obj(dict):
 
     @property
     def num_cell(self):
-        path = self.out_path('segment', self.tag, self.stage)
+        if self.stage > 0:
+            path = self.out_path('segment', self.tag, self.stage)
+        elif self.stage == 0:
+            path = self.out_path('segment', self.init_tag, self.stage)
+        else:
+            path = self.out_path('segment', self.tag, '_curr')
+            if not os.path.exists(f'{path}.npy'):
+                path = self.out_path('segment', self.init_tag, 0)
         return load_numpy(f'{path}.npy').shape[0]
 
     @property
@@ -153,7 +160,7 @@ class Obj(dict):
             stage = self.stage
         if stage is None:
             stage = ''
-        elif isinstance(stage, int):
+        elif stage >= 0:
             stage = f'_{stage:03}'
         os.makedirs(f'{self.workdir}/{kind}', exist_ok=True)
         return f'{self.workdir}/{kind}/{tag}{stage}'

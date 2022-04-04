@@ -23,4 +23,5 @@ def find(obj):
     )
 
     obj.save_csv(peaks, 'peak', obj.find_tag, '_find')
+    click.echo(f'num: {peaks.shape[0]}')
     return dict(npeaks=peaks.shape[0])

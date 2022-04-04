@@ -21,7 +21,10 @@ def temporal(obj):
         obj['stage'] = '_curr'
 
     if obj.segment_tag == '':
-        obj['segment_tag'] = obj.tag
+        if obj.stage == 0:
+            obj['segment_tag'] = obj.init_tag
+        else:
+            obj['segment_tag'] = obj.tag
 
     if obj.segment_stage == -1:
         obj['segment_stage'] = obj.stage

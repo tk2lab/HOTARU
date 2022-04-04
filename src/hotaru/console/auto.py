@@ -20,14 +20,18 @@ from .run.output import output
     '--overwrite',
     is_flag=True,
 )
+@click.option(
+    '--non-stop',
+    is_flag=True,
+)
 @click.pass_context
-def auto(ctx, max_iteration, overwrite):
+def auto(ctx, max_iteration, overwrite, non_stop):
     '''Auto'''
 
     num_cell = -1
     for stage in range(max_iteration):
         if overwrite:
-            ctx.obj['stage'] = -1
+            ctx.obj['stage'] = '_curr'
         else:
             ctx.obj['stage'] = stage 
         if stage == 0:
@@ -38,7 +42,7 @@ def auto(ctx, max_iteration, overwrite):
             ctx.invoke(clean, stage=stage)
         num_cell, old_cell = ctx.obj.num_cell, num_cell
         ctx.invoke(temporal, stage=stage)
-        if num_cell == old_cell:
+        if not non_stop and (num_cell == old_cell):
             break
         ctx.invoke(spatial, stage=stage)
     ctx.invoke(output, stage=stage)

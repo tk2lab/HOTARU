@@ -7,7 +7,7 @@ from ..util.distribute import ReduceOp
 from ..util.dataset import unmasked
 from ..image.filter.laplace import gaussian_laplace_multi
 
-from .segment import get_segment
+from .segment import get_segment_index
 
 
 def make_segment(dataset, mask, peaks, batch, verbose):
@@ -15,6 +15,7 @@ def make_segment(dataset, mask, peaks, batch, verbose):
     @distributed(ReduceOp.CONCAT)
     def _make(data, mask, index, ts, rs, ys, xs, radius):
         idx, imgs = data
+        h, w = tf.shape(mask)[0], tf.shape(mask)[1]
         idx = tf.cast(idx, tf.int32)
         cond = (idx[0] <= ts) & (ts <= idx[-1])
         ids = tf.cast(tf.where(cond)[:, 0], tf.int32)
@@ -29,11 +30,12 @@ def make_segment(dataset, mask, peaks, batch, verbose):
         out = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         for k in tf.range(tf.size(ids)):
             idx, g, y, x = il[k], gl[k], yl[k], xl[k]
-            seg = get_segment(g, y, x, mask)
-            sg = tf.boolean_mask(g, seg)
-            gmin = tf.math.reduce_min(sg)
-            gmax = tf.math.reduce_max(sg)
-            img = (g - gmin) / (gmax - gmin)
+            pos = get_segment_index(g, y, x, mask)
+            val = tf.gather_nd(g, pos)
+            gmin = tf.math.reduce_min(val)
+            gmax = tf.math.reduce_max(val)
+            val = (val - gmin) / (gmax - gmin)
+            img = tf.scatter_nd(pos, val, [h, w])
             out = out.write(k, tf.boolean_mask(img, mask))
         return out.stack(),
 

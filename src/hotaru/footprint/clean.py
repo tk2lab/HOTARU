@@ -18,10 +18,7 @@ def modify_footprint(footprint):
     i = np.arange(footprint.shape[0])
     j = np.argpartition(-footprint, 1)
     second = footprint[i, j[:, 1]]
-    print(footprint.max(axis=1)[:3])
     footprint[i, j[:, 0]] = second
-    print(second[:3])
-    print(footprint.max(axis=1)[:3])
     cond = second > 0.0
     return cond
 
@@ -60,6 +57,7 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
         ys = (pos % hw) // w
         xs = (pos % hw) % w
         logs = tf.gather_nd(logs, tf.stack([tf.range(nk), rs], axis=1))
+        tf.print(tf.shape(logs))
 
         out = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         firmness = tf.TensorArray(tf.float32, size=0, dynamic_size=True)

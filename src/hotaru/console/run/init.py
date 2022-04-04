@@ -30,4 +30,5 @@ def init(obj):
 
     obj.save_csv(peaks, 'peak', obj.init_tag, '_000')
     obj.save_numpy(segment, 'segment', obj.init_tag, stage='_000')
+    click.echo(f'num: {segment.shape[0]}')
     return dict(num_cell=segment.shape[0])

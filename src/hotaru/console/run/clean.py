@@ -7,31 +7,35 @@ from hotaru.footprint.clean import clean_footprint
 from hotaru.footprint.clean import check_accept
 
 from .base import run_base
+from .options import radius_options
 
 
 @click.command()
-@click.option('--thr-area-abs', type=float, default=np.inf, show_default=True)
-@click.option('--thr-area-rel', type=float, default=0.0, show_default=True)
-@click.option('--thr-sim', type=float, default=1.0, show_default=True)
-@click.option('--initial', is_flag=True)
+@click.option('--stage', '-s', type=int, show_default='no stage')
+@click.option('--footprint-tag', '-T', show_default='auto')
+@click.option('--footprint-stage', '-S', type=int, show_default='auto')
+@radius_options
+@click.option('--thr-area-abs', type=click.FloatRange(0.0, np.inf), default=np.inf, show_default=True)
+@click.option('--thr-area-rel', type=click.FloatRange(0.0, np.inf), default=0.0, show_default=True)
+@click.option('--thr-sim', type=click.FloatRange(0.0, 1.0))
 @click.option('--batch', type=int, default=100, show_default=True)
 @run_base
-def clean(obj, thr_area_abs, thr_area_rel, thr_sim, initial, batch):
+def clean(obj):
     '''Clean'''
 
-    if obj.prev_stage is None:
+    if obj.footprint_tag is None:
+        obj['footprint_tag'] = obj.tag
+
+    if obj.footprint_stage is None:
         if isinstance(obj.stage, int):
-            obj.prev_stage = obj.stage - 1
+            obj['footprint_stage'] = obj.stage - 1
         else:
-            obj.prev_stage = obj.stage
+            obj['footprint_stage'] = obj.stage
 
-    if obj.prev_stage == 0:
-        initial = True
+    mask = obj.mask
 
-    mask = obj.mask()
-
-    footprint = obj.footprint()
-    index = obj.index(initial)
+    footprint = obj.footprint
+    index = obj.index
 
     cond = modify_footprint(footprint)
     no_seg = pd.DataFrame(index=index[~cond])
@@ -39,7 +43,7 @@ def clean(obj, thr_area_abs, thr_area_rel, thr_sim, initial, batch):
 
     segment, peaks = clean_footprint(
         footprint[cond], index[cond],
-        mask, obj.radius, batch, obj.verbose,
+        mask, obj.radius, obj.batch, obj.verbose,
     )
 
     idx = np.argsort(peaks['firmness'].values)[::-1]
@@ -48,7 +52,7 @@ def clean(obj, thr_area_abs, thr_area_rel, thr_sim, initial, batch):
 
     check_accept(
         segment, peaks, obj.radius,
-        thr_area_abs, thr_area_rel, thr_sim,
+        obj.thr_area_abs, obj.thr_area_rel, obj.thr_sim,
     )
 
     cond = peaks['accept'] == 'yes'

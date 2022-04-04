@@ -1,31 +1,33 @@
 import click
-import numpy as np
 
 from hotaru.optimizer.input import MaxNormNonNegativeL1InputLayer as Input
 from hotaru.train.variance import Variance
-
 from hotaru.train.spike import SpikeModel
 
 from .base import run_base
+from .options import model_options
 
 
 @click.command()
-@click.option('--initial', is_flag=True)
-@click.option('--batch', type=int, default=100, show_default=True)
+@click.option('--stage', '-s', type=int, show_default='no stage')
+@click.option('--data-tag', '-D', show_default='auto')
+@click.option('--segment-tag', '-T', show_default='auto')
+@click.option('--segment-stage', '-S', type=int, show_default='auto')
+@model_options
 @run_base
-def temporal(obj, initial, batch):
+def temporal(obj):
     '''Update spike'''
 
-    if obj.prev_stage is None:
-        obj.prev_stage = obj.stage
+    if obj.segment_tag is None:
+        obj['segment_tag'] = obj.tag
 
-    if obj.prev_stage == 0:
-        initial = True
+    if obj.segment_stage is None:
+        obj['segment_stage'] = obj.stage
 
-    data = obj.data()
-    nt = obj.nt()
+    data = obj.data
+    nt = obj.nt
 
-    segment = obj.segment(initial)
+    segment = obj.segment
     nk, nx = segment.shape
 
     variance = Variance(data, nk, nx, nt)
@@ -39,7 +41,7 @@ def temporal(obj, initial, batch):
     model.set_penalty(**obj.reg)
     model.compile()
     log = model.fit(
-        segment, **obj.opt, batch=batch,
+        segment, **obj.opt,
         #log_dir=logs, stage=base,
     )
 

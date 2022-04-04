@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import click
 
 from hotaru.util.tfrecord import load_tfrecord
@@ -11,55 +12,137 @@ from hotaru.util.csv import load_csv
 from hotaru.util.csv import save_csv
 
 
-class Obj:
+class Obj(dict):
 
     def __init__(self):
         self._log = {}
 
+    def __getattr__(self, key):
+        return self.get(key)
+
+    def need_exec(self): 
+        kind = self.kind
+        if self.force:
+            return True
+        if kind == 'output':
+            return True
+        if kind in ('data', 'find', 'init'):
+            tag = self.tag
+            stage = ''
+        elif kind in ('temporal', 'spatial', 'clean'):
+            if not isinstance(self.stage, int):
+                return True
+            else:
+                tag = self.tag
+                stage = self.stage
+        return not os.path.exists(self.log_path(kind, tag, stage))
+
+    @property
     def data(self):
         path = self.out_path('data', self.data_tag, '')
         return load_tfrecord(f'{path}.tfrecord')
 
-    def peak(self, initial=False):
-        if initial:
-            tag = self.find_tag
-            stage = '_find'
-        else:
-            tag = self.prev_tag
-            stage = self.prev_stage
-        path = self.out_path('peak', tag, stage)
+    @property
+    def peak(self):
+        path = self.out_path('peak', self.find_tag, '_find')
         return load_csv(f'{path}.csv')
 
-    def segment(self, initial=False):
-        if initial:
-            tag = self.init_tag
-            stage = '_init'
-        else:
-            tag = self.prev_tag
-            stage = self.prev_stage
-        path = self.out_path('segment', tag, stage)
-        print(path)
+    @property
+    def segment(self):
+        path = self.out_path('segment', self.segment_tag, self.segment_stage)
         return load_numpy(f'{path}.npy')
 
-    def index(self, initial=False):
-        if initial:
-            tag = self.init_tag
-            stage = '_init'
-        else:
-            tag = self.prev_tag
-            stage = self.prev_stage
-        path = self.out_path('peak', tag, stage)
+    @property
+    def index(self):
+        path = self.out_path('peak', self.footprint_tag, self.footprint_stage)
         return load_csv(f'{path}.csv').query('accept == "yes"').index
 
+    @property
     def spike(self):
-        path = self.out_path('spike', self.prev_tag, self.prev_stage)
+        path = self.out_path('spike', self.spike_tag, self.spike_stage)
         return load_numpy(f'{path}.npy')
 
+    @property
     def footprint(self):
-        path = self.out_path('footprint', self.prev_tag, self.prev_stage)
+        path = self.out_path('footprint', self.footprint_tag, self.footprint_stage)
         return load_numpy(f'{path}.npy')
 
-    def log(self, kind, tag=None, stage=None):
+    @property
+    def hz(self):
+        return self.log('data', self.data_tag, '')['hz']
+
+    @property
+    def mask(self):
+        return self.log('data', self.data_tag, '')['mask']
+
+    @property
+    def avgx(self):
+        return self.log('data', self.data_tag, '')['avgx']
+
+    @property
+    def nx(self):
+        return self.log('data', self.data_tag, '')['mask'].sum()
+
+    @property
+    def nt(self):
+        return self.log('data', self.data_tag, '')['nt']
+
+    @property
+    def used_radius_min(self):
+        return self.log('find', self.find_tag, '')['radius_min']
+
+    @property
+    def used_radius_max(self):
+        return self.log('find', self.find_tag, '')['radius_max']
+
+    @property
+    def used_tau(self):
+        log = self.log('temporal', self.spike_tag, self.spike_stage)
+        return dict(
+            hz=self.hz,
+            tau1=log['tau_rise'],
+            tau2=log['tau_fall'],
+            tscale=log['tau_scale'],
+        )
+
+    @property
+    def radius(self):
+        if self.radius_type == 'linear':
+            return np.linspace(self.radius_min, self.radius_max, self.radius_num)
+        elif self.radius_type == 'log':
+            return np.logspace(np.log10(self.radius_min), np.log10(self.radius_max), self.radius_num)
+
+    @property
+    def tau(self):
+        return dict(
+            hz=self.hz,
+            tau1=self.tau_rise,
+            tau2=self.tau_fall,
+            tscale=self.tau_scale,
+        )
+
+    @property
+    def reg(self):
+        return dict(
+            la=self.la,
+            lu=self.lu,
+            bx=self.bx,
+            bt=self.bt,
+        )
+
+    @property
+    def opt(self):
+        return dict(
+            lr=self.lr,
+            min_delta=self.tol,
+            epochs=self.epoch,
+            steps_per_epoch=self.steps,
+            batch=self.batch,
+        )
+
+    def log(self, kind=None, tag=None, stage=None):
+        if kind is None:
+            kind = self.kind
         if tag is None:
             if kind == 'data':
                 tag = self.data_tag
@@ -72,27 +155,6 @@ class Obj:
             path = self.log_path(*key)
             self._log[key] = load_pickle(path)
         return self._log[key]
-
-    def mask(self):
-        return self.log('data', self.data_tag, '')['mask']
-
-    def avgx(self):
-        return self.log('data', self.data_tag, '')['avgx']
-
-    def nx(self):
-        return self.log('data', self.data_tag, '')['mask'].sum()
-
-    def nt(self):
-        return self.log('data', self.data_tag, '')['nt']
-
-    def radius(self):
-        return self.log('find', self.prev_tag, '')['radius']
-
-    def radius_min(self):
-        return self.log('find', self.prev_tag, '')['radius'][0]
-
-    def radius_max(self):
-        return self.log('find', self.prev_tag, '')['radius'][-1]
 
     def out_path(self, kind, tag=None, stage=None):
         if tag is None:
@@ -125,25 +187,6 @@ class Obj:
     def save_csv(self, data, kind, tag=None, stage=None):
         out_path = self.out_path(kind, tag, stage)
         save_csv(f'{out_path}.csv', data)
-
-    def need_exec(self, kind): 
-        if self.force:
-            return True
-        if (kind in ('temporal', 'spatiol', 'clean')) and (self.stage == ''):
-            return True
-        elif kind == 'data' and self.data_tag is not None:
-            tag = self.data_tag
-            stage = ''
-        elif kind == 'find' and self.find_tag is not None:
-            tag = self.find_tag
-            stage = ''
-        elif kind == 'init' and self.init_tag is not None:
-            tag = self.init_tag
-            stage = ''
-        else:
-            tag = self.tag
-            stage = self.stage
-        return not os.path.exists(self.log_path(kind, tag, stage))
 
     def save_log(self, kind, log):
         path = self.log_path(kind)

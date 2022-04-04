@@ -3,48 +3,62 @@ from configparser import ConfigParser
 import click
 
 from .obj import Obj
-from .run import run
+from .run.data import data
+from .run.find import find
+from .run.init import init
+from .run.temporal import temporal
+from .run.spatial import spatial
+from .run.clean import clean
+from .run.output import output
+from .auto import auto
 #from .fig import fig
 
-commands = dict(run=[
-    'data', 'find', 'init', 'spatial', 'temporal', 'clean', 'auto',
-])
 
 def configure(ctx, param, filename):
     cfg = ConfigParser()
     cfg.read(filename)
-    ctx.default_map = {}
-    if 'DEFAULT' in cfg:
-        ctx.default_map.update(cfg['DEFAULT'])
-    if 'hotaru' in cfg:
-        ctx.default_map.update(cfg['hotaru'])
-    for cmdname in ['run']:
-        defaults1 = ctx.default_map.setdefault(cmdname, {})
-        if 'DEFAULT' in cfg:
-            defaults1.update(cfg['DEFAULT'])
-        for cmd in commands[cmdname]:
-            defaults2 = defaults1.setdefault(cmd, {})
-            if 'DEFAULT' in cfg:
-                defaults2.update(cfg['DEFAULT'])
+    return cfg
 
 
 @click.group()
 @click.option(
-    '--config', '-c', type=click.Path(dir_okay=False), default='hotaru.ini',
-    callback=configure, is_eager=True, expose_value=False, show_default=True,
-    help='',
+    '--config', '-c', type=click.Path(dir_okay=False),
+    default='hotaru.ini', callback=configure, show_default=True,
 )
 @click.option('--workdir', '-w', type=str, default='hotaru', show_default=True)
+@click.option('--tag', '-t', default='default', show_default=True)
+@click.option('--force', '-f', is_flag=True)
 @click.option('--quit', '-q', is_flag=True)
 @click.option('--verbose', '-v', count=True)
 @click.pass_context
-def main(ctx, workdir, quit, verbose):
+def main(ctx, config, **args):
     '''Main'''
 
     ctx.ensure_object(Obj)
-    ctx.obj.workdir = workdir
-    ctx.obj.verbose = 0 if quit else (verbose or 1)
+    obj = ctx.obj
+    obj.config = config
+
+    args['verbose'] = 0 if quit else (args.verbose or 1)
+    del args['quit']
+
+    sec = 'main'
+    if obj.config.has_section(sec):
+        for key in args.keys():
+            if obj.config.has_option(sec, key):
+                args[key] = obj.config.get(sec, key)
+
+    obj.update(args)
 
 
-main.add_command(run)
-#main.add_command(fig)
+main.add_command(data)
+main.add_command(find)
+main.add_command(init)
+main.add_command(temporal)
+main.add_command(spatial)
+main.add_command(clean)
+main.add_command(output)
+main.add_command(auto)
+'''
+main.add_command(figure)
+main.add_command(trial)
+'''

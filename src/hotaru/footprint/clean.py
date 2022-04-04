@@ -36,7 +36,8 @@ def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
 
     sim = calc_sim_area(segment, ~(cond1 ^ cond2 ^ cond3))
     peaks['sim'] = sim
-    cond4 = sim >= thr_sim
+    if thr_sim is not None:
+        cond4 = sim >= thr_sim
 
     peaks.loc[cond4, 'accept'] = 'large_sim'
     peaks.loc[cond3, 'accept'] = 'large_area'
@@ -62,7 +63,7 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
         firmness = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         nx = tf.size(rs)
         for k in tf.range(nx):
-            img, log, r, y, x = imgs[k], logs[k], rs[k], ys[k], xs[k]
+            img, log, y, x = imgs[k], logs[k], ys[k], xs[k]
             pos = get_segment_index(log, y, x, mask)
             slog = tf.gather_nd(log, pos)
             slogmin = tf.math.reduce_min(slog)
@@ -86,5 +87,6 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
 
     with click.progressbar(length=nk, label='Clean') as prog:
         footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
+    r = tf.gather(radius, r)
     peaks = pd.DataFrame(dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()), index=index)
     return footprint.numpy(), peaks

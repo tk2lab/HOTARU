@@ -13,17 +13,26 @@ from .base import run_base
 
 @click.command()
 @click.option(
-    '--batch',
-    type=int,
-    default=100,
+    '--imgs-path',
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    default='imgs.tif',
     show_default=True,
 )
+@click.option(
+    '--mask-type',
+    default='0.pad',
+    show_default=True,
+)
+@click.option(
+    '--hz',
+    type=float,
+    default=20.0,
+    show_default=True,
+)
+@click.option('--batch', type=int, default=100, show_default=True)
 @run_base
-def data(obj, batch):
+def data(obj):
     '''Data'''
-
-    print(obj.imgs_path, obj.mask_type)
-    obj.stage = None
 
     imgs = load_data(obj.imgs_path)
     nt, h, w = imgs.shape()
@@ -34,7 +43,7 @@ def data(obj, batch):
     data = imgs.clipped_dataset(y0, y1, x0, x1)
     mask = mask[y0:y1, x0:x1]
 
-    stats = calc_stats(data.batch(batch), mask, nt, obj.verbose)
+    stats = calc_stats(data.batch(obj.batch), mask, nt, obj.verbose)
     smin, smax, sstd, avgt, avgx = stats
 
     normalized_data = normalized(data, sstd, avgt, avgx)

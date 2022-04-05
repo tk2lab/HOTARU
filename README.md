@@ -22,18 +22,39 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ### Install Procedure (using venv)
 - Create venv environment for hotaru
-  - `python3.x -m venv hotaru`
+```shell
+python3.x -m venv hotaru
+```
 - Activate hotaru environment
-  - `source hotaru/bin/activate`
+```shell
+source hotaru/bin/activate
+```
 - Install hotaru
-  - `pip install hotaru`
+```shell
+pip install hotaru
+```
+
+
+### Demonstration
+```shell
+cd sample
+python make.py
+hotaru --tag default trial
+hotaru --tag d12 trial
+hotaru auto
+python -m hotaru.sim.mpeg d12
+```
+
+[Sample Video](https://drive.google.com/file/d/12jl1YTZDuNAq94ciJ-_Cj5tBcKmCqgRH)
 
 
 ## Usage
 
 ### Config and Prepare
 - Move to your workspace
-  `cd work`
+```shell
+cd work
+```
 - Edit config file `hotaru.ini`
 ``` hotaru.ini
 [DEFAULT]
@@ -52,7 +73,9 @@ radius_max = 20.0
 
 ### Check Cell Radius Stats
 - Trial
-```hotaru trial```
+```shell
+hotaru trial
+```
 - Check peaks stats
   [see hotaru/figure/r20_trial.pdf]
 - Change `radius_max` if need
@@ -76,7 +99,9 @@ radius_max = 20.0
 
 ### Apply
 - Run
-```hotaru auto```
+```shell
+hotaru auto
+```
   
 ### Check Resutls
 - see `hotaru/figure/r10_curr.pdf` and `hotaru/output` directory

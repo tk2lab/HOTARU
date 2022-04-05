@@ -51,10 +51,10 @@ radius_max = 20.0
 ```
 
 ### Check Cell Radius Stats
-- 
-  `hotaru trial`
+- Trial
+```hotaru trial```
 - Check peaks stats
-  [see hotaru/fig/r20_trial.pdf]
+  [see hotaru/figure/r20_trial.pdf]
 - Change `radius_max` if need
 ``` hotaru.ini
 [DEFAULT]
@@ -76,7 +76,7 @@ radius_max = 20.0
 
 ### Apply
 - Run
-  `hotaru auto`
+```hotaru auto```
   
 ### Check Resutls
-- see `hotaru/fig` and `hotaru/out` directory
+- see `hotaru/figure/r10_curr.pdf` and `hotaru/output` directory

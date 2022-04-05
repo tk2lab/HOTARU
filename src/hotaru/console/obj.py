@@ -44,6 +44,11 @@ class Obj(dict):
         return load_csv(f'{path}.csv')
 
     @property
+    def peak_trial(self):
+        path = self.out_path('peak', self.tag, '')
+        return load_csv(f'{path}.csv')
+
+    @property
     def segment(self):
         path = self.out_path('segment', self.segment_tag, self.segment_stage)
         if self.segment_stage == '_curr':
@@ -105,6 +110,10 @@ class Obj(dict):
     @property
     def used_radius_max(self):
         return self.log('find', self.find_tag, '')['radius_max']
+
+    @property
+    def used_distance(self):
+        return self.log('test', self.tag, '')['distance']
 
     @property
     def used_tau(self):

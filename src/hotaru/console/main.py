@@ -11,8 +11,9 @@ from .run.temporal import temporal
 from .run.spatial import spatial
 from .run.clean import clean
 from .run.output import output
+from .trial import trial
 from .auto import auto
-#from .fig import fig
+from .figure import figure
 
 
 def configure(ctx, param, configfile):
@@ -70,8 +71,6 @@ main.add_command(temporal)
 main.add_command(spatial)
 main.add_command(clean)
 main.add_command(output)
-main.add_command(auto)
-'''
-main.add_command(figure)
 main.add_command(trial)
-'''
+main.add_command(auto)
+main.add_command(figure)

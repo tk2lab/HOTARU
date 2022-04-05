@@ -7,6 +7,7 @@ from .run.temporal import temporal
 from .run.spatial import spatial
 from .run.clean import clean
 from .run.output import output
+from .figure import figure
 
 
 @click.command()
@@ -47,3 +48,4 @@ def auto(ctx, max_iteration, storing_intermidiate_results, non_stop):
             break
         ctx.invoke(spatial, stage=_stage)
     ctx.invoke(output, stage=_stage)
+    ctx.invoke(figure, stage=_stage)

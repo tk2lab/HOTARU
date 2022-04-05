@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hotaru"
-version = "4.0.0b0"
+version = "4.0.0"
 description = "High performance Optimizer to extract spike Timing And cell location from calcium imaging data via lineaR impUlse"
 license = "GPL-3.0-only"
 authors = ["TAKEKAWA Takashi <takekawa@tk2lab.org>"]

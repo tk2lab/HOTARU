@@ -13,9 +13,6 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
   Automatic sorting system for large scale calcium imaging data,
   bioRxiv, https://doi.org/10.1101/215145 (2017).
 
-### Demonstration
-[Sample Video](https://drive.google.com/file/d/12jl1YTZDuNAq94ciJ-_Cj5tBcKmCqgRH/view?usp=sharing)
-
 
 ## Install
 
@@ -25,24 +22,37 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 
 ### Install Procedure (using venv)
 - Create venv environment for hotaru
-```sh
+```shell
 python3.x -m venv hotaru
 ```
 - Activate hotaru environment
-```sh
+```shell
 source hotaru/bin/activate
 ```
 - Install hotaru
-``sh
+```shell
 pip install hotaru
 ```
+
+
+### Demonstration
+```shell
+cd sample
+python make.py
+hotaru --tag default trial
+hotaru --tag d12 trial
+hotaru auto
+python -m hotaru.sim.mpeg d12
+```
+
+[Sample Video](https://drive.google.com/file/d/12jl1YTZDuNAq94ciJ-_Cj5tBcKmCqgRH)
 
 
 ## Usage
 
 ### Config and Prepare
 - Move to your workspace
-```sh
+```shell
 cd work
 ```
 - Edit config file `hotaru.ini`
@@ -63,7 +73,7 @@ radius_max = 20.0
 
 ### Check Cell Radius Stats
 - Trial
-```sh
+```shell
 hotaru trial
 ```
 - Check peaks stats
@@ -89,7 +99,7 @@ radius_max = 20.0
 
 ### Apply
 - Run
-```sh
+```shell
 hotaru auto
 ```
   

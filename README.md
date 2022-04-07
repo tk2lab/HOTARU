@@ -5,13 +5,13 @@ High performance Optimizer to extract spike Timing And cell location from calciu
 ### Author
 TAKEKAWA Takashi <takekawa@tk2lab.org>
 
-### Reference
+### References
 - Takekawa., T, et. al.,
   HOTARU: Automatic sorting system for large scale calcium imaging data,
-  bioRxiv, preparing (2022).
+  bioRxiv, https://biorxiv.org/content/2022.04.05.487077 (2022).
 - Takekawa., T, et. al.,
   Automatic sorting system for large scale calcium imaging data,
-  bioRxiv, https://doi.org/10.1101/215145 (2017).
+  bioRxiv, https://www.biorxiv.org/content/10.1101/215145 (2017).
 
 
 ## Install

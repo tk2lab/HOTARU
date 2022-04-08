@@ -10,7 +10,7 @@ from hotaru.train.dynamics import SpikeToCalcium
 from hotaru.util.mpeg import MpegStream
 
 
-def main(tag, outfile='sample.mp4', stage='curr', data_tag='default'):
+def make_mpeg(tag='defautl', outfile='sample.mp4', stage='curr', data_tag='default'):
     cmap = get_cmap('Greens')
     p = load_pickle(f'hotaru/log/{data_tag}_data.pickle')
     mask = p['mask']
@@ -63,4 +63,4 @@ def main(tag, outfile='sample.mp4', stage='curr', data_tag='default'):
 
 if __name__ == '__main__':
     import sys
-    main(sys.argv[1])
+    make_mpeg(sys.argv[1])

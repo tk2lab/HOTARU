@@ -42,7 +42,7 @@ python make.py
 hotaru --tag default trial
 hotaru --tag d12 trial
 hotaru auto
-python -m hotaru.sim.mpeg d12
+python mpeg.py d12
 ```
 
 [Sample Video](https://drive.google.com/file/d/12jl1YTZDuNAq94ciJ-_Cj5tBcKmCqgRH)

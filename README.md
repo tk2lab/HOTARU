@@ -37,13 +37,15 @@ pip install hotaru
 
 ### Demonstration
 ```shell
-cd sample
-python make.py
-hotaru --tag default trial
-hotaru --tag d12 trial
+hotaru sample --outdir mysample
+cd mysample
+hotaru config
+# edit mysample/hotaru.ini if you need
+hotaru trial
 hotaru auto
-python mpeg.py d12
+hotaru mpeg --has-truth
 ```
+- see `mysample/hotaru/figure/`
 
 [Sample Video](https://drive.google.com/file/d/12jl1YTZDuNAq94ciJ-_Cj5tBcKmCqgRH)
 

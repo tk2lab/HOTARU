@@ -1,4 +1,5 @@
 import random
+import os
 
 import tensorflow as tf
 
@@ -11,11 +12,24 @@ import tifffile
 from hotaru.train.dynamics import SpikeToCalcium
 
 
-def make_sim(nv=1000, h=200, w=200, hz=20.0, nk=1000, sig_min=0.5, sig_max=2.0, min_dist=1.8, seed=None):
+def make_sim(
+    outdir='sample',
+    frames=1000, height=200, width=200, hz=20.0, num_neurons=1000,
+    intensity_min=0.5, intensity_max=2.0, radius_min=4.0, radius_max=8.0,
+    firingrate_min=0.2, firingrate_max=2.2, distance=1.8,
+    tau_rise=0.08, tau_fall=0.16, seed=None,
+):
+    os.makedirs(f'{outdir}/truth', exist_ok=True)
+    w, h, nv = width, height, frames
+    nk = num_neurons
+    sig_min, sig_max = intensity_min, intensity_max
+    rad_min, rad_max = radius_min, radius_max
+    fr_min, fr_max = firingrate_min, firingrate_max
+    min_dist = distance
     np.random.seed(seed)
 
     gamma = SpikeToCalcium()
-    gamma.set_double_exp(hz, 0.08, 0.16, 6.0)
+    gamma.set_double_exp(hz, tau_rise, tau_fall, 6.0)
     nu = nv + gamma.pad
 
     a_true = []
@@ -35,14 +49,14 @@ def make_sim(nv=1000, h=200, w=200, hz=20.0, nk=1000, sig_min=0.5, sig_max=2.0, 
         if ylist.size  == 0:
             break
         for i in range(10):
-            radius = st.uniform(4.0, 4.0).rvs()
+            radius = st.uniform(rad_min, rad_max - rad_min).rvs()
             r = np.random.randint(ylist.size)
             y0, x0 = ylist[r], xlist[r]
             if (len(xs) == 0) or np.all((np.array(xs) - x0)**2 + (np.array(ys) - y0)**2 > (min_dist*radius)**2):
                 break
         if i == 9:
             break
-        rate = st.uniform(0.2 / hz, 2.0 / hz).rvs()
+        rate = st.uniform(fr_min / hz, (fr_max - fr_min) / hz).rvs()
         ui = st.bernoulli(rate).rvs(nu)
         signal = st.uniform(sig_min, sig_max).rvs()
         cond = (xlist - x0)**2 + (ylist - y0)**2 > (min_dist*radius)**2
@@ -75,17 +89,7 @@ def make_sim(nv=1000, h=200, w=200, hz=20.0, nk=1000, sig_min=0.5, sig_max=2.0, 
     base_x = -5.0 * (((x - hh) / hh)**2 + ((y - wh) / wh)**2)
     imgs = (f_t + n_t + base_t + base_x).numpy()
 
-    np.save('./a0.npy', a_t.numpy())
-    np.save('./u0.npy', u_t.numpy())
-    np.save('./v0.npy', v_t.numpy())
-    np.save('./f0.npy', imgs)
-    tifffile.imwrite('./imgs.tif', imgs)
-
-    imgs -= imgs.mean(axis=0, keepdims=True)
-    imgs -= imgs.mean(axis=(1, 2), keepdims=True)
-    imgs /= imgs.std()
-    tifffile.imwrite('./norm.tif', imgs)
-
-
-if __name__ == '__main__':
-    make_sim(nk=100, sig_min=1.0)
+    np.save(f'{outdir}/truth/a0.npy', a_t.numpy())
+    np.save(f'{outdir}/truth/u0.npy', u_t.numpy())
+    np.save(f'{outdir}/truth/v0.npy', v_t.numpy())
+    tifffile.imwrite(f'{outdir}/imgs.tif', imgs)

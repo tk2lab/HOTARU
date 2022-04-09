@@ -4,6 +4,7 @@ from configparser import ConfigParser
 import click
 
 from .obj import Obj
+from .config import config
 from .run.data import data
 from .run.find import find
 from .run.init import init
@@ -14,6 +15,8 @@ from .run.output import output
 from .trial import trial
 from .auto import auto
 from .figure import figure
+from .mpeg import mpeg
+from .sample import sample
 
 
 def configure(ctx, param, configfile):
@@ -64,6 +67,7 @@ def main(ctx, config, tag, **args):
     del obj['quit']
 
 
+main.add_command(config)
 main.add_command(data)
 main.add_command(find)
 main.add_command(init)
@@ -74,3 +78,5 @@ main.add_command(output)
 main.add_command(trial)
 main.add_command(auto)
 main.add_command(figure)
+main.add_command(mpeg)
+main.add_command(sample)

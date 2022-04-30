@@ -8,7 +8,7 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ### References
 - Takekawa., T, et. al.,
   HOTARU: Automatic sorting system for large scale calcium imaging data,
-  bioRxiv, https://biorxiv.org/content/2022.04.05.487077 (2022).
+  bioRxiv, https://biorxiv.org/content/10.1101/2022.04.05.487077 (2022).
 - Takekawa., T, et. al.,
   Automatic sorting system for large scale calcium imaging data,
   bioRxiv, https://www.biorxiv.org/content/10.1101/215145 (2017).

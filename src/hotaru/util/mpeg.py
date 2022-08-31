@@ -1,9 +1,7 @@
-import numpy as np
 import ffmpeg
 
 
 class MpegStream:
-
     def __init__(self, w, h, hz, outfile, filters=None, crf=28):
         self.args = w, h, str(int(hz)), outfile, crf
         self.filters = filters or []
@@ -13,13 +11,16 @@ class MpegStream:
 
     def __enter__(self):
         w, h, hz, outfile, crf = self.args
-        p = ffmpeg.input('pipe:', f='rawvideo', pix_fmt='rgba', s=f'{w}x{h}', r=hz)
+        p = ffmpeg.input(
+            "pipe:", f="rawvideo", pix_fmt="rgba", s=f"{w}x{h}", r=hz
+        )
         for a, b in self.filters:
-            if a == 'drawtext':
+            if a == "drawtext":
                 p = p.drawtext(**b)
         self.process = (
-            p
-            .output(outfile, vcodec='libx264', pix_fmt='yuv420p', r=hz, crf=crf)
+            p.output(
+                outfile, vcodec="libx264", pix_fmt="yuv420p", r=hz, crf=crf
+            )
             .overwrite_output()
             .run_async(pipe_stdin=True)
         )

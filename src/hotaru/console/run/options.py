@@ -4,19 +4,19 @@ import click
 def radius_options():
     return [
         click.Option(
-            ['--radius-type'],
-            type=click.Choice(['log', 'linear']),
+            ["--radius-type"],
+            type=click.Choice(["log", "linear"]),
         ),
         click.Option(
-            ['--radius-min'],
+            ["--radius-min"],
             type=float,
         ),
         click.Option(
-            ['--radius-max'],
+            ["--radius-max"],
             type=float,
         ),
         click.Option(
-            ['--radius-num'],
+            ["--radius-num"],
             type=int,
         ),
     ]
@@ -28,16 +28,16 @@ def model_options():
 
 def tau_options():
     return [
-            click.Option(
-            ['--tau-rise'],
+        click.Option(
+            ["--tau-rise"],
             type=float,
         ),
         click.Option(
-            ['--tau-fall'],
+            ["--tau-fall"],
             type=float,
         ),
         click.Option(
-            ['--tau-scale'],
+            ["--tau-scale"],
             type=float,
         ),
     ]
@@ -46,19 +46,19 @@ def tau_options():
 def reg_options():
     return [
         click.Option(
-            ['--la'],
+            ["--la"],
             type=float,
         ),
         click.Option(
-            ['--lu'],
+            ["--lu"],
             type=float,
         ),
         click.Option(
-            ['--bx'],
+            ["--bx"],
             type=float,
         ),
         click.Option(
-            ['--bt'],
+            ["--bt"],
             type=float,
         ),
     ]
@@ -67,23 +67,23 @@ def reg_options():
 def opt_options():
     return [
         click.Option(
-            ['--lr'],
+            ["--lr"],
             type=float,
         ),
         click.Option(
-            ['--tol'],
+            ["--tol"],
             type=float,
         ),
         click.Option(
-            ['--epoch'],
+            ["--epoch"],
             type=int,
         ),
         click.Option(
-            ['--steps'],
+            ["--steps"],
             type=int,
         ),
         click.Option(
-            ['--batch'],
+            ["--batch"],
             type=int,
         ),
     ]

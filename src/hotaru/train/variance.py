@@ -1,39 +1,41 @@
-import tensorflow.keras.backend as K
+import enum
+
 import tensorflow as tf
 
-from ..util.distribute import ReduceOp
-from ..util.distribute import distributed
+from .dynamics import CalciumToSpikeDoubleExp
+from .dynamics import SpikeToCalciumDoubleExp
 
-from .dynamics import SpikeToCalcium
-from .dynamics import CalciumToSpike
+
+class VarianceMode(enum.Enum):
+    Spike = 1
+    Footprint = 2
 
 
 class Variance(tf.keras.layers.Layer):
+    """Variance"""
 
-    def __init__(self, data, nk, nx, nt, batch=100, name='Variance'):
-        super().__init__(name=name, dtype=tf.float32)
+    def __init__(self, mode, data, nk, nx, nt, **args):
+        super().__init__(**args)
 
-        self._data = data
+        self.mode = mode
+        self.data = data
         self.nx = nx
         self.nt = nt
-        self._batch = batch
 
-        self.spike_to_calcium = SpikeToCalcium(name='to_cal')
-        self.calcium_to_spike = CalciumToSpike(name='to_spk')
-        self._bx = 0.0
-        self._bt = 0.0
-
-        nz = max(nx, nt)
+        if self.mode == VarianceMode.Spike:
+            nz = nt
+        elif self.mode == VarianceMode.Footprint:
+            nz = nx
         self.nk = nk
-        self._nn = self.add_weight('nn', (), trainable=False)
-        self._nm = self.add_weight('nm', (), trainable=False)
-        self._dat = self.add_weight('dat', (nk, nz), trainable=False)
-        self._cov = self.add_weight('cov', (nk, nk), trainable=False)
-        self._out = self.add_weight('out', (nk, nk), trainable=False)
+        self._nn = self.add_weight("nn", (), trainable=False)
+        self._nm = self.add_weight("nm", (), trainable=False)
+        self._dat = self.add_weight("dat", (nk, nz), trainable=False)
+        self._cov = self.add_weight("cov", (nk, nk), trainable=False)
+        self._out = self.add_weight("out", (nk, nk), trainable=False)
 
     def set_double_exp(self, *args, **kwargs):
-        self.spike_to_calcium.set_double_exp(*args, **kwargs)
-        self.calcium_to_spike.set_double_exp(*args, **kwargs)
+        self.spike_to_calcium = SpikeToCalciumDoubleExp(*args, **kwargs, name="to_cal")
+        self.calcium_to_spike = CalciumToSpikeDoubleExp(*args, **kwargs, name="to_spk")
         self.nu = self.nt + self.calcium_to_spike.pad
 
     def set_baseline(self, bx, bt):
@@ -45,45 +47,33 @@ class Variance(tf.keras.layers.Layer):
             nm += nxf
         if bt > 0.0:
             nm += ntf
-        self._bx = bx
-        self._bt = bt
-        K.set_value(self._nn, nn)
-        K.set_value(self._nm, nm)
+        self.bx = bx
+        self.bt = bt
+        self._nn.assign(nn)
+        self._nm.assign(nm)
 
     def call(self, xdat):
-
-        '''
-        @distributed(ReduceOp.CONCAT)
-        def _matmul(dat, xdat):
-            print(tf.shape(dat), tf.shape(xdat))
-            return tf.linalg.matmul(dat, xdat, False, True),
-        '''
-
         nk, nx = tf.shape(xdat)[0], tf.shape(xdat)[1]
-        data = tf.data.Dataset.from_tensor_slices(xdat).batch(self._batch)
-
-        #xcov, = _matmul(data, xdat)
         xcov = tf.linalg.matmul(xdat, xdat, False, True)
         xsum = tf.math.reduce_sum(xdat, axis=1)
         xout = xsum[:, None] * xsum / tf.cast(nx, tf.float32)
 
-        ydat = tf.slice(self._dat, [0, 0], [nk, nx])
-        ycov = tf.slice(self._cov, [0, 0], [nk, nk])
-        yout = tf.slice(self._out, [0, 0], [nk, nk])
+        ydat = self._dat[:nk]
+        ycov = self._cov[:nk, :nk]
+        yout = self._out[:nk, :nk]
 
         variance = (
-              tf.math.reduce_sum(ydat * xdat)
+            tf.math.reduce_sum(ydat * xdat)
             + tf.math.reduce_sum(ycov * xcov)
             + tf.math.reduce_sum(yout * xout)
         )
         return (self._nn + variance) / self._nm
 
-    def _cache(self, mode, yval, dat):
-        if mode == 0:
-            ny, bx, by = self.nx, self._bt, self._bx
-        else:
-            ny, bx, by = self.nt, self._bx, self._bt
-        max_nk, nmax = tf.shape(self._dat)
+    def _cache(self, yval, dat):
+        if self.mode == VarianceMode.Spike:
+            ny, bx, by = self.nx, self.bt, self.bx
+        elif self.mode == VarianceMode.Footprint:
+            ny, bx, by = self.nt, self.bx, self.bt
 
         ycov = tf.matmul(yval, yval, False, True)
         ysum = tf.math.reduce_sum(yval, axis=1)
@@ -94,18 +84,14 @@ class Variance(tf.keras.layers.Layer):
         cov = ycov - cx * yout
         out = yout - cy * ycov
 
+        nk = tf.shape(dat)[0]
+        self._dat[:nk].assign(dat)
+        self._cov[:nk, :nk].assign(cov)
+        self._out[:nk, :nk].assign(out)
+
         lipschitz = tf.math.reduce_max(tf.linalg.eigvalsh(cov)) / self._nm
-        gsum = tf.math.reduce_sum(self.spike_to_calcium.kernel)
-        self.lipschitz_a = lipschitz.numpy()
-        self.lipschitz_u = (lipschitz * gsum).numpy()
-
-        nk, nx = tf.shape(dat)[0], tf.shape(dat)[1]
-        dk = max_nk - nk
-        dx = nmax - nx
-        dat = tf.pad(dat, [[0, dk], [0, dx]])
-        cov = tf.pad(cov, [[0, dk], [0, dk]])
-        out = tf.pad(out, [[0, dk], [0, dk]])
-
-        K.set_value(self._dat, dat)
-        K.set_value(self._cov, cov)
-        K.set_value(self._out, out)
+        if self.mode == VarianceMode.Spike:
+            gsum = tf.math.reduce_sum(self.spike_to_calcium.kernel)
+            self.lipschitz = (lipschitz * gsum).numpy()
+        elif self.mode == VarianceMode.Footprint:
+            self.lipschitz = lipschitz.numpy()

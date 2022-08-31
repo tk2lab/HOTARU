@@ -1,21 +1,22 @@
 import multiprocessing as mp
 
-import numpy as np
 import click
+import numpy as np
+
 
 def label_out_of_range(peaks, radius_min, radius_max):
-    r = peaks['radius'].values
-    peaks['accept'] = 'yes'
-    peaks.loc[r == radius_min, 'accept'] = 'small_r'
-    peaks.loc[r == radius_max, 'accept'] = 'large_r'
+    r = peaks["radius"].values
+    peaks["accept"] = "yes"
+    peaks.loc[r == radius_min, "accept"] = "small_r"
+    peaks.loc[r == radius_max, "accept"] = "large_r"
     return peaks
 
 
 def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):
     ind = peaks.index.values
-    rs = peaks['radius'].values
-    ys = peaks['y'].values
-    xs = peaks['x'].values
+    rs = peaks["radius"].values
+    ys = peaks["y"].values
+    xs = peaks["x"].values
     xmax = xs.max()
     ymax = ys.max()
     margin = int(np.ceil(thr_distance * rs.max()))
@@ -34,9 +35,11 @@ def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):
             rtmp = rs[cond]
             data.append([x, y, index, ytmp, xtmp, rtmp, size, thr_distance])
 
-    total = int(np.ceil((xmax - margin) / size) * np.ceil((ymax - margin) / size))
+    total = int(
+        np.ceil((xmax - margin) / size) * np.ceil((ymax - margin) / size)
+    )
     with mp.Pool() as pool:
-        with click.progressbar(length=total, label='Reduce') as prog:
+        with click.progressbar(length=total, label="Reduce") as prog:
             ind = []
             for x in pool.imap_unordered(_reduce_peak_idx_mp_local, data):
                 ind.append(x)

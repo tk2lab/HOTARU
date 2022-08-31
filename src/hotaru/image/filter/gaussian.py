@@ -1,6 +1,6 @@
-import tensorflow.keras.backend as K
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+import tensorflow.keras.backend as K
 
 
 def gaussian(imgs, r):
@@ -10,6 +10,6 @@ def gaussian(imgs, r):
     r2 = K.square(r)
     o0 = K.exp(-0.5 * d / r2) / r / sqrt_2pi
     tmp = imgs[..., None]
-    tmp = K.conv2d(tmp, tf.reshape(o0, (1, -1, 1, 1)), (1, 1), 'same')
-    tmp = K.conv2d(tmp, tf.reshape(o0, (-1, 1, 1, 1)), (1, 1), 'same')
+    tmp = K.conv2d(tmp, tf.reshape(o0, (1, -1, 1, 1)), (1, 1), "same")
+    tmp = K.conv2d(tmp, tf.reshape(o0, (-1, 1, 1, 1)), (1, 1), "same")
     return tmp[..., 0]

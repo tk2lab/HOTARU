@@ -1,64 +1,47 @@
-import tensorflow.keras.backend as K
 import tensorflow as tf
-import numpy as np
 
-from .regularizer import ProxOp, MaxNormNonNegativeL1
+from .regularizer import MaxNormNonNegativeL1
+from .regularizer import ProxOp
 
 
 class DynamicInputLayer(tf.keras.layers.Layer):
+    """Dynamic Input Layer"""
 
-    def __init__(self, nk, nx, regularizer=None, name='input', **kwargs):
-        super().__init__(name=f'{name}_layer', **kwargs)
-        regularizer = regularizer or ProxOp()
-        self.max_nk = nk
-        self._nk = self.add_weight(f'{name}/nk', (), tf.int32, trainable=False)
-        self._val = self.add_weight(f'{name}/val', (nk, nx))
-        self._val.regularizer = regularizer
-
-    @property
-    def l(self):
-        return K.get_value(self._val.regularizer.l)
-
-    @l.setter
-    def l(self, val):
-        self.set_l(l)
+    def __init__(self, nk, nx, regularizer=None, **kwargs):
+        super().__init__(**kwargs)
+        self._nk = self.add_weight("nk", (), tf.int32, trainable=False)
+        self._val = self.add_weight("val", (nk, nx))
+        self._val.regularizer = regularizer or ProxOp(name="prox")
+        self.built = True
 
     @property
     def val(self):
-        return self.get_val()
+        return self._val[: self._nk]
 
-    @val.setter
-    def val(self, val):
-        self.set_val(val)
-
-    def set_l(self, val):
-        K.set_value(self._val.regularizer.l, val)
-
-    def get_l(self):
-        return K.get_value(self._val.regularizer.l)
+    def get_val(self):
+        return self.val.numpy()
 
     def set_val(self, val):
         nk = val.shape[0]
-        val = np.pad(val, ((0, self.max_nk - nk), (0, 0)))
-        K.set_value(self._nk, nk)
-        K.set_value(self._val, val)
-
-    def get_val(self):
-        return K.get_value(self.call())
-
-    def penalty(self, x=None):
-        if x is None:
-            x = self.call()
-        return self._val.regularizer(x)
+        self._nk.assign(nk)
+        self._val[:nk].assign(val)
 
     def call(self, dummy=None):
-        nk = self._nk
-        nx = tf.shape(self._val)[1]
-        return tf.slice(self._val, (0, 0), (nk, nx))
+        return self.val
+
+    def penalty(self):
+        return self._val.regularizer(self.val)
 
 
 class MaxNormNonNegativeL1InputLayer(DynamicInputLayer):
+    """Max Norm NonNegative L1 Input Layer"""
 
-    def __init__(self, nk, nx, name='mnnnl1', **kwargs):
-        reg = MaxNormNonNegativeL1(1)
-        super().__init__(nk, nx, reg, name=name, **kwargs)
+    def __init__(self, nk, nx, axis=-1, **kwargs):
+        reg = MaxNormNonNegativeL1(axis=axis, name="prox")
+        super().__init__(nk, nx, reg, **kwargs)
+
+    def get_l(self):
+        return self._val.regularizer.get_l()
+
+    def set_l(self, val):
+        self._val.regularizer.set_l(val)

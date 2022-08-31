@@ -1,34 +1,42 @@
-import tensorflow.keras.backend as K
 import tensorflow as tf
-import numpy as np
 
-#from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
-from ..optimizer.prox_nesterov import ProxNesterov as Optimizer
-from ..optimizer.callback import Callback as OptCallback
-from .variance import Variance
+from ..optimizer.input import MaxNormNonNegativeL1InputLayer as Input
+from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
 from .progress import ProgressCallback
+from .variance import Variance
+
+
+class Loss(tf.keras.losses.Loss):
+    """Loss"""
+
+    def call(self, y_true, y_pred):
+        return y_pred
 
 
 class BaseModel(tf.keras.Model):
+    """Base Model"""
 
-    def __init__(self, footprint, spike, variance, **kwargs):
-        super().__init__(**kwargs)
+    def prepare(self, mode, data, nk, nx, nt, tau, bx, bt, la, lu):
+        variance = Variance(mode, data, nk, nx, nt)
+        variance.set_double_exp(**tau)
+        variance.set_baseline(bx, bt)
+        footprint = Input(nk, nx, name="footprint")
+        spike = Input(nk, variance.nu, name="spike")
+        footprint.set_l(la / variance._nm)
+        spike.set_l(lu / variance._nm)
         self.footprint_penalty = footprint.penalty
         self.spike_penalty = spike.penalty
-        self.la_set = footprint.set_l
-        self.lu_set = spike.set_l
         self.variance = variance
+        return footprint, spike, variance
 
-    def set_penalty(self, la, lu, bx, bt):
-        self.variance.set_baseline(bx, bt)
-        nm = K.get_value(self.variance._nm)
-        self.la_set(la / nm)
-        self.lu_set(lu / nm)
-
-    def compile(self, **kwargs):
+    def compile(self, reset=100, lr=1.0, **kwargs):
         super().compile(
-            optimizer=Optimizer(), loss=Loss(), **kwargs,
+            optimizer=Optimizer(reset=reset),
+            loss=Loss(),
+            **kwargs,
         )
+        self._lr = lr
+        self._reset = reset
 
     def call_common(self, val):
         variance = self.variance(val)
@@ -36,48 +44,53 @@ class BaseModel(tf.keras.Model):
         footprint_penalty = self.footprint_penalty()
         spike_penalty = self.spike_penalty()
         me = loss + footprint_penalty + spike_penalty
-        self.add_metric(tf.math.sqrt(variance), 'sigma')
-        self.add_metric(me, 'score')
+        self.add_metric(tf.math.sqrt(variance), "sigma")
+        self.add_metric(me, "score")
         return loss, footprint_penalty, spike_penalty
 
-    def fit_common(self, callback, log_dir=None, stage=None, callbacks=None,
-                   steps_per_epoch=100, epochs=100, min_delta=1e-3, **kwargs):
+    def fit_common(
+        self,
+        epochs=100,
+        min_delta=1e-3,
+        patience=3,
+        log_dir=None,
+        stage=None,
+        callbacks=None,
+        verbose=0,
+        **kwargs
+    ):
         if callbacks is None:
             callbacks = []
 
         callbacks += [
-            OptCallback(),
             tf.keras.callbacks.EarlyStopping(
-                'score', min_delta=min_delta, patience=3,
-                restore_best_weights=True, verbose=0,
+                "score",
+                min_delta=min_delta,
+                patience=patience,
+                restore_best_weights=True,
+                verbose=verbose,
             ),
-        ]
-
-        callbacks += [
-            ProgressCallback('Training', epochs),
+            ProgressCallback("Training", epochs),
         ]
 
         if log_dir is not None:
             callbacks += [
-                callback(
-                    log_dir=log_dir, stage=stage,
-                    update_freq='batch', write_graph=False,
+                self.Callback(
+                    log_dir=log_dir,
+                    stage=stage,
+                    update_freq="batch",
+                    write_graph=False,
                 ),
             ]
 
+        self.optimizer.learning_rate = self._lr * 2.0 / self.variance.lipschitz
         dummy = tf.zeros((1, 1))
         data = tf.data.Dataset.from_tensor_slices((dummy, dummy)).repeat()
         return super().fit(
             data,
-            steps_per_epoch=steps_per_epoch,
+            steps_per_epoch=self._reset,
             epochs=epochs,
             callbacks=callbacks,
-            verbose=0,
+            verbose=verbose,
             **kwargs,
         )
-
-
-class Loss(tf.keras.losses.Loss):
-
-    def call(self, y_true, y_pred):
-        return y_pred

@@ -1,9 +1,5 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter as gaussian
-from scipy.ndimage import generate_binary_structure
-from scipy.ndimage import binary_closing
-from scipy.ndimage import label
-from scipy.ndimage import binary_dilation
 
 
 def calc_sim_area(segment, mask, gauss, thr_sim_area):
@@ -34,7 +30,7 @@ def calc_sim_area(segment, mask, gauss, thr_sim_area):
 
 def calc_sim_cos(segment):
     nk = segment.shape[0]
-    scale = np.sqrt((segment ** 2).sum(axis=1))
+    scale = np.sqrt((segment**2).sum(axis=1))
     seg = segment / scale[:, None]
     cor = np.zeros((nk,))
     for j in np.arange(nk)[::-1]:

@@ -1,12 +1,12 @@
-import tensorflow as tf
 import click
+import tensorflow as tf
 
-from ..util.distribute import distributed, ReduceOp
+from ..util.distribute import ReduceOp
+from ..util.distribute import distributed
 from .filter.neighbor import neighbor
 
 
 def calc_cor(imgs, nt=None, verbose=1):
-
     @distributed(*[ReduceOp.SUM for _ in range(6)])
     def _calc(img):
         img = tf.cast(img, tf.float32)
@@ -19,7 +19,7 @@ def calc_cor(imgs, nt=None, verbose=1):
         ntf = tf.cast(tf.shape(img)[0], tf.float32)
         return sx1, sy1, sx2, sxy, sy2, ntf
 
-    with click.progressbar(length=nt, label='Calc Cor') as prog:
+    with click.progressbar(length=nt, label="Calc Cor") as prog:
         sx1, sy1, sx2, sxy, sy2, ntf = _calc(imgs, prog=prog)
     avg_x = sx1 / ntf
     avg_y = sy1 / ntf

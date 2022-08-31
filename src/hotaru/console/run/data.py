@@ -1,32 +1,33 @@
 import click
 
-from hotaru.image.load import load_data
-from hotaru.image.mask import get_mask
-from hotaru.image.mask import get_mask_range
-from hotaru.image.stats import calc_stats
-from hotaru.util.dataset import normalized
-from hotaru.util.dataset import masked
-from hotaru.util.tfrecord import save_tfrecord
+from ...image.load import load_data
+from ...image.mask import get_mask
+from ...image.mask import get_mask_range
+from ...image.stats import calc_stats
+from ...util.dataset import masked
+from ...util.dataset import normalized
+from ...util.distribute import MirroredStrategy
+from ...util.tfrecord import save_tfrecord
 
-from .base import run_command
+from ..base import run_command
 
 
 @run_command(
     click.Option(
-        ['--imgs-path'],
+        ["--imgs-path"],
         type=click.Path(exists=True, dir_okay=False, readable=True),
     ),
     click.Option(
-        ['--mask-type'],
+        ["--mask-type"],
     ),
     click.Option(
-        ['--hz'],
+        ["--hz"],
         type=float,
     ),
-    click.Option(['--batch'], type=int),
+    click.Option(["--batch"], type=int),
 )
 def data(obj):
-    '''Data'''
+    """Data"""
 
     imgs = load_data(obj.imgs_path)
     nt, h, w = imgs.shape()
@@ -37,15 +38,25 @@ def data(obj):
     data = imgs.clipped_dataset(y0, y1, x0, x1)
     mask = mask[y0:y1, x0:x1]
 
-    stats = calc_stats(data.batch(obj.batch), mask, nt, obj.verbose)
+    strategy = MirroredStrategy()
+    with strategy.scope():
+        stats = calc_stats(data.batch(obj.batch), mask, nt, obj.verbose)
+    strategy.close()
     smin, smax, sstd, avgt, avgx = stats
 
     normalized_data = normalized(data, sstd, avgt, avgx)
     masked_data = masked(normalized_data, mask)
-    out_path = obj.out_path('data', obj.data_tag, '')
-    save_tfrecord(f'{out_path}.tfrecord', masked_data, nt, obj.verbose)
+    out_path = obj.out_path("data", obj.data_tag, "")
+    save_tfrecord(f"{out_path}.tfrecord", masked_data, nt, obj.verbose)
 
     return dict(
-        nt=nt, y0=y0, x0=x0, mask=mask,
-        smin=smin, smax=smax, sstd=sstd, avgt=avgt, avgx=avgx,
+        nt=nt,
+        y0=y0,
+        x0=x0,
+        mask=mask,
+        smin=smin,
+        smax=smax,
+        sstd=sstd,
+        avgt=avgt,
+        avgx=avgx,
     )

@@ -1,8 +1,9 @@
-import tensorflow as tf
 import click
+import tensorflow as tf
 
 
 class ProgressCallback(tf.keras.callbacks.Callback):
+    """Progress Callback"""
 
     def __init__(self, name, total):
         self.name = name

@@ -1,6 +1,6 @@
-import tensorflow.keras.backend as K
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+import tensorflow.keras.backend as K
 
 
 def gaussian_laplace(imgs, r):
@@ -11,14 +11,17 @@ def gaussian_laplace(imgs, r):
     o0 = K.exp(-0.5 * d / r2) / r / sqrt_2pi
     o2 = (1.0 - d / r2) * o0
     tmp = imgs[..., None]
-    gl1 = K.conv2d(tmp, tf.reshape(o2, (1, -1, 1, 1)), (1, 1), 'same')
-    gl1 = K.conv2d(gl1, tf.reshape(o0, (-1, 1, 1, 1)), (1, 1), 'same')
-    gl2 = K.conv2d(tmp, tf.reshape(o2, (-1, 1, 1, 1)), (1, 1), 'same')
-    gl2 = K.conv2d(gl2, tf.reshape(o0, (1, -1, 1, 1)), (1, 1), 'same')
+    gl1 = K.conv2d(tmp, tf.reshape(o2, (1, -1, 1, 1)), (1, 1), "same")
+    gl1 = K.conv2d(gl1, tf.reshape(o0, (-1, 1, 1, 1)), (1, 1), "same")
+    gl2 = K.conv2d(tmp, tf.reshape(o2, (-1, 1, 1, 1)), (1, 1), "same")
+    gl2 = K.conv2d(gl2, tf.reshape(o0, (1, -1, 1, 1)), (1, 1), "same")
     return (gl1 + gl2)[..., 0]
 
 
 def gaussian_laplace_multi(imgs, radius):
-    tmp = tf.map_fn(lambda r: gaussian_laplace(imgs, r), radius,
-                   fn_output_signature=tf.float32)
+    tmp = tf.map_fn(
+        lambda r: gaussian_laplace(imgs, r),
+        radius,
+        fn_output_signature=tf.float32,
+    )
     return tf.transpose(tmp, (1, 0, 2, 3))

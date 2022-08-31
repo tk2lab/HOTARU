@@ -1,72 +1,55 @@
 import os
 
-import tensorflow as tf
-import numpy as np
 import click
+import numpy as np
+import tensorflow as tf
 
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
-
 from .model import BaseModel
-from .summary import summary_stat, summary_spike
+from .summary import SpikeSummaryCallback
+from .variance import VarianceMode
 
 
 class SpikeModel(BaseModel):
+    """Spike Model"""
 
-    def __init__(self, footprint, spike, variance, **kwargs):
-        super().__init__(footprint, spike, variance, **kwargs)
+    Callback = SpikeSummaryCallback
+
+    def __init__(self, data, nk, nx, nt, tau, bx, bt, la, lu, **args):
+        super().__init__(**args)
+        footprint, spike, variance = self.prepare(
+            VarianceMode.Spike, data, nk, nx, nt, tau, bx, bt, la, lu,
+        )
         self.spike = spike
+        self.footprint_tensor = footprint.call
         self.get_footprint = footprint.get_val
         self.set_footprint = footprint.set_val
-        self.footprint_tensor = footprint.call
 
     def call(self, inputs):
         spike = self.spike(inputs)
         calcium = self.variance.spike_to_calcium(spike)
         loss, footprint_penalty, spike_penalty = self.call_common(calcium)
-        self.add_metric(footprint_penalty, 'penalty')
+        self.add_metric(footprint_penalty, "penalty")
         return loss
 
-    def fit(self, footprint, lr, batch, **kwargs):
+    def fit(self, footprint, batch, **kwargs):
         nk = footprint.shape[0]
         nu = self.variance.nu
+        self.spike.set_val(np.zeros((nk, nu)))
         self.set_footprint(footprint)
         self.start(batch)
-        self.spike.val = np.zeros((nk, nu))
-        self.optimizer.learning_rate = lr * 2.0 / self.variance.lipschitz_u
-        return self.fit_common(SpikeCallback, **kwargs)
+        return self.fit_common(**kwargs)
 
     def start(self, batch):
-
-        @distributed(ReduceOp.CONCAT)
+        @distributed(ReduceOp.CONCAT, strategy=self.distribute_strategy)
         def _matmul(data, footprint):
-            return tf.matmul(data, footprint, False, True),
+            return (tf.matmul(data, footprint, False, True),)
 
-        data = self.variance._data.batch(batch)
+        data = self.variance.data.batch(batch)
         footprint = self.footprint_tensor()
-        with click.progressbar(length=self.variance.nt, label='Initialize') as prog:
-            adat, = _matmul(data, footprint, prog=prog)
-        self.variance._cache(0, footprint, tf.transpose(adat))
-
-
-class SpikeCallback(tf.keras.callbacks.TensorBoard):
-
-    def __init__(self, stage, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.stage = stage
-
-    def set_model(self, model):
-        super().set_model(model)
-        self._train_dir = os.path.join(self._log_write_dir, 'spike')
-
-    def on_epoch_end(self, epoch, logs=None):
-        stage = self.stage
-        with self._train_writer.as_default():
-            summary_stat(self.model.spike.val, stage, step=epoch)
-        super().on_epoch_end(epoch, logs)
-
-    def on_train_end(self, logs=None):
-        stage = self.stage
-        with self._train_writer.as_default():
-            summary_spike(self.model.spike.val, stage, step=0)
-        super().on_train_end(logs)
+        with click.progressbar(
+            length=self.variance.nt, label="Initialize"
+        ) as prog:
+            (adat,) = _matmul(data, footprint, prog=prog)
+        self.variance._cache(footprint, tf.transpose(adat))

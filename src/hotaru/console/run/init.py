@@ -1,19 +1,19 @@
 import click
 
-from hotaru.footprint.reduce import reduce_peak_idx_mp
-from hotaru.footprint.reduce import label_out_of_range
 from hotaru.footprint.make import make_segment
+from hotaru.footprint.reduce import label_out_of_range
+from hotaru.footprint.reduce import reduce_peak_idx_mp
 
-from .base import run_command
+from ..base import run_command
 
 
 @run_command(
-    click.Option(['--distance'], type=float),
-    click.Option(['--window'], type=int),
-    click.Option(['--batch'], type=int),
+    click.Option(["--distance"], type=float),
+    click.Option(["--window"], type=int),
+    click.Option(["--batch"], type=int),
 )
 def init(obj):
-    '''Init'''
+    """Init"""
 
     peaks = obj.peak
     radius_min = obj.used_radius_min
@@ -28,7 +28,7 @@ def init(obj):
     accept = peaks.query('accept == "yes"')
     segment = make_segment(data, mask, accept, obj.batch, obj.verbose)
 
-    obj.save_csv(peaks, 'peak', obj.init_tag, '_000')
-    obj.save_numpy(segment, 'segment', obj.init_tag, stage='_000')
-    click.echo(f'num: {segment.shape[0]}')
+    obj.save_csv(peaks, "peak", obj.init_tag, "_000")
+    obj.save_numpy(segment, "segment", obj.init_tag, stage="_000")
+    click.echo(f"num: {segment.shape[0]}")
     return dict(num_cell=segment.shape[0])

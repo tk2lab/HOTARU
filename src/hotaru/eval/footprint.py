@@ -1,16 +1,16 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy.ndimage import gaussian_filter as gaussian
-from scipy.ndimage import label
-from scipy.ndimage import generate_binary_structure
+import numpy as np
 from scipy.ndimage import binary_closing
 from scipy.ndimage import binary_dilation
+from scipy.ndimage import gaussian_filter as gaussian
+from scipy.ndimage import generate_binary_structure
+from scipy.ndimage import label
 
 
 def calc_sim_cos(segment):
     nk = segment.shape[0]
     segment = segment.reshape(nk, -1)
-    scale = np.sqrt((segment ** 2).sum(axis=1))
+    scale = np.sqrt((segment**2).sum(axis=1))
     seg = segment / scale[:, None]
     cor = seg @ seg.T
     max_cor = np.zeros(nk)
@@ -35,23 +35,23 @@ def calc_sim_area(segment, mask=None):
 
 def plot_maximum(ax, a, vmin=0.0, vmax=1.0):
     n, h, w = a.shape
-    ax.imshow(a.max(axis=0), cmap='Greens', vmin=vmin, vmax=vmax)
+    ax.imshow(a.max(axis=0), cmap="Greens", vmin=vmin, vmax=vmax)
     ax.set_xlim(0, w)
     ax.set_ylim(h, 0)
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.spines['top'].set_linewidth(0)
-    ax.spines['bottom'].set_linewidth(0)
-    ax.spines['right'].set_linewidth(0)
-    ax.spines['left'].set_linewidth(0)
+    ax.spines["top"].set_linewidth(0)
+    ax.spines["bottom"].set_linewidth(0)
+    ax.spines["right"].set_linewidth(0)
+    ax.spines["left"].set_linewidth(0)
 
 
 def plot_contour(ax, a, gauss=2.0, thr_out=0.1):
     n, h, w = a.shape
     out, bound, _, _ = footprint_contour(a, gauss=2.0, thr_out=0.1)
-    out = plt.get_cmap('Greens')(out)
+    out = plt.get_cmap("Greens")(out)
     out[bound[0]] = (0, 0, 1, 1)
-    ax.imshow(out, cmap='Greens')
+    ax.imshow(out, cmap="Greens")
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_xlim([0, w])
@@ -85,7 +85,7 @@ def footprint_contour(val, gauss, thr_out, mask=None, kind=None):
         lbl, n = label(g > thr_out)
         obj = np.zeros_like(lbl, bool)
         size = 0
-        for i in range(1, n+1):
+        for i in range(1, n + 1):
             tmp_obj = binary_closing(lbl == i)
             tmp_size = np.count_nonzero(tmp_obj)
             if tmp_size > size:

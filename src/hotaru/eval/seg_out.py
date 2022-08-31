@@ -1,12 +1,15 @@
 import numpy as np
-from scipy.ndimage import gaussian_filter as gaussian
-from scipy.ndimage import label, binary_closing
-from scipy.ndimage import generate_binary_structure, binary_dilation
 from matplotlib import cm
+from scipy.ndimage import binary_closing
+from scipy.ndimage import binary_dilation
+from scipy.ndimage import gaussian_filter as gaussian
+from scipy.ndimage import generate_binary_structure
+from scipy.ndimage import label
 
-_reds = cm.get_cmap('Reds')
-_blues = cm.get_cmap('Blues')
-_greens = cm.get_cmap('Greens')
+_reds = cm.get_cmap("Reds")
+_blues = cm.get_cmap("Blues")
+_greens = cm.get_cmap("Greens")
+
 
 def get_segment(val, gauss, thr_out, color=None, mask=None):
     struct = generate_binary_structure(2, 2)
@@ -30,7 +33,7 @@ def get_segment(val, gauss, thr_out, color=None, mask=None):
         peak = np.argmax(g)
         lbl, n = label(g > thr_out)
         size = 0
-        for i in range(1, n+1):
+        for i in range(1, n + 1):
             tmp = binary_closing(lbl == i)
             ts = np.count_nonzero(tmp)
             if ts > size:

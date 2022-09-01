@@ -186,6 +186,22 @@ class Obj(dict):
         os.makedirs(f"{self.workdir}/{kind}", exist_ok=True)
         return f"{self.workdir}/{kind}/{tag}{stage}"
 
+    def summary_path(self, kind=None, tag=None, stage=None):
+        if kind is None:
+            kind = self.kind
+        if tag is None:
+            tag = self.tag
+        if stage is None:
+            stage = self.stage
+        if stage is None:
+            stage = ""
+        elif isinstance(stage, int):
+            if stage == -1:
+                stage = "_curr"
+            else:
+                stage = f"_{stage:03}"
+        return f"{self.workdir}/summary/{tag}/{kind}{stage}"
+
     def log(self, kind, tag, stage):
         key = kind, tag, stage
         if key not in self._log:

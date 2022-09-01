@@ -7,14 +7,11 @@ import tensorflow as tf
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 from .model import BaseModel
-from .summary import FootprintSummaryCallback
 from .variance import VarianceMode
 
 
 class FootprintModel(BaseModel):
     """Footprint Model"""
-
-    Callback = FootprintSummaryCallback
 
     def __init__(self, data, nk, nx, nt, tau, bx, bt, la, lu, **args):
         super().__init__(**args)
@@ -33,20 +30,17 @@ class FootprintModel(BaseModel):
         self.add_metric(footprint_penalty, "penalty")
         return loss
 
-    def fit(self, spike, batch, **kwargs):
-        nk = spike.shape[0]
-        nx = self.variance.nx
-        self.footprint.set_val(np.zeros((nk, nx)))
-        self.set_spike(spike)
-        self.start(batch)
-        return self.fit_common(**kwargs)
-
-    def start(self, batch):
+    def prepare_fit(self, spike, batch):
         @distributed(ReduceOp.SUM, strategy=self.distribute_strategy)
         def _matmul(data, calcium):
             t, d = data
             c_p = tf.gather(calcium, t, axis=1)
             return (tf.matmul(c_p, d),)
+
+        nk = spike.shape[0]
+        nx = self.variance.nx
+        self.footprint.set_val(np.zeros((nk, nx)))
+        self.set_spike(spike)
 
         data = self.variance.data.enumerate().batch(batch)
         spike = self.spike_tensor()
@@ -55,4 +49,4 @@ class FootprintModel(BaseModel):
             length=self.variance.nt, label="Initialize"
         ) as prog:
             (vdat,) = _matmul(data, calcium, prog=prog)
-        self.variance._cache(calcium, vdat)
+        return self.variance._cache(calcium, vdat)

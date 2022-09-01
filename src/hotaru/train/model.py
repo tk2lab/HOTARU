@@ -2,7 +2,6 @@ import tensorflow as tf
 
 from ..optimizer.input import MaxNormNonNegativeL1InputLayer as Input
 from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
-from .progress import ProgressCallback
 from .variance import Variance
 
 
@@ -48,49 +47,26 @@ class BaseModel(tf.keras.Model):
         self.add_metric(me, "score")
         return loss, footprint_penalty, spike_penalty
 
-    def fit_common(
-        self,
-        epochs=100,
-        min_delta=1e-3,
-        patience=3,
-        log_dir=None,
-        stage=None,
-        callbacks=None,
-        verbose=0,
-        **kwargs
-    ):
-        if callbacks is None:
-            callbacks = []
-
+    def fit(self, val, batch, epochs=100,
+            min_delta=1e-3, patience=3, **kwargs):
+        callbacks = kwargs.setdefault("callbacks", [])
         callbacks += [
             tf.keras.callbacks.EarlyStopping(
                 "score",
                 min_delta=min_delta,
                 patience=patience,
                 restore_best_weights=True,
-                verbose=verbose,
             ),
-            ProgressCallback("Training", epochs),
         ]
-
-        if log_dir is not None:
-            callbacks += [
-                self.Callback(
-                    log_dir=log_dir,
-                    stage=stage,
-                    update_freq="batch",
-                    write_graph=False,
-                ),
-            ]
-
-        self.optimizer.learning_rate = self._lr * 2.0 / self.variance.lipschitz
-        dummy = tf.zeros((1, 1))
-        data = tf.data.Dataset.from_tensor_slices((dummy, dummy)).repeat()
+        lipschitz = self.prepare_fit(val, batch)
+        self.optimizer.learning_rate = self._lr * (2 / lipschitz)
         return super().fit(
-            data,
-            steps_per_epoch=self._reset,
+            self.dummy_data(),
             epochs=epochs,
-            callbacks=callbacks,
-            verbose=verbose,
+            steps_per_epoch=self._reset,
             **kwargs,
         )
+
+    def dummy_data(self):
+        dummy = tf.zeros((1, 1))
+        return tf.data.Dataset.from_tensor_slices((dummy, dummy)).repeat()

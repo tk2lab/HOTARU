@@ -1,8 +1,8 @@
 import click
 import matplotlib.pyplot as plt
 
-from hotaru.eval.circle import plot_circle
-from hotaru.eval.radius import plot_radius
+from hotaru.evaluate.circle import plot_circle
+from hotaru.evaluate.radius import plot_radius
 
 from .run.data import data
 from .run.find import find

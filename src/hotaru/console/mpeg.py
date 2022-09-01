@@ -1,6 +1,6 @@
 import click
 
-from hotaru.sim.mpeg import make_mpeg
+from hotaru.evaluate.make_mpeg import make_mpeg
 
 
 @click.command()

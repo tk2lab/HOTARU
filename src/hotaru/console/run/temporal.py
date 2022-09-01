@@ -1,7 +1,10 @@
 import click
+import tensorflow as tf
 
+from ...evaluate.summary import write_spike_summary
 from ...train.spike import SpikeModel
 from ...util.distribute import MirroredStrategy
+from ...util.progress import ProgressCallback
 from ..base import run_command
 from .options import model_options
 
@@ -27,6 +30,18 @@ def temporal(obj):
     if obj.segment_stage == -1:
         obj["segment_stage"] = obj.stage
 
+    log_dir = obj.summary_path()
+    writer = tf.summary.create_file_writer(log_dir)
+
+    cb = [
+        ProgressCallback("temporal", obj.epoch),
+        tf.keras.callbacks.TensorBoard(
+            log_dir=log_dir,
+            update_freq="batch",
+            write_graph=False,
+        ),
+    ]
+
     strategy = MirroredStrategy()
     with strategy.scope():
         model = SpikeModel(
@@ -38,8 +53,10 @@ def temporal(obj):
             **obj.reg,
         )
         model.compile(**obj.compile_opt)
-    log = model.fit(obj.segment, **obj.fit_opt)
+    log = model.fit(obj.segment, callbacks=cb, verbose=0, **obj.fit_opt)
     strategy.close()
 
-    obj.save_numpy(model.spike.get_val(), "spike")
+    val = model.spike.get_val()
+    obj.save_numpy(val, "spike")
+    write_spike_summary(writer, val)
     return dict(history=log.history)

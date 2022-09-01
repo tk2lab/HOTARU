@@ -1,7 +1,10 @@
 import click
+import tensorflow as tf
 
+from ...evaluate.summary import write_footprint_summary
 from ...train.footprint import FootprintModel
 from ...util.distribute import MirroredStrategy
+from ...util.progress import ProgressCallback
 from ..base import run_command
 from .options import model_options
 
@@ -25,6 +28,18 @@ def spatial(obj):
     if obj.spike_stage == -1:
         obj["spike_stage"] = obj.stage
 
+    log_dir = obj.summary_path()
+    writer = tf.summary.create_file_writer(log_dir)
+
+    cb = [
+        ProgressCallback("spatial", obj.epoch),
+        tf.keras.callbacks.TensorBoard(
+            log_dir=log_dir,
+            update_freq="batch",
+            write_graph=False,
+        ),
+    ]
+
     strategy = MirroredStrategy()
     with strategy.scope():
         model = FootprintModel(
@@ -36,8 +51,10 @@ def spatial(obj):
             **obj.reg,
         )
         model.compile(**obj.compile_opt)
-    log = model.fit(obj.spike, **obj.fit_opt)
+    log = model.fit(obj.spike, callbacks=cb, verbose=0, **obj.fit_opt)
     strategy.close()
 
-    obj.save_numpy(model.footprint.get_val(), "footprint")
+    val = model.footprint.get_val()
+    obj.save_numpy(val, "footprint")
+    write_footprint_summary(writer, val, obj.mask)
     return dict(history=log.history)

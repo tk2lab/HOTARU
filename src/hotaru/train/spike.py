@@ -7,14 +7,11 @@ import tensorflow as tf
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 from .model import BaseModel
-from .summary import SpikeSummaryCallback
 from .variance import VarianceMode
 
 
 class SpikeModel(BaseModel):
     """Spike Model"""
-
-    Callback = SpikeSummaryCallback
 
     def __init__(self, data, nk, nx, nt, tau, bx, bt, la, lu, **args):
         super().__init__(**args)
@@ -33,18 +30,15 @@ class SpikeModel(BaseModel):
         self.add_metric(footprint_penalty, "penalty")
         return loss
 
-    def fit(self, footprint, batch, **kwargs):
+    def prepare_fit(self, footprint, batch):
+        @distributed(ReduceOp.CONCAT, strategy=self.distribute_strategy)
+        def _matmul(data, footprint):
+            return (tf.matmul(data, footprint, False, True),)
+
         nk = footprint.shape[0]
         nu = self.variance.nu
         self.spike.set_val(np.zeros((nk, nu)))
         self.set_footprint(footprint)
-        self.start(batch)
-        return self.fit_common(**kwargs)
-
-    def start(self, batch):
-        @distributed(ReduceOp.CONCAT, strategy=self.distribute_strategy)
-        def _matmul(data, footprint):
-            return (tf.matmul(data, footprint, False, True),)
 
         data = self.variance.data.batch(batch)
         footprint = self.footprint_tensor()
@@ -52,4 +46,4 @@ class SpikeModel(BaseModel):
             length=self.variance.nt, label="Initialize"
         ) as prog:
             (adat,) = _matmul(data, footprint, prog=prog)
-        self.variance._cache(footprint, tf.transpose(adat))
+        return self.variance._cache(footprint, tf.transpose(adat))

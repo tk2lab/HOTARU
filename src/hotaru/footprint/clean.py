@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..eval.footprint import calc_sim_area
+from ..evaluate.footprint import calc_sim_area
 from ..image.filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp

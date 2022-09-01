@@ -92,6 +92,6 @@ class Variance(tf.keras.layers.Layer):
         lipschitz = tf.math.reduce_max(tf.linalg.eigvalsh(cov)) / self._nm
         if self.mode == VarianceMode.Spike:
             gsum = tf.math.reduce_sum(self.spike_to_calcium.kernel)
-            self.lipschitz = (lipschitz * gsum).numpy()
+            return (lipschitz * gsum).numpy()
         elif self.mode == VarianceMode.Footprint:
-            self.lipschitz = lipschitz.numpy()
+            return lipschitz.numpy()

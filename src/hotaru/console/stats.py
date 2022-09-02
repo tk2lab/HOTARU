@@ -1,9 +1,9 @@
 import click
 import matplotlib.pyplot as plt
 
-from ..image.cor import calc_cor
-from ..image.max import calc_max
-from ..image.std import calc_std
+from ..filter.cor import calc_cor
+from ..filter.max import calc_max
+from ..filter.std import calc_std
 from ..io.image import load_data
 from .base import run_command
 

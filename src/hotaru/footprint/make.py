@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ..image.laplace import gaussian_laplace_multi
+from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed

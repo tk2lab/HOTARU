@@ -1,6 +1,6 @@
 import click
 
-from ...image.stats import calc_stats
+from ...filter.stats import calc_stats
 from ...io.image import load_data
 from ...io.mask import get_mask
 from ...io.mask import get_mask_range

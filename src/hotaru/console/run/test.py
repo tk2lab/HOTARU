@@ -1,7 +1,8 @@
 import click
 
 from hotaru.footprint.reduce import label_out_of_range
-from hotaru.footprint.reduce import reduce_peak_idx_mp
+from hotaru.footprint.reduce import reduce_peak_idx_data
+from hotaru.footprint.reduce import reduce_peak_idx_finish
 
 from ..base import run_command
 
@@ -17,7 +18,9 @@ def test(obj):
     radius_min = obj.used_radius_min
     radius_max = obj.used_radius_max
 
-    idx = reduce_peak_idx_mp(peaks, obj.distance, obj.window, obj.verbose)
+    data = reduce_peak_idx_data(peaks, obj.distance, obj.window)
+    with click.progressbar(iterable=data, label="Reduce") as data:
+        idx = reduce_peak_idx_finish(data)
     peaks = label_out_of_range(peaks.loc[idx], radius_min, radius_max)
     obj.save_csv(peaks, "peak", obj.init_tag, "")
     nk = peaks.query('accept == "yes"')

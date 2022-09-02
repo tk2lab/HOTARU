@@ -3,6 +3,7 @@ from configparser import ConfigParser
 
 import click
 
+from ..util.distribute import MirroredStrategy
 from .auto import auto
 from .config import config
 from .figure import figure
@@ -70,6 +71,9 @@ def main(ctx, config, tag, **args):
         obj["init_tag"] = obj.tag
     obj["verbose"] = 0 if obj.quit else (obj.verbose or 1)
     del obj["quit"]
+
+    obj.setdefault("strategy", MirroredStrategy())
+    ctx.call_on_close(obj.strategy.close)
 
 
 main.add_command(config)

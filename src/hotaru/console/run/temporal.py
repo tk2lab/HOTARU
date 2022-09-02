@@ -3,9 +3,8 @@ import tensorflow as tf
 
 from ...evaluate.summary import write_spike_summary
 from ...train.temporal import TemporalModel
-from ...util.distribute import MirroredStrategy
-from ...util.progress import ProgressCallback
 from ..base import run_command
+from ..progress import ProgressCallback
 from .options import model_options
 
 
@@ -30,8 +29,26 @@ def temporal(obj):
     if obj.segment_stage == -1:
         obj["segment_stage"] = obj.stage
 
+    if obj.temporal_model:
+        model = obj.temporal_model
+    else:
+        with obj.strategy.scope():
+            model = TemporalModel(
+                obj.data,
+                obj.segment.shape[0],
+                obj.nx,
+                obj.nt,
+                obj.tau,
+                **obj.reg,
+            )
+            model.compile(**obj.compile_opt)
+        obj.temporal_model = model
+
     log_dir = obj.summary_path()
     writer = tf.summary.create_file_writer(log_dir)
+
+    with click.progressbar(length=model.variance.nt, label="init") as prog:
+        model.prepare_fit(obj.segment, obj.batch, prog=prog)
 
     cb = [
         ProgressCallback("temporal", obj.epoch),
@@ -41,25 +58,7 @@ def temporal(obj):
             write_graph=False,
         ),
     ]
-
-    strategy = MirroredStrategy()
-    with strategy.scope():
-        model = TemporalModel(
-            obj.data,
-            obj.segment.shape[0],
-            obj.nx,
-            obj.nt,
-            obj.tau,
-            **obj.reg,
-        )
-        model.compile(**obj.compile_opt)
-
-    with click.progressbar(
-        length=model.variance.nt, label="initialize temporal"
-    ) as prog:
-        model.prepare_fit(obj.segment, obj.batch, prog=prog)
     log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt)
-    strategy.close()
 
     val = model.spike.get_val()
     obj.save_numpy(val, "spike")

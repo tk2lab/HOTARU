@@ -3,7 +3,7 @@ import os
 import numpy as np
 import tifffile
 
-from ..util.gs import ensure_local_file
+from .gs import ensure_local_file
 
 
 def get_mask(masktype, h, w, job_dir="."):

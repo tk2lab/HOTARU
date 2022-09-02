@@ -2,12 +2,12 @@ import numpy as np
 import tensorflow as tf
 from matplotlib.pyplot import get_cmap
 
-from hotaru.train.dynamics import SpikeToCalcium
-from hotaru.util.dataset import unmasked
-from hotaru.util.mpeg import MpegStream
-from hotaru.util.numpy import load_numpy
-from hotaru.util.pickle import load_pickle
-from hotaru.util.tfrecord import load_tfrecord
+from ..io.mpeg import MpegStream
+from ..io.numpy import load_numpy
+from ..io.pickle import load_pickle
+from ..io.tfrecord import load_tfrecord
+from ..train.dynamics import SpikeToCalcium
+from ..util.dataset import unmasked
 
 
 def make_mpeg(data_tag, tag, stage, has_truth=False):

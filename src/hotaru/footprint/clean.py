@@ -1,10 +1,9 @@
-import click
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..evaluate.footprint import calc_sim_area
-from ..image.filter.laplace import gaussian_laplace_multi
+from ..image.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
@@ -41,7 +40,7 @@ def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
     peaks.loc[cond1, "accept"] = "small_r"
 
 
-def clean_footprint(data, index, mask, radius, batch, verbose):
+def clean_footprint(data, index, mask, radius, batch, prog=None):
     @distributed(
         ReduceOp.CONCAT,
         ReduceOp.CONCAT,
@@ -88,8 +87,7 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
     mask = tf.convert_to_tensor(mask, tf.bool)
     radius = tf.convert_to_tensor(radius, tf.float32)
 
-    with click.progressbar(length=nk, label="Clean") as prog:
-        footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
+    footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
     r = tf.gather(radius, r)
     peaks = pd.DataFrame(
         dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()),

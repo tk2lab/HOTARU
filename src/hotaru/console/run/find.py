@@ -18,15 +18,17 @@ def find(obj):
     mask = obj.mask
     nt = obj.nt
 
-    peaks = find_peak(
-        data,
-        mask,
-        obj.radius,
-        obj.shard,
-        obj.batch,
-        nt,
-        obj.verbose,
-    )
+    with obj.strategy.scope():
+        total = (nt + obj.shard - 1) // obj.shard
+        with click.progressbar(length=total, label="Find") as prog:
+            peaks = find_peak(
+                data,
+                mask,
+                obj.radius,
+                obj.shard,
+                obj.batch,
+                prog=prog,
+            )
 
     obj.save_csv(peaks, "peak", obj.find_tag, "_find")
     click.echo(f"num: {peaks.shape[0]}")

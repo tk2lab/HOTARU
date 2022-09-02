@@ -3,9 +3,8 @@ import tensorflow as tf
 
 from ...evaluate.summary import write_footprint_summary
 from ...train.spatial import SpatialModel
-from ...util.distribute import MirroredStrategy
-from ...util.progress import ProgressCallback
 from ..base import run_command
+from ..progress import ProgressCallback
 from .options import model_options
 
 
@@ -28,8 +27,26 @@ def spatial(obj):
     if obj.spike_stage == -1:
         obj["spike_stage"] = obj.stage
 
+    if obj.spatial_model:
+        model = obj.spatial_model
+    else:
+        with obj.strategy.scope():
+            model = SpatialModel(
+                obj.data,
+                obj.spike.shape[0],
+                obj.nx,
+                obj.nt,
+                obj.tau,
+                **obj.reg,
+            )
+            model.compile(**obj.compile_opt)
+        obj.spatial_model = model
+
     log_dir = obj.summary_path()
     writer = tf.summary.create_file_writer(log_dir)
+
+    with click.progressbar(length=model.variance.nt, label="init") as prog:
+        model.prepare_fit(obj.spike, obj.batch, prog=prog)
 
     cb = [
         ProgressCallback("spatial", obj.epoch),
@@ -39,24 +56,7 @@ def spatial(obj):
             write_graph=False,
         ),
     ]
-
-    strategy = MirroredStrategy()
-    with strategy.scope():
-        model = SpatialModel(
-            obj.data,
-            obj.spike.shape[0],
-            obj.nx,
-            obj.nt,
-            obj.tau,
-            **obj.reg,
-        )
-        model.compile(**obj.compile_opt)
-    with click.progressbar(
-        length=model.variance.nt, label="initialize spatial"
-    ) as prog:
-        model.prepare_fit(obj.spike, obj.batch, prog=prog)
     log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt)
-    strategy.close()
 
     val = model.footprint.get_val()
     obj.save_numpy(val, "footprint")

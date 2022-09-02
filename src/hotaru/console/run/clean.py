@@ -45,19 +45,21 @@ def clean(obj):
 
     footprint = obj.footprint
     index = obj.index
+    nk = footprint.shape[0]
 
     cond = modify_footprint(footprint)
     no_seg = pd.DataFrame(index=index[~cond])
     no_seg["accept"] = "no_seg"
 
-    segment, peaks = clean_footprint(
-        footprint[cond],
-        index[cond],
-        mask,
-        obj.radius,
-        obj.batch,
-        obj.verbose,
-    )
+    with click.progressbar(length=nk, label="Clean") as prog:
+        segment, peaks = clean_footprint(
+            footprint[cond],
+            index[cond],
+            mask,
+            obj.radius,
+            obj.batch,
+            prog=prog,
+        )
 
     idx = np.argsort(peaks["firmness"].values)[::-1]
     segment = segment[idx]

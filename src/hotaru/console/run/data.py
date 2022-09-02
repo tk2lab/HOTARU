@@ -1,13 +1,12 @@
 import click
 
-from ...image.load import load_data
-from ...image.mask import get_mask
-from ...image.mask import get_mask_range
 from ...image.stats import calc_stats
+from ...io.image import load_data
+from ...io.mask import get_mask
+from ...io.mask import get_mask_range
+from ...io.tfrecord import save_tfrecord
 from ...util.dataset import masked
 from ...util.dataset import normalized
-from ...util.distribute import MirroredStrategy
-from ...util.tfrecord import save_tfrecord
 from ..base import run_command
 
 
@@ -37,16 +36,17 @@ def data(obj):
     data = imgs.clipped_dataset(y0, y1, x0, x1)
     mask = mask[y0:y1, x0:x1]
 
-    strategy = MirroredStrategy()
-    with strategy.scope():
-        stats = calc_stats(data.batch(obj.batch), mask, nt, obj.verbose)
-    strategy.close()
+    with obj.strategy.scope():
+        with click.progressbar(length=nt, label="calc stats") as prog:
+            stats = calc_stats(data.batch(obj.batch), mask, prog)
     smin, smax, sstd, avgt, avgx = stats
 
     normalized_data = normalized(data, sstd, avgt, avgx)
     masked_data = masked(normalized_data, mask)
     out_path = obj.out_path("data", obj.data_tag, "")
-    save_tfrecord(f"{out_path}.tfrecord", masked_data, nt, obj.verbose)
+    masked_data = click.progressbar(masked_data, label="Save")
+    with masked_data:
+        save_tfrecord(f"{out_path}.tfrecord", masked_data)
 
     return dict(
         nt=nt,

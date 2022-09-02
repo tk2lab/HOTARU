@@ -1,15 +1,14 @@
-import click
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..image.filter.laplace import gaussian_laplace_multi
+from ..image.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 
 
-def find_peak(data, mask, radius, shard, batch, nt=None, verbose=1):
+def find_peak(data, mask, radius, shard, batch, prog=None):
     @distributed(ReduceOp.STACK, ReduceOp.STACK, ReduceOp.STACK)
     def _find(data, mask, radius):
         times, imgs = data
@@ -32,9 +31,7 @@ def find_peak(data, mask, radius, shard, batch, nt=None, verbose=1):
     data = data.enumerate().shard(shard, 0).batch(batch)
     mask = tf.convert_to_tensor(mask, tf.bool)
     radius_ = tf.convert_to_tensor(radius, tf.float32)
-    total = (nt + shard - 1) // shard
-    with click.progressbar(length=total, label="Find") as prog:
-        t, r, g = _find(data, mask, radius_, prog=prog)
+    t, r, g = _find(data, mask, radius_, prog=prog)
 
     idx = tf.math.argmax(g, axis=0, output_type=tf.int32)
     shape = tf.shape(mask)

@@ -2,7 +2,7 @@ from functools import wraps
 
 import click
 
-from hotaru.util.timer import Timer
+from ..util.timer import Timer
 
 
 def run_command(*options, pass_context=False):

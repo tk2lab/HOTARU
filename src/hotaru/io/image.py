@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tifffile
 
-from ..util.gs import ensure_local_file
+from .gs import ensure_local_file
 
 
 def load_data(path, in_type=None):

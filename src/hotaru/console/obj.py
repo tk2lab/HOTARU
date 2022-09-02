@@ -166,9 +166,9 @@ class Obj(dict):
     @property
     def fit_opt(self):
         return dict(
-            min_delta=self.tol,
             epochs=self.epoch,
-            batch=self.batch,
+            min_delta=self.tol,
+            patience=self.patience,
         )
 
     def out_path(self, kind, tag=None, stage=None):

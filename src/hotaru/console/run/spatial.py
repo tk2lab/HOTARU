@@ -2,7 +2,7 @@ import click
 import tensorflow as tf
 
 from ...evaluate.summary import write_footprint_summary
-from ...train.footprint import FootprintModel
+from ...train.spatial import SpatialModel
 from ...util.distribute import MirroredStrategy
 from ...util.progress import ProgressCallback
 from ..base import run_command
@@ -42,7 +42,7 @@ def spatial(obj):
 
     strategy = MirroredStrategy()
     with strategy.scope():
-        model = FootprintModel(
+        model = SpatialModel(
             obj.data,
             obj.spike.shape[0],
             obj.nx,
@@ -51,7 +51,11 @@ def spatial(obj):
             **obj.reg,
         )
         model.compile(**obj.compile_opt)
-    log = model.fit(obj.spike, callbacks=cb, verbose=0, **obj.fit_opt)
+    with click.progressbar(
+        length=model.variance.nt, label="initialize spatial"
+    ) as prog:
+        model.prepare_fit(obj.spike, obj.batch, prog=prog)
+    log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt)
     strategy.close()
 
     val = model.footprint.get_val()

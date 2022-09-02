@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from .regularizer import MaxNormNonNegativeL1
-from .regularizer import ProxOp
+from ..optimizer.regularizer import MaxNormNonNegativeL1
+from ..optimizer.regularizer import ProxOp
 
 
 class DynamicInputLayer(tf.keras.layers.Layer):

@@ -13,9 +13,9 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
         self._set_hyper("learning_rate", learning_rate)
         self._set_hyper("scale", scale)
         self._set_hyper("reset", reset)
-        self._nesterov = False
-        if isinstance(scale, tf.Tensor) or callable(scale) or scale > 0.0:
-            self._nesterov = True
+        self._nesterov = (
+            isinstance(scale, tf.Tensor) or callable(scale) or scale > 0.0
+        )
 
     def _create_slots(self, var_list):
         if self._nesterov:

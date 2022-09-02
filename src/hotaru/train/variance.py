@@ -34,8 +34,12 @@ class Variance(tf.keras.layers.Layer):
         self._out = self.add_weight("out", (nk, nk), trainable=False)
 
     def set_double_exp(self, *args, **kwargs):
-        self.spike_to_calcium = SpikeToCalciumDoubleExp(*args, **kwargs, name="to_cal")
-        self.calcium_to_spike = CalciumToSpikeDoubleExp(*args, **kwargs, name="to_spk")
+        self.spike_to_calcium = SpikeToCalciumDoubleExp(
+            *args, **kwargs, name="to_cal"
+        )
+        self.calcium_to_spike = CalciumToSpikeDoubleExp(
+            *args, **kwargs, name="to_spk"
+        )
         self.nu = self.nt + self.calcium_to_spike.pad
 
     def set_baseline(self, bx, bt):

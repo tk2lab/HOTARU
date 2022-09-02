@@ -3,7 +3,6 @@ import tensorflow as tf
 
 
 class SpikeToCalcium(tf.keras.layers.Layer):
-
     def call(self, u):
         return tf.nn.conv1d(
             u[..., None],
@@ -15,7 +14,6 @@ class SpikeToCalcium(tf.keras.layers.Layer):
 
 
 class CalciumToSpike(tf.keras.layers.Layer):
-
     def call(self, v):
         v = tf.pad(v, [[0, 0], [2, 0]], "CONSTANT")
         u = tf.nn.conv1d(
@@ -29,7 +27,6 @@ class CalciumToSpike(tf.keras.layers.Layer):
 
 
 class DoubleExpMixin:
-
     def set(self, hz, tau1, tau2, tscale):
         if tau1 < tau2:
             tau1, tau2 = tau1, tau2
@@ -68,7 +65,6 @@ class DoubleExpMixin:
 
 
 class SpikeToCalciumDoubleExp(SpikeToCalcium, DoubleExpMixin):
-
     def __init__(self, hz, tau1, tau2, tscale, **kwargs):
         super().__init__(**kwargs)
         self.set(hz, tau1, tau2, tscale)
@@ -77,7 +73,6 @@ class SpikeToCalciumDoubleExp(SpikeToCalcium, DoubleExpMixin):
 
 
 class CalciumToSpikeDoubleExp(CalciumToSpike, DoubleExpMixin):
-
     def __init__(self, hz, tau1, tau2, tscale, **kwargs):
         super().__init__(**kwargs)
         self.set(hz, tau1, tau2, tscale)

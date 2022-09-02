@@ -86,4 +86,12 @@ def opt_options():
             ["--batch"],
             type=int,
         ),
+        click.Option(
+            ["--min-delta"],
+            type=float,
+        ),
+        click.Option(
+            ["--patience"],
+            type=int,
+        ),
     ]

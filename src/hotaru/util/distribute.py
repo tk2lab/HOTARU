@@ -4,7 +4,6 @@ import tensorflow as tf
 
 
 class MirroredStrategy(tf.distribute.MirroredStrategy):
-
     def close(self):
         self._extended._collective_ops._pool.close()
 
@@ -18,7 +17,6 @@ class ReduceOp(Enum):
 
 
 def distributed(*types, strategy=None, loop=True):
-
     def make_init(t):
         if t == ReduceOp.SUM:
             return tf.constant(0, tf.float32)

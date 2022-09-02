@@ -2,7 +2,7 @@ import click
 import tensorflow as tf
 
 from ...evaluate.summary import write_spike_summary
-from ...train.spike import SpikeModel
+from ...train.temporal import TemporalModel
 from ...util.distribute import MirroredStrategy
 from ...util.progress import ProgressCallback
 from ..base import run_command
@@ -44,7 +44,7 @@ def temporal(obj):
 
     strategy = MirroredStrategy()
     with strategy.scope():
-        model = SpikeModel(
+        model = TemporalModel(
             obj.data,
             obj.segment.shape[0],
             obj.nx,
@@ -53,7 +53,12 @@ def temporal(obj):
             **obj.reg,
         )
         model.compile(**obj.compile_opt)
-    log = model.fit(obj.segment, callbacks=cb, verbose=0, **obj.fit_opt)
+
+    with click.progressbar(
+        length=model.variance.nt, label="initialize temporal"
+    ) as prog:
+        model.prepare_fit(obj.segment, obj.batch, prog=prog)
+    log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt)
     strategy.close()
 
     val = model.spike.get_val()

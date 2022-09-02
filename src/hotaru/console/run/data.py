@@ -8,7 +8,6 @@ from ...util.dataset import masked
 from ...util.dataset import normalized
 from ...util.distribute import MirroredStrategy
 from ...util.tfrecord import save_tfrecord
-
 from ..base import run_command
 
 

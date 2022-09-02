@@ -21,10 +21,12 @@ from .run.temporal import temporal
     click.Option(
         ["--storing-intermidiate-results"],
         is_flag=True,
+        default=None,
     ),
     click.Option(
         ["--non-stop"],
         is_flag=True,
+        default=None,
     ),
     pass_context=True,
 )

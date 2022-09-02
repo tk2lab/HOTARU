@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ..optimizer.prox_optimizer import ProxOptimizer as Optimizer
+from .optimizer import ProxOptimizer as Optimizer
 from .input import MaxNormNonNegativeL1InputLayer as Input
 from .variance import Variance
 

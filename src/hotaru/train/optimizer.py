@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from .regularizer import get_prox
+from .prox import get_prox
 
 
 class ProxOptimizer(tf.keras.optimizers.Optimizer):

@@ -4,41 +4,35 @@ import tensorflow as tf
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 from .base import BaseModel
-from .variance import VarianceMode
+from .loss import LossLayer
 
 
 class SpatialModel(BaseModel):
     """Spatial Model"""
 
     def __init__(self, data, nk, nx, nt, tau, bx, bt, la, lu, **args):
-        footprint_l, spike_l, variance_l, loss_l = self.prepare_layers(
-            VarianceMode.Footprint,
-            data,
-            nk,
-            nx,
-            nt,
-            tau,
-            bx,
-            bt,
-            la,
-            lu,
-        )
+        layers = self.prepare_layers(nk, nx, nt, tau)
+        spike_to_calcium, dummy, footprint_l, spike_l = layers
 
-        dummy = tf.keras.Input((1,))
-        footprint = footprint_l(dummy)
-        variance = variance_l(footprint)
-        loss = loss_l(variance)
+        loss_l = LossLayer(nk, nx, nt, bx, bt)
+        footprint_l.prox.set_l(la / loss_l._nm)
+        spike_l.prox.set_l(lu / loss_l._nm)
+
+        footprint, footprint_penalty = footprint_l(dummy)
+        loss = loss_l(footprint)
         super().__init__(dummy, loss, **args)
 
-        spike = spike_l(dummy)
-        penalty = footprint_l.penalty(footprint) + spike_l.penalty(spike)
-        self.set_metric(penalty, variance, loss)
+        spike, spike_penalty = spike_l(dummy)
+        penalty = footprint_penalty + spike_penalty
+        self.add_metric(loss + penalty, "score")
 
-        self.spike_tensor = spike_l.call
+        self.spike_to_calcium = spike_to_calcium
+        self.spike_tensor = lambda: spike_l.val
         self.get_spike = spike_l.get_val
         self.set_spike = spike_l.set_val
         self.footprint = footprint_l
-        self.variance = variance_l
+        self.data = data
+        self._cache = loss_l._cache
 
     def prepare_fit(self, spike, batch, prog=None):
         @distributed(ReduceOp.SUM, strategy=self.distribute_strategy)
@@ -48,12 +42,11 @@ class SpatialModel(BaseModel):
             return (tf.matmul(c_p, d),)
 
         nk = spike.shape[0]
-        nx = self.variance.nx
-        self.footprint.set_val(np.zeros((nk, nx)))
+        self.footprint.set_val(np.zeros((nk, self.nx)))
         self.set_spike(spike)
 
-        data = self.variance.data.enumerate().batch(batch)
+        data = self.data.enumerate().batch(batch)
         spike = self.spike_tensor()
-        calcium = self.variance.spike_to_calcium(spike)
+        calcium = self.spike_to_calcium(spike)
         (vdat,) = _matmul(data, calcium, prog=prog)
-        self.lipschitz = self.variance._cache(calcium, vdat)
+        self.lipschitz = self._cache(calcium, vdat).numpy()

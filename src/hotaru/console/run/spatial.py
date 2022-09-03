@@ -43,11 +43,11 @@ def spatial(obj):
     log_dir = obj.summary_path()
     writer = tf.summary.create_file_writer(log_dir)
 
-    with click.progressbar(length=obj.nt, label="init") as prog:
+    with click.progressbar(length=obj.nt, label="InitS") as prog:
         model.prepare_fit(obj.spike, obj.batch, prog=prog)
 
     cb = [
-        ProgressCallback("spatial", obj.epoch),
+        ProgressCallback("TrainS", obj.epoch),
         tf.keras.callbacks.TensorBoard(
             log_dir=log_dir,
             update_freq="batch",

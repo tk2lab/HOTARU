@@ -37,7 +37,7 @@ def data(obj):
     mask = mask[y0:y1, x0:x1]
 
     with obj.strategy.scope():
-        with click.progressbar(length=nt, label="calc stats") as prog:
+        with click.progressbar(length=nt, label="Stats") as prog:
             stats = calc_stats(data.batch(obj.batch), mask, prog)
     smin, smax, sstd, avgt, avgx = stats
 

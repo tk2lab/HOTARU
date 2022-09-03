@@ -45,11 +45,11 @@ def temporal(obj):
     log_dir = obj.summary_path()
     writer = tf.summary.create_file_writer(log_dir)
 
-    with click.progressbar(length=obj.nt, label="init") as prog:
+    with click.progressbar(length=obj.nt, label="InitT") as prog:
         model.prepare_fit(obj.segment, obj.batch, prog=prog)
 
     cb = [
-        ProgressCallback("temporal", obj.epoch),
+        ProgressCallback("TrainT", obj.epoch),
         tf.keras.callbacks.TensorBoard(
             log_dir=log_dir,
             update_freq="batch",

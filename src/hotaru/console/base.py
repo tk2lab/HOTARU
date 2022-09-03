@@ -23,7 +23,11 @@ def run_command(*options, pass_context=False):
             if not ctx.obj.need_exec():
                 return
 
-            click.echo(f"{ctx.obj.kind}, {ctx.obj.tag}: {args}")
+            click.echo("-----------------------------------")
+            click.echo(f"{ctx.obj.kind}, {ctx.obj.tag}:")
+            for k, v in args.items():
+                click.echo(f"   {k}: {v}")
+
             with Timer() as timer:
                 log = command(ctx if pass_context else ctx.obj)
 

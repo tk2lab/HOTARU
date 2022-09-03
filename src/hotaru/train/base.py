@@ -1,9 +1,10 @@
 import tensorflow as tf
 
+from .dynamics import CalciumToSpikeDoubleExp
+from .dynamics import SpikeToCalciumDoubleExp
 from .input import DynamicInputLayer
 from .optimizer import ProxOptimizer as Optimizer
 from .prox import MaxNormNonNegativeL1
-from .variance import Variance
 
 
 class Loss(tf.keras.losses.Loss):
@@ -16,27 +17,22 @@ class Loss(tf.keras.losses.Loss):
 class BaseModel(tf.keras.Model):
     """Base Model"""
 
-    def prepare_layers(self, mode, data, nk, nx, nt, tau, bx, bt, la, lu):
-        variance = Variance(mode, data, nk, nx, nt)
-        variance.set_double_exp(**tau)
-        variance.set_baseline(bx, bt)
+    def prepare_layers(self, nk, nx, nt, tau):
+        spike_to_calcium = SpikeToCalciumDoubleExp(**tau, name="to_cal")
+        nu = nt + spike_to_calcium.pad
+
+        dummy = tf.keras.Input(type_spec=tf.TensorSpec((), tf.float32))
 
         footprint_prox = MaxNormNonNegativeL1(axis=-1, name="footprint_prox")
-        footprint_prox.set_l(la / variance._nm)
         footprint = DynamicInputLayer(nk, nx, footprint_prox, name="footprint")
 
         spike_prox = MaxNormNonNegativeL1(axis=-1, name="spike_prox")
-        spike_prox.set_l(lu / variance._nm)
-        spike = DynamicInputLayer(nk, variance.nu, spike_prox, name="spike")
+        spike = DynamicInputLayer(nk, nu, spike_prox, name="spike")
 
-        loss = tf.keras.layers.Lambda(lambda x: 0.5 * tf.math.log(x))
-        return footprint, spike, variance, loss
-
-    def set_metric(self, penalty, variance, loss):
-        score = loss + penalty
-        self.add_metric(tf.math.sqrt(variance), "sigma")
-        self.add_metric(score, "score")
-        self.add_metric(penalty, "penalty")
+        self.nx = nx
+        self.nt = nt
+        self.nu = nu
+        return spike_to_calcium, dummy, footprint, spike
 
     def compile(self, reset=100, lr=1.0, **kwargs):
         super().compile(
@@ -67,4 +63,4 @@ class BaseModel(tf.keras.Model):
 
     def dummy_data(self):
         dummy = tf.zeros((1, 1))
-        return tf.data.Dataset.from_tensor_slices((dummy, dummy)).repeat()
+        return tf.data.Dataset.from_tensors((dummy, dummy)).repeat()

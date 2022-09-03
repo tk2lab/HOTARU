@@ -13,6 +13,10 @@ class DynamicInputLayer(tf.keras.layers.Layer):
         self._val.regularizer = regularizer
 
     @property
+    def prox(self):
+        return self._val.regularizer
+
+    @property
     def val(self):
         return self._val[: self._nk]
 
@@ -25,7 +29,7 @@ class DynamicInputLayer(tf.keras.layers.Layer):
         self._val[:nk].assign(val)
 
     def call(self, dummy=None):
-        return self.val
-
-    def penalty(self, x):
-        return self._val.regularizer(x)
+        val = self.val
+        penalty = self._val.regularizer(val)
+        self.add_metric(penalty, "penalty")
+        return val, penalty

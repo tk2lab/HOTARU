@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-from .prox import MaxNormNonNegativeL1
 from .prox import ProxOp
 
 
@@ -11,8 +10,7 @@ class DynamicInputLayer(tf.keras.layers.Layer):
         super().__init__(**kwargs)
         self._nk = self.add_weight("nk", (), tf.int32, trainable=False)
         self._val = self.add_weight("val", (nk, nx))
-        self._val.regularizer = regularizer or ProxOp(name="prox")
-        self.built = True
+        self._val.regularizer = regularizer
 
     @property
     def val(self):
@@ -29,19 +27,5 @@ class DynamicInputLayer(tf.keras.layers.Layer):
     def call(self, dummy=None):
         return self.val
 
-    def penalty(self):
-        return self._val.regularizer(self.val)
-
-
-class MaxNormNonNegativeL1InputLayer(DynamicInputLayer):
-    """Max Norm NonNegative L1 Input Layer"""
-
-    def __init__(self, nk, nx, axis=-1, **kwargs):
-        reg = MaxNormNonNegativeL1(axis=axis, name="prox")
-        super().__init__(nk, nx, reg, **kwargs)
-
-    def get_l(self):
-        return self._val.regularizer.get_l()
-
-    def set_l(self, val):
-        self._val.regularizer.set_l(val)
+    def penalty(self, x):
+        return self._val.regularizer(x)

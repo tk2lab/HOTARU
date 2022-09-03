@@ -30,7 +30,10 @@ class TemporalModel(BaseModel):
         variance = variance_l(calcium)
         loss = loss_l(variance)
         super().__init__(dummy, loss, **args)
-        self.set_metric(footprint_l, spike_l, variance, loss)
+
+        footprint = footprint_l(dummy)
+        penalty = footprint_l.penalty(footprint) + spike_l.penalty(spike)
+        self.set_metric(penalty, variance, loss)
 
         self.footprint_tensor = footprint_l.call
         self.get_footprint = footprint_l.get_val

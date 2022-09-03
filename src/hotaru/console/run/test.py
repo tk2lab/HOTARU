@@ -23,6 +23,6 @@ def test(obj):
         idx = reduce_peak_idx_finish(data)
     peaks = label_out_of_range(peaks.loc[idx], radius_min, radius_max)
     obj.save_csv(peaks, "peak", obj.init_tag, "")
-    nk = peaks.query('accept == "yes"')
+    nk = peaks.query("accept == 'yes'")
     click.echo(f"num: {nk}")
     return dict(num_cell=nk)

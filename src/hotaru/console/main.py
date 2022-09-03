@@ -47,11 +47,12 @@ def configure(ctx, param, configfile):
 @click.option("--quit", "-q", is_flag=True)
 @click.option("--verbose", "-v", count=True)
 @click.pass_context
-def main(ctx, config, tag, **args):
+def main(ctx, config, tag, workdir, **args):
     """Main"""
 
     if tag is None:
         tag = config.get("main", "tag")
+        workdir = config.get("main", "workdir")
 
     if tag in config:
         for opt, val in args.items():
@@ -62,6 +63,7 @@ def main(ctx, config, tag, **args):
     obj = ctx.obj
     obj.config = config
     obj["tag"] = tag
+    obj["workdir"] = workdir
     obj.update(args)
     if obj.data_tag == "":
         obj["data_tag"] = obj.tag

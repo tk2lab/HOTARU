@@ -29,11 +29,9 @@ def temporal(obj):
     if obj.segment_stage == -1:
         obj["segment_stage"] = obj.stage
 
-    if obj.temporal_model:
-        model = obj.temporal_model
-    else:
+    if "temporal_model" not in obj:
         with obj.strategy.scope():
-            model = TemporalModel(
+            obj.temporal_model = TemporalModel(
                 obj.data,
                 obj.segment.shape[0],
                 obj.nx,
@@ -41,13 +39,13 @@ def temporal(obj):
                 obj.tau,
                 **obj.reg,
             )
-            model.compile(**obj.compile_opt)
-        obj.temporal_model = model
+            obj.temporal_model.compile(**obj.compile_opt)
+    model = obj.temporal_model
 
     log_dir = obj.summary_path()
     writer = tf.summary.create_file_writer(log_dir)
 
-    with click.progressbar(length=model.variance.nt, label="init") as prog:
+    with click.progressbar(length=obj.nt, label="init") as prog:
         model.prepare_fit(obj.segment, obj.batch, prog=prog)
 
     cb = [

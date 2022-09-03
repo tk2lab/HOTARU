@@ -3,6 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from ..evaluate.footprint import calc_sim_area
+from ..filter.gaussian import gaussian
 from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
@@ -31,6 +32,7 @@ def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
     cond3 = area >= thr_abs + thr_rel * np.pi * x**2
 
     sim = calc_sim_area(segment, ~(cond1 ^ cond2 ^ cond3))
+    #sim = calc_sim_cos(segment)
     peaks["sim"] = sim
     cond4 = sim > thr_sim
 
@@ -40,7 +42,7 @@ def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
     peaks.loc[cond1, "accept"] = "small_r"
 
 
-def clean_footprint(data, index, mask, radius, batch, prog=None):
+def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):
     @distributed(
         ReduceOp.CONCAT,
         ReduceOp.CONCAT,
@@ -48,7 +50,9 @@ def clean_footprint(data, index, mask, radius, batch, prog=None):
         ReduceOp.CONCAT,
         ReduceOp.CONCAT,
     )
-    def _clean(imgs, mask, radius):
+    def _clean(imgs, mask, gauss, radius):
+        if gauss is not None:
+            imgs = gaussian(imgs, gauss)
         logs = gaussian_laplace_multi(imgs, radius)
         nk, h, w = tf.shape(logs)[0], tf.shape(logs)[2], tf.shape(logs)[3]
         hw = h * w
@@ -72,6 +76,9 @@ def clean_footprint(data, index, mask, radius, batch, prog=None):
             simgmin = tf.math.reduce_min(simg)
             simgmax = tf.math.reduce_max(simg)
             val = (simg - simgmin) / (simgmax - simgmin)
+            #hist = tf.histogram_fixed_width(val, [0.0, 1.0], 50)[1:]
+            #thr = 0.02 + 0.02 * tf.cast(tf.math.argmax(hist), tf.float32)
+            #val = tf.where(val >= thr, (val - thr) / (1 - thr), 0)
             img = tf.scatter_nd(pos, val, [h, w])
             out = out.write(k, tf.boolean_mask(img, mask))
             firmness = firmness.write(
@@ -85,9 +92,13 @@ def clean_footprint(data, index, mask, radius, batch, prog=None):
     dataset = dataset.batch(batch)
 
     mask = tf.convert_to_tensor(mask, tf.bool)
+    if gauss > 0.0:
+        gauss = tf.convert_to_tensor(gauss, tf.float32)
+    else:
+        gauss = None
     radius = tf.convert_to_tensor(radius, tf.float32)
 
-    footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
+    footprint, f, r, y, x = _clean(dataset, mask, gauss, radius, prog=prog)
     r = tf.gather(radius, r)
     peaks = pd.DataFrame(
         dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()),

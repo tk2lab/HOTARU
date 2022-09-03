@@ -27,11 +27,9 @@ def spatial(obj):
     if obj.spike_stage == -1:
         obj["spike_stage"] = obj.stage
 
-    if obj.spatial_model:
-        model = obj.spatial_model
-    else:
+    if "spatial_model" not in obj:
         with obj.strategy.scope():
-            model = SpatialModel(
+            obj.spatial_model = SpatialModel(
                 obj.data,
                 obj.spike.shape[0],
                 obj.nx,
@@ -39,13 +37,13 @@ def spatial(obj):
                 obj.tau,
                 **obj.reg,
             )
-            model.compile(**obj.compile_opt)
-        obj.spatial_model = model
+            obj.spatial_model.compile(**obj.compile_opt)
+    model = obj.spatial_model
 
     log_dir = obj.summary_path()
     writer = tf.summary.create_file_writer(log_dir)
 
-    with click.progressbar(length=model.variance.nt, label="init") as prog:
+    with click.progressbar(length=obj.nt, label="init") as prog:
         model.prepare_fit(obj.spike, obj.batch, prog=prog)
 
     cb = [

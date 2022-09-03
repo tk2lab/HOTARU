@@ -26,8 +26,8 @@ def init(obj):
     accept = peaks.query("accept == 'yes'")
     click.echo(f"num: {accept.shape[0]}")
 
-    with obj.strategy.scope():
-        with click.progressbar(length=obj.nt, label="Make") as prog:
+    with click.progressbar(length=obj.nt, label="Make") as prog:
+        with obj.strategy.scope():
             segment = make_segment(
                 obj.data,
                 obj.mask,

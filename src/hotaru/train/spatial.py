@@ -29,7 +29,10 @@ class SpatialModel(BaseModel):
         variance = variance_l(footprint)
         loss = loss_l(variance)
         super().__init__(dummy, loss, **args)
-        self.set_metric(footprint_l, spike_l, variance, loss)
+
+        spike = spike_l(dummy)
+        penalty = footprint_l.penalty(footprint) + spike_l.penalty(spike)
+        self.set_metric(penalty, variance, loss)
 
         self.spike_tensor = spike_l.call
         self.get_spike = spike_l.get_val

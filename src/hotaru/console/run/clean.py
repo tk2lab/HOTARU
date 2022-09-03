@@ -14,6 +14,7 @@ from .options import radius_options
     click.Option(["--stage", "-s"], type=int),
     click.Option(["--footprint-tag"]),
     click.Option(["--footprint-stage"], type=int),
+    click.Option(["--gauss"], type=float),
     *radius_options(),
     click.Option(["--thr-area-abs"], type=click.FloatRange(0.0)),
     click.Option(["--thr-area-rel"], type=click.FloatRange(0.0)),
@@ -52,14 +53,16 @@ def clean(obj):
     no_seg["accept"] = "no_seg"
 
     with click.progressbar(length=nk, label="Clean") as prog:
-        segment, peaks = clean_footprint(
-            footprint[cond],
-            index[cond],
-            mask,
-            obj.radius,
-            obj.batch,
-            prog=prog,
-        )
+        with obj.strategy.scope():
+            segment, peaks = clean_footprint(
+                footprint[cond],
+                index[cond],
+                mask,
+                obj.gauss,
+                obj.radius,
+                obj.batch,
+                prog=prog,
+            )
 
     idx = np.argsort(peaks["firmness"].values)[::-1]
     segment = segment[idx]

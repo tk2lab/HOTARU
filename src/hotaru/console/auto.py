@@ -15,8 +15,6 @@ from .run.temporal import temporal
     click.Option(
         ["--max-iteration"],
         type=int,
-        default=100,
-        show_default=True,
     ),
     click.Option(
         ["--storing-intermidiate-results"],

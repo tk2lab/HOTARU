@@ -18,9 +18,9 @@ def find(obj):
     mask = obj.mask
     nt = obj.nt
 
-    with obj.strategy.scope():
-        total = (nt + obj.shard - 1) // obj.shard
-        with click.progressbar(length=total, label="Find") as prog:
+    total = (nt + obj.shard - 1) // obj.shard
+    with click.progressbar(length=total, label="Find") as prog:
+        with obj.strategy.scope():
             peaks = find_peak(
                 data,
                 mask,

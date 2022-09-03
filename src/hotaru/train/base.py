@@ -1,7 +1,8 @@
 import tensorflow as tf
 
+from .input import DynamicInputLayer
 from .optimizer import ProxOptimizer as Optimizer
-from .input import MaxNormNonNegativeL1InputLayer as Input
+from .prox import MaxNormNonNegativeL1
 from .variance import Variance
 
 
@@ -19,20 +20,23 @@ class BaseModel(tf.keras.Model):
         variance = Variance(mode, data, nk, nx, nt)
         variance.set_double_exp(**tau)
         variance.set_baseline(bx, bt)
-        footprint = Input(nk, nx, name="footprint")
-        spike = Input(nk, variance.nu, name="spike")
-        footprint.set_l(la / variance._nm)
-        spike.set_l(lu / variance._nm)
+
+        footprint_prox = MaxNormNonNegativeL1(axis=-1, name="footprint_prox")
+        footprint_prox.set_l(la / variance._nm)
+        footprint = DynamicInputLayer(nk, nx, footprint_prox, name="footprint")
+
+        spike_prox = MaxNormNonNegativeL1(axis=-1, name="spike_prox")
+        spike_prox.set_l(lu / variance._nm)
+        spike = DynamicInputLayer(nk, variance.nu, spike_prox, name="spike")
+
         loss = tf.keras.layers.Lambda(lambda x: 0.5 * tf.math.log(x))
         return footprint, spike, variance, loss
 
-    def set_metric(self, footprint, spike, variance, loss):
-        footprint_penalty = footprint.penalty()
-        spike_penalty = spike.penalty()
-        me = loss + footprint_penalty + spike_penalty
+    def set_metric(self, penalty, variance, loss):
+        score = loss + penalty
         self.add_metric(tf.math.sqrt(variance), "sigma")
-        self.add_metric(me, "score")
-        self.add_metric(me - loss, "penalty")
+        self.add_metric(score, "score")
+        self.add_metric(penalty, "penalty")
 
     def compile(self, reset=100, lr=1.0, **kwargs):
         super().compile(

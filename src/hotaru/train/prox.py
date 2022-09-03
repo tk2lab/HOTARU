@@ -2,6 +2,8 @@ import tensorflow as tf
 
 
 def get_prox(var):
+    if hasattr(var, "_distributed_container"):
+        var = var._distributed_container()
     if hasattr(var, "regularizer") and hasattr(var.regularizer, "prox"):
         return var.regularizer.prox
     else:

@@ -11,20 +11,31 @@ def run_command(*options, pass_context=False):
         @wraps(command)
         @click.pass_context
         def new_command(ctx, **args):
-            ctx.obj["kind"] = command.__name__
+            kind = command.__name__
 
+            exec_tag = ctx.obj.tag
+            if kind == "data":
+                exec_tag = ctx.obj.data_tag
+            elif kind == "find":
+                exec_tag = ctx.obj.find_tag
+            elif kind == "init":
+                exec_tag = ctx.obj.init_tag
+
+            ctx.obj["kind"] = kind
+            ctx.obj["exec_tag"] = exec_tag
             for opt, val in args.items():
                 if val is None:
                     args[opt] = types[opt](
-                        ctx.obj.config.get(ctx.obj.tag, opt)
+                        ctx.obj.config.get(exec_tag, opt)
                     )
             ctx.obj.update(args)
 
             if not ctx.obj.need_exec():
+                click.echo(f"skip: {kind}, {exec_tag}")
                 return
 
             click.echo("-----------------------------------")
-            click.echo(f"{ctx.obj.kind}, {ctx.obj.tag}:")
+            click.echo(f"{kind}, {exec_tag}:")
             for k, v in args.items():
                 click.echo(f"   {k}: {v}")
 

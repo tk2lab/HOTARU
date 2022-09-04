@@ -52,6 +52,7 @@ def main(ctx, config, tag, workdir, **args):
 
     if tag is None:
         tag = config.get("main", "tag")
+    if workdir is None:
         workdir = config.get("main", "workdir")
 
     if tag in config:

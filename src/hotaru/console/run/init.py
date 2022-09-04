@@ -35,6 +35,6 @@ def init(obj):
                 obj.batch,
                 prog=prog,
             )
-    obj.save_csv(peaks, "peak", obj.init_tag, "_000")
-    obj.save_numpy(segment, "segment", obj.init_tag, stage="_000")
+    obj.save_csv(peaks, "peak", stage="_000")
+    obj.save_numpy(segment, "segment", stage="_000")
     return dict(num_cell=segment.shape[0])

@@ -43,7 +43,7 @@ def data(obj):
 
     normalized_data = normalized(data, sstd, avgt, avgx)
     masked_data = masked(normalized_data, mask)
-    out_path = obj.out_path("data", obj.data_tag, "")
+    out_path = obj.out_path()
     masked_data = click.progressbar(masked_data, length=nt, label="Save")
     with masked_data:
         save_tfrecord(f"{out_path}.tfrecord", masked_data)

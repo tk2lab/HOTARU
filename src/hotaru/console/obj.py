@@ -171,9 +171,11 @@ class Obj(dict):
             patience=self.patience,
         )
 
-    def out_path(self, kind, tag=None, stage=None):
+    def out_path(self, kind=None, tag=None, stage=None):
+        if kind is None:
+            kind = self.kind
         if tag is None:
-            tag = self.tag
+            tag = self.exec_tag
         if stage is None:
             stage = self.stage
         if stage is None:
@@ -216,23 +218,12 @@ class Obj(dict):
     def log_path(self):
         kind = self.kind
         if kind in ("temporal", "spatial", "clean", "output"):
-            tag = self.tag
+            tag = self.exec_tag
             stage = self.stage
         else:
-            tag = self.tag
-            stage = None
-            if kind == "data":
-                if self.data_tag is not None:
-                    tag = self.data_tag
-            if kind == "find":
-                if self.find_tag is not None:
-                    tag = self.find_tag
-            if kind == "init":
-                if self.init_tag is not None:
-                    tag = self.init_tag
-        if stage is None:
+            tag = self.exec_tag
             stage = ""
-        elif isinstance(stage, int):
+        if isinstance(stage, int):
             stage = f"_{stage:03}"
         os.makedirs(f"{self.workdir}/log", exist_ok=True)
         return f"{self.workdir}/log/{tag}{stage}_{kind}.pickle"

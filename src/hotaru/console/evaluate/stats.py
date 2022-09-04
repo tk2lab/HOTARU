@@ -1,11 +1,11 @@
 import click
 import matplotlib.pyplot as plt
 
-from ..filter.cor import calc_cor
-from ..filter.max import calc_max
-from ..filter.std import calc_std
-from ..io.image import load_data
-from .base import run_command
+from ...filter.cor import calc_cor
+from ...filter.max import calc_max
+from ...filter.std import calc_std
+from ...io.image import load_data
+from ..base import run_command
 
 
 @run_command(

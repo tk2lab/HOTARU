@@ -1,6 +1,6 @@
 import click
 
-from hotaru.evaluate.simulate import make_sim
+from ...evaluate.simulate import make_sim
 
 
 @click.command()

@@ -2,7 +2,7 @@ import click
 import matplotlib.pyplot as plt
 import numpy as np
 
-from hotaru.evaluate.footprint import plot_maximum
+from ...evaluate.footprint import plot_maximum
 
 
 @click.command()

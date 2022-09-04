@@ -1,12 +1,12 @@
 import click
 import matplotlib.pyplot as plt
 
-from hotaru.evaluate.circle import plot_circle
-from hotaru.evaluate.radius import plot_radius
+from ...evaluate.circle import plot_circle
+from ...evaluate.radius import plot_radius
 
-from .run.data import data
-from .run.find import find
-from .run.test import test
+from ..run.data import data
+from ..run.find import find
+from ..run.test import test
 
 
 @click.command()

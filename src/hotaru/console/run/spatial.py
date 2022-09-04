@@ -4,8 +4,8 @@ import tensorflow as tf
 from ...evaluate.summary import write_footprint_summary
 from ...train.spatial import SpatialModel
 from ..base import run_command
-from ..progress import ProgressCallback
 from .options import model_options
+from .progress import ProgressCallback
 
 
 @run_command(

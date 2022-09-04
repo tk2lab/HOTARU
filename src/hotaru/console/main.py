@@ -4,10 +4,13 @@ from configparser import ConfigParser
 import click
 
 from ..util.distribute import MirroredStrategy
-from .auto import auto
-from .config import config
-from .figure import figure
-from .mpeg import mpeg
+from .driver.auto import auto
+from .driver.config import config
+from .driver.trial import trial
+from .evaluate.figure import figure
+from .evaluate.mpeg import mpeg
+from .evaluate.sample import sample
+from .evaluate.stats import stats
 from .obj import Obj
 from .run.clean import clean
 from .run.data import data
@@ -16,9 +19,6 @@ from .run.init import init
 from .run.output import output
 from .run.spatial import spatial
 from .run.temporal import temporal
-from .sample import sample
-from .stats import stats
-from .trial import trial
 
 
 def configure(ctx, param, configfile):

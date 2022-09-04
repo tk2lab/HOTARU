@@ -34,7 +34,7 @@ seaborn = ">=0.11.2"
 ffmpeg-python = ">=0.2.0"
 
 [tool.poetry.scripts]
-hotaru = "hotaru.console.app:app"
+hotaru = "hotaru.__main__:app"
 
 [tool.pytest.ini_options]
 filterwarnings = [

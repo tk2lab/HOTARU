@@ -1,14 +1,14 @@
 import click
 
-from .base import run_command
-from .figure import figure
-from .run.clean import clean
-from .run.data import data
-from .run.find import find
-from .run.init import init
-from .run.output import output
-from .run.spatial import spatial
-from .run.temporal import temporal
+from ..base import run_command
+from ..evaluate.figure import figure
+from ..run.clean import clean
+from ..run.data import data
+from ..run.find import find
+from ..run.init import init
+from ..run.output import output
+from ..run.spatial import spatial
+from ..run.temporal import temporal
 
 
 @run_command(

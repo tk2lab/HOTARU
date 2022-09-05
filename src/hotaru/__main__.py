@@ -7,9 +7,10 @@ def app():
 
     tf.get_logger().setLevel("ERROR")
 
+    import sys
+
     from .console.main import main
 
-    import sys
     sys.exit(main())
     return main()
 

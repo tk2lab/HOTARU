@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-from .dynamics import CalciumToSpikeDoubleExp
 from .dynamics import SpikeToCalciumDoubleExp
 from .input import DynamicInputLayer
 from .optimizer import ProxOptimizer as Optimizer
@@ -17,8 +16,10 @@ class Loss(tf.keras.losses.Loss):
 class BaseModel(tf.keras.Model):
     """Base Model"""
 
-    def prepare_layers(self, nk, nx, nt, tau):
-        spike_to_calcium = SpikeToCalciumDoubleExp(**tau, name="to_cal")
+    def prepare_layers(self, nk, nx, nt, hz, tau1, tau2, tscale):
+        spike_to_calcium = SpikeToCalciumDoubleExp(
+            hz, tau1, tau2, tscale, name="to_cal"
+        )
         nu = nt + spike_to_calcium.pad
 
         dummy = tf.keras.Input(type_spec=tf.TensorSpec((), tf.float32))
@@ -34,16 +35,22 @@ class BaseModel(tf.keras.Model):
         self.nu = nu
         return spike_to_calcium, dummy, footprint, spike
 
-    def compile(self, reset=100, lr=1.0, **kwargs):
+    def compile(
+        self,
+        learning_rate=1e-2,
+        nesterov_scale=20.0,
+        reset_interval=100,
+        **kwargs
+    ):
         super().compile(
-            optimizer=Optimizer(reset=reset),
+            optimizer=Optimizer(reset_interval=reset_interval),
             loss=Loss(),
             **kwargs,
         )
-        self._lr = lr
-        self._reset = reset
+        self._lr = learning_rate
+        self._reset = reset_interval
 
-    def fit(self, epochs=100, min_delta=1e-3, patience=3, **kwargs):
+    def fit(self, epochs=100, min_delta=1e-4, patience=3, **kwargs):
         self.optimizer.learning_rate = self._lr * (2 / self.lipschitz)
         callbacks = kwargs.setdefault("callbacks", [])
         callbacks += [

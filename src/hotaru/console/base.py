@@ -1,58 +1,43 @@
-from functools import wraps
+import functools
 
 import click
 
 from ..util.timer import Timer
 
 
-def run_command(*options, pass_context=False):
-    def deco(command):
-        @click.command()
-        @wraps(command)
-        @click.pass_context
-        def new_command(ctx, **args):
-            kind = command.__name__
+def configure(ctx, param, tag):
+    tag = tag or ctx.obj.tag
+    section = f"{ctx.info_name}/{tag}"
+    if section in ctx.obj.config:
+        ctx.default_map = ctx.obj.config[section]
+    else:
+        ctx.default_map = ctx.obj.config.defaults()
+    return tag
 
-            exec_tag = ctx.obj.tag
-            if kind == "data":
-                exec_tag = ctx.obj.data_tag
-            elif kind == "find":
-                exec_tag = ctx.obj.find_tag
-            elif kind == "init":
-                exec_tag = ctx.obj.init_tag
 
-            ctx.obj["kind"] = kind
-            ctx.obj["exec_tag"] = exec_tag
-            for opt, val in args.items():
-                if val is None:
-                    args[opt] = types[opt](
-                        ctx.obj.config.get(exec_tag, opt)
-                    )
-            ctx.obj.update(args)
+def command_wrap(command):
+    @functools.wraps(command)
+    def wraped_command(obj, tag, **args):
+        kind = command.__name__
 
-            if not ctx.obj.need_exec():
-                click.echo(f"skip: {kind}, {exec_tag}")
-                return
+        if obj.can_skip("1data", tag, 0):
+            click.echo(f"skip: {kind}, {tag}")
+            return
 
-            click.echo("-----------------------------------")
-            click.echo(f"{kind}, {exec_tag}:")
-            for k, v in args.items():
-                click.echo(f"   {k}: {v}")
+        click.echo("-----------------------------------")
+        click.echo(f"{kind}, {tag}:")
+        for k, v in args.items():
+            click.echo(f"   {k}: {v}")
 
-            with Timer() as timer:
-                log = command(ctx if pass_context else ctx.obj)
+        with Timer() as timer:
+            log = command(obj, tag, **args)
+        time = timer.get()
+        click.echo(f"time: {time[0]}")
 
-            if log is not None:
-                log["time"] = timer.get()
-                log.update(args)
-                ctx.obj.save_log(log)
-                click.echo(f"time: {timer.get()[0]}")
+        if log:
+            log, kind, tag, stage = log
+            args.update(log)
+            args["time"] = time
+            obj.save_log(args, kind, tag, stage)
 
-        types = {o.name: o.type for o in options}
-
-        for opt in options:
-            new_command.params.append(opt)
-
-        return new_command
-
-    return deco
+    return wraped_command

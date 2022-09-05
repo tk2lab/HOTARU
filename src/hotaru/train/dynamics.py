@@ -27,13 +27,13 @@ class CalciumToSpike(tf.keras.layers.Layer):
 
 
 class DoubleExpMixin:
-    def set(self, hz, tau1, tau2, tscale):
-        if tau1 < tau2:
-            tau1, tau2 = tau1, tau2
+    def set(self, hz, rise, fall, scale):
+        if rise > fall:
+            rise, fall = fall, rise
         self.hz = hz
-        self.tau1 = tau1
-        self.tau2 = tau2
-        self.tscale = tscale
+        self.tau1 = rise
+        self.tau2 = fall
+        self.tscale = scale
 
     def scale(self):
         tau1 = self.tau1 * self.hz

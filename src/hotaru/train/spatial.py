@@ -10,8 +10,10 @@ from .loss import LossLayer
 class SpatialModel(BaseModel):
     """Spatial Model"""
 
-    def __init__(self, data, nk, nx, nt, tau, bx, bt, la, lu, **args):
-        layers = self.prepare_layers(nk, nx, nt, tau)
+    def __init__(
+        self, data, nk, nx, nt, hz, rise, fall, scale, bx, bt, la, lu, **args
+    ):
+        layers = self.prepare_layers(nk, nx, nt, hz, rise, fall, scale)
         spike_to_calcium, dummy, footprint_l, spike_l = layers
 
         loss_l = LossLayer(nk, nx, nt, bx, bt)

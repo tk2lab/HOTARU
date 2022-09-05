@@ -3,62 +3,98 @@ import tensorflow as tf
 
 from ...evaluate.summary import write_spike_summary
 from ...train.temporal import TemporalModel
-from ..base import run_command
-from .options import model_options
-from .progress import ProgressCallback
+from ..base import command_wrap
+from ..base import configure
 
 
-@run_command(
-    click.Option(["--stage", "-s"], type=int),
-    click.Option(["--segment-tag", "-T"]),
-    click.Option(["--segment-stage", "-S"], type=int),
-    *model_options(),
-)
-def temporal(obj):
+@click.command(context_settings=dict(show_default=True))
+@click.option("--tag", type=str, callback=configure, is_eager=True)
+@click.option("--segment-tag", type=str)
+@click.option("--segment-stage", type=int)
+@click.option("--storing-intermidiate-results", is_flag=True)
+@click.option("--tau-rise", type=float)
+@click.option("--tau-fall", type=float)
+@click.option("--tau-scale", type=float)
+@click.option("--penalty-la", type=float)
+@click.option("--penalty-lu", type=float)
+@click.option("--penalty-bx", type=float)
+@click.option("--penalty-bt", type=float)
+@click.option("--learning-rate", type=float)
+@click.option("--nesterov-scale", type=float)
+@click.option("--steps-per-epoch", type=int)
+@click.option("--min-delta", type=float)
+@click.option("--patience", type=int)
+@click.option("--epochs", type=int)
+@click.option("--batch", type=int)
+@click.pass_obj
+@command_wrap
+def temporal(
+    obj,
+    tag,
+    segment_tag,
+    segment_stage,
+    storing_intermidiate_results,
+    batch,
+    **args,
+):
     """Update spike"""
 
-    if obj.stage == -1:
-        obj["stage"] = "_curr"
+    if segment_tag != tag:
+        stage = 1
+    else:
+        stage = segment_stage + 1
+    if not storing_intermidiate_results:
+        stage = -1
 
-    if obj.segment_tag == "":
-        if obj.stage == 0:
-            obj["segment_tag"] = obj.init_tag
-        else:
-            obj["segment_tag"] = obj.tag
+    if stage <= 0:
+        stage = "_curr"
+    if segment_stage < 0:
+        segment_stage = "_curr"
 
-    if obj.segment_stage == -1:
-        obj["segment_stage"] = obj.stage
+    click.echo(f"{tag} {stage} {segment_tag} {segment_stage}")
 
-    if "temporal_model" not in obj:
+    data_tag = obj.log("3segment", segment_tag, segment_stage)["data_tag"]
+    data = obj.data(data_tag)
+    segment = obj.segment(segment_tag, segment_stage)
+
+    nk = segment.shape[0]
+    nx = obj.nx(data_tag)
+    nt = obj.nt(data_tag)
+    hz = obj.hz(data_tag)
+    tau_opt = {k[4:]: v for k, v in args.items() if k[:3] == "tau"}
+
+    if not hasattr(obj, "temporal_model"):
         with obj.strategy.scope():
-            obj.temporal_model = TemporalModel(
-                obj.data,
-                obj.segment.shape[0],
-                obj.nx,
-                obj.nt,
-                obj.tau,
-                **obj.reg,
+            model = TemporalModel(
+                data,
+                nk,
+                nx,
+                nt,
+                hz,
+                **tau_opt,
+                **obj.penalty_opt(**args),
             )
-            obj.temporal_model.compile(**obj.compile_opt)
+            model.compile(**obj.compile_opt(**args))
+        obj.temporal_model = model
     model = obj.temporal_model
 
-    log_dir = obj.summary_path()
-    writer = tf.summary.create_file_writer(log_dir)
+    summary_dir = obj.summary_path("temporal", tag, stage)
+    writer = tf.summary.create_file_writer(summary_dir)
 
-    with click.progressbar(length=obj.nt, label="InitT") as prog:
-        model.prepare_fit(obj.segment, obj.batch, prog=prog)
+    with click.progressbar(length=nt, label="InitT") as prog:
+        model.prepare_fit(segment, batch, prog=prog)
 
-    cb = [
-        ProgressCallback("TrainT", obj.epoch),
-        tf.keras.callbacks.TensorBoard(
-            log_dir=log_dir,
-            update_freq="batch",
-            write_graph=False,
-        ),
-    ]
-    log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt)
+    cb = obj.callbacks("TrainT", summary_dir)
+    model_log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt(**args))
 
     val = model.spike.get_val()
-    obj.save_numpy(val, "spike")
+    obj.save_numpy(val, "spike", tag, stage)
     write_spike_summary(writer, val)
-    return dict(history=log.history)
+
+    log = dict(
+        segment_tag=segment_tag,
+        segment_stage=segment_stage,
+        data_tag=data_tag,
+        history=model_log.history,
+    )
+    return log, "1temporal", tag, stage

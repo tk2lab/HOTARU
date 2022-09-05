@@ -7,14 +7,22 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
 
     _HAS_AGGREGATE_GRAD = True
 
-    def __init__(self, learning_rate=1.0, scale=20.0, reset=100, **kwargs):
+    def __init__(
+        self,
+        learning_rate=1.0,
+        nesterov_scale=20.0,
+        reset_interval=100,
+        **kwargs
+    ):
         name = kwargs.setdefault("name", "Prox")
         super().__init__(**kwargs)
         self._set_hyper("learning_rate", learning_rate)
-        self._set_hyper("scale", scale)
-        self._set_hyper("reset", reset)
+        self._set_hyper("scale", nesterov_scale)
+        self._set_hyper("reset", reset_interval)
         self._nesterov = (
-            isinstance(scale, tf.Tensor) or callable(scale) or scale > 0.0
+            isinstance(nesterov_scale, tf.Tensor)
+            or callable(nesterov_scale)
+            or nesterov_scale > 0.0
         )
 
     def _create_slots(self, var_list):

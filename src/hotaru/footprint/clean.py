@@ -20,7 +20,9 @@ def modify_footprint(footprint):
     return cond
 
 
-def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
+def check_accept(
+    footprint, peaks, radius, thr_area_abs, thr_area_rel, thr_sim
+):
     peaks["accept"] = "yes"
     x = peaks["radius"]
     cond1 = x == radius[0]
@@ -29,10 +31,10 @@ def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
     segment = (footprint > 0.5).astype(np.float32)
     area = np.sum(segment, axis=1)
     peaks["area"] = area
-    cond3 = area >= thr_abs + thr_rel * np.pi * x**2
+    cond3 = area >= thr_area_abs + thr_area_rel * np.pi * x**2
 
     sim = calc_sim_area(segment, ~(cond1 ^ cond2 ^ cond3))
-    #sim = calc_sim_cos(segment)
+    # sim = calc_sim_cos(segment)
     peaks["sim"] = sim
     cond4 = sim > thr_sim
 
@@ -76,9 +78,9 @@ def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):
             simgmin = tf.math.reduce_min(simg)
             simgmax = tf.math.reduce_max(simg)
             val = (simg - simgmin) / (simgmax - simgmin)
-            #hist = tf.histogram_fixed_width(val, [0.0, 1.0], 50)[1:]
-            #thr = 0.02 + 0.02 * tf.cast(tf.math.argmax(hist), tf.float32)
-            #val = tf.where(val >= thr, (val - thr) / (1 - thr), 0)
+            # hist = tf.histogram_fixed_width(val, [0.0, 1.0], 50)[1:]
+            # thr = 0.02 + 0.02 * tf.cast(tf.math.argmax(hist), tf.float32)
+            # val = tf.where(val >= thr, (val - thr) / (1 - thr), 0)
             img = tf.scatter_nd(pos, val, [h, w])
             out = out.write(k, tf.boolean_mask(img, mask))
             firmness = firmness.write(

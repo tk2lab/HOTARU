@@ -1,7 +1,5 @@
 import tensorflow as tf
 
-from .prox import ProxOp
-
 
 class DynamicInputLayer(tf.keras.layers.Layer):
     """Dynamic Input Layer"""

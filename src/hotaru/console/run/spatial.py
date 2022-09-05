@@ -3,60 +3,81 @@ import tensorflow as tf
 
 from ...evaluate.summary import write_footprint_summary
 from ...train.spatial import SpatialModel
-from ..base import run_command
-from .options import model_options
-from .progress import ProgressCallback
+from ..base import command_wrap
+from ..base import configure
 
 
-@run_command(
-    click.Option(["--stage", "-s"], type=int),
-    click.Option(["--spike-tag", "-T"]),
-    click.Option(["--spike-stage", "-S"], type=int),
-    *model_options(),
-    click.Option(["--batch"], type=int, default=100, show_default=True),
-)
-def spatial(obj):
+@click.command(context_settings=dict(show_default=True))
+@click.option("--tag", type=str, callback=configure, is_eager=True)
+@click.option("--stage", type=int)
+@click.option("--penalty-la", type=float)
+@click.option("--penalty-lu", type=float)
+@click.option("--penalty-bx", type=float)
+@click.option("--penalty-bt", type=float)
+@click.option("--learning-rate", type=float)
+@click.option("--nesterov-scale", type=float)
+@click.option("--steps-per-epoch", type=int)
+@click.option("--min-delta", type=float)
+@click.option("--patience", type=int)
+@click.option("--epochs", type=int)
+@click.option("--batch", type=int)
+@click.pass_obj
+@command_wrap
+def spatial(obj, tag, stage, batch, **args):
     """Update footprint"""
 
-    if obj.stage == -1:
-        obj["stage"] = "_curr"
+    if stage <= 0:
+        stage = "_curr"
 
-    if obj.spike_tag == "":
-        obj["spike_tag"] = obj.tag
+    spike_tag = tag
+    spike_stage = stage
 
-    if obj.spike_stage == -1:
-        obj["spike_stage"] = obj.stage
+    prev_log = obj.log("1temporal", spike_tag, spike_stage)
+    data_tag = prev_log["data_tag"]
+    data = obj.data(data_tag)
+    mask = obj.mask(data_tag)
+    spike = obj.spike(spike_tag, spike_stage)
 
-    if "spatial_model" not in obj:
+    nk = spike.shape[0]
+    nx = obj.nx(data_tag)
+    nt = obj.nt(data_tag)
+    hz = obj.hz(data_tag)
+    tau_opt = obj.used_tau(spike_tag, spike_stage)
+
+    if not hasattr(obj, "spatial_model"):
         with obj.strategy.scope():
-            obj.spatial_model = SpatialModel(
-                obj.data,
-                obj.spike.shape[0],
-                obj.nx,
-                obj.nt,
-                obj.tau,
-                **obj.reg,
+            model = SpatialModel(
+                data,
+                nk,
+                nx,
+                nt,
+                hz,
+                **tau_opt,
+                **obj.penalty_opt(**args),
             )
-            obj.spatial_model.compile(**obj.compile_opt)
+            model.compile(**obj.compile_opt(**args))
+        obj.spatial_model = model
     model = obj.spatial_model
 
-    log_dir = obj.summary_path()
-    writer = tf.summary.create_file_writer(log_dir)
+    summary_dir = obj.summary_path("spatial", tag, stage)
+    writer = tf.summary.create_file_writer(summary_dir)
 
-    with click.progressbar(length=obj.nt, label="InitS") as prog:
-        model.prepare_fit(obj.spike, obj.batch, prog=prog)
+    with click.progressbar(length=nt, label="InitS") as prog:
+        model.prepare_fit(spike, batch, prog=prog)
 
-    cb = [
-        ProgressCallback("TrainS", obj.epoch),
-        tf.keras.callbacks.TensorBoard(
-            log_dir=log_dir,
-            update_freq="batch",
-            write_graph=False,
-        ),
-    ]
-    log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt)
+    cb = obj.callbacks("TrainS", summary_dir)
+    model_log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt(**args))
 
     val = model.footprint.get_val()
-    obj.save_numpy(val, "footprint")
-    write_footprint_summary(writer, val, obj.mask)
-    return dict(history=log.history)
+    obj.save_numpy(val, "footprint", tag, stage)
+    write_footprint_summary(writer, val, mask)
+
+    log = dict(
+        spike_tag=spike_tag,
+        spike_stage=spike_stage,
+        segment_tag=prev_log["segment_tag"],
+        segment_stage=prev_log["segment_stage"],
+        data_tag=data_tag,
+        history=model_log.history,
+    )
+    return log, "2spatial", tag, stage

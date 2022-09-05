@@ -1,23 +1,111 @@
 import os
 
 import numpy as np
+import tensorflow as tf
 
 from ..io.csv import load_csv
 from ..io.csv import save_csv
+from ..io.json import load_json
+from ..io.json import save_json
 from ..io.numpy import load_numpy
 from ..io.numpy import save_numpy
-from ..io.pickle import load_pickle
-from ..io.pickle import save_pickle
 from ..io.tfrecord import load_tfrecord
+from ..io.tfrecord import save_tfrecord
 from ..io.tiff import save_tiff
+from ..util.distribute import MirroredStrategy
+from .progress import ProgressCallback
 
 
-class Obj(dict):
+class Obj:
     def __init__(self):
         self._log = {}
 
-    def __getattr__(self, key):
-        return self.get(key)
+    def __enter__(self):
+        self.strategy = MirroredStrategy()
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.strategy.close()
+
+    def update(self, x):
+        for k, v in x.items():
+            setattr(self, k, v)
+
+    # SAVE
+
+    def out_path(self, kind=None, tag=None, stage=None):
+        if stage is None:
+            stage = ""
+        elif isinstance(stage, int):
+            if stage == -1:
+                stage = "_curr"
+            else:
+                stage = f"_{stage:03}"
+        os.makedirs(f"{self.workdir}/{kind}", exist_ok=True)
+        return f"{self.workdir}/{kind}/{tag}{stage}"
+
+    def save_tfrecord(self, data, kind=None, tag=None, stage=None):
+        out_path = self.out_path(kind, tag, stage)
+        save_tfrecord(f"{out_path}.tfrecord", data)
+
+    def save_numpy(self, data, kind=None, tag=None, stage=None):
+        out_path = self.out_path(kind, tag, stage)
+        save_numpy(f"{out_path}.npy", data)
+
+    def save_csv(self, data, kind=None, tag=None, stage=None):
+        out_path = self.out_path(kind, tag, stage)
+        save_csv(f"{out_path}.csv", data)
+
+    def save_tiff(self, data, kind=None, tag=None, stage=None):
+        out_path = self.out_path(kind, tag, stage)
+        save_tiff(f"{out_path}.tif", data)
+
+    # SUMMARY
+
+    def summary_path(self, kind=None, tag=None, stage=None):
+        if stage is None:
+            stage = ""
+        elif isinstance(stage, int):
+            if stage == -1:
+                stage = "_curr"
+            else:
+                stage = f"_{stage:03}"
+        return f"{self.workdir}/summary/{tag}/{kind}{stage}"
+
+    # LOG
+
+    def log_path(self, kind=None, tag=None, stage=None):
+        if stage is None:
+            stage = ""
+        elif isinstance(stage, int):
+            if stage == -1:
+                stage = "_curr"
+            else:
+                stage = f"_{stage:03}"
+        os.makedirs(f"{self.workdir}/log", exist_ok=True)
+        return f"{self.workdir}/log/{tag}{stage}_{kind}.json"
+
+    def save_log(self, log, kind=None, tog=None, stage=None):
+        path = self.log_path(kind, tog, stage)
+        save_json(path, log)
+        self._log[path] = log
+
+    def log(self, kind, tag, stage):
+        path = self.log_path(kind, tag, stage)
+        if path not in self._log:
+            self._log[path] = load_json(path)
+        return self._log[path]
+
+    def can_skip(self, kind=None, tag=None, stage=None):
+        if self.force:
+            return False
+        if kind == "output":
+            return False
+        if kind in ("temporal", "spatial", "clean"):
+            if not isinstance(self.stage, int):
+                return False
+        path = self.log_path(kind, tag, stage)
+        return os.path.exists(path)
 
     def need_exec(self):
         kind = self.kind
@@ -31,215 +119,108 @@ class Obj(dict):
         path = self.log_path()
         return not os.path.exists(path)
 
-    @property
-    def data(self):
-        path = self.out_path("data", self.data_tag, "")
+    # DATA
+
+    def data(self, tag):
+        path = self.out_path("data", tag, "_data")
         return load_tfrecord(f"{path}.tfrecord")
 
-    @property
-    def peak(self):
-        path = self.out_path("peak", self.find_tag, "_find")
-        return load_csv(f"{path}.csv")
-
-    @property
-    def peak_trial(self):
-        path = self.out_path("peak", self.tag, "")
-        return load_csv(f"{path}.csv")
-
-    @property
-    def segment(self):
-        path = self.out_path("segment", self.segment_tag, self.segment_stage)
-        if self.segment_stage == "_curr":
-            if not os.path.exists(f"{path}.npy"):
-                path = self.out_path("segment", self.init_tag, "_000")
+    def mask(self, tag):
+        path = self.out_path("data", tag, "_mask")
         return load_numpy(f"{path}.npy")
 
-    @property
-    def index(self):
-        path = self.out_path("peak", self.segment_tag, self.segment_stage)
-        if self.segment_stage == "_curr":
+    def hz(self, tag):
+        return self.log("1data", tag, 0)["hz"]
+
+    def nt(self, tag):
+        return self.log("1data", tag, 0)["nt"]
+
+    def nx(self, tag):
+        return self.log("1data", tag, 0)["nx"]
+
+    def avgt(self, tag):
+        path = self.out_path("data", tag, "argt")
+        return load_numpy(f"{path}.npy")
+
+    def avgx(self, tag):
+        path = self.out_path("data", tag, "argx")
+        return load_numpy(f"{path}.npy")
+
+    # FIND
+
+    def peaks(self, tag, stage="-find"):
+        path = self.out_path("peak", tag, stage)
+        return load_csv(f"{path}.csv")
+
+    def used_radius_min(self, tag, stage=0):
+        return self.log("2find", tag, stage)["radius_min"]
+
+    def used_radius_max(self, tag, stage=0):
+        return self.log("2find", tag, stage)["radius_max"]
+
+    # INIT
+
+    def segment(self, tag, stage):
+        path = self.out_path("segment", tag, stage)
+        if stage == "_curr":
+            if not os.path.exists(f"{path}.npy"):
+                path = self.out_path("segment", tag, "_000")
+        return load_numpy(f"{path}.npy")
+
+    def index(self, tag, stage):
+        path = self.out_path("peak", tag, stage)
+        if stage == "_curr":
             if not os.path.exists(f"{path}.csv"):
-                path = self.out_path("peak", self.init_tag, "_000")
+                path = self.out_path("peak", tag, "_000")
         return load_csv(f"{path}.csv").query('accept == "yes"').index
 
-    @property
-    def spike(self):
-        path = self.out_path("spike", self.spike_tag, self.spike_stage)
+    def spike(self, tag, stage):
+        path = self.out_path("spike", tag, stage)
         return load_numpy(f"{path}.npy")
 
-    @property
-    def footprint(self):
-        path = self.out_path(
-            "footprint", self.footprint_tag, self.footprint_stage
-        )
+    def footprint(self, tag, stage):
+        path = self.out_path("footprint", tag, stage)
         return load_numpy(f"{path}.npy")
 
-    def num_cell(self, stage):
-        if stage == -2:
-            path = self.out_path("segment", self.init_tag, 0)
-        elif stage == -1:
-            path = self.out_path("segment", self.tag, -1)
-        else:
-            path = self.out_path("segment", self.tag, stage)
-        return load_numpy(f"{path}.npy").shape[0]
-
-    @property
-    def hz(self):
-        return self.log("data", self.data_tag, "")["hz"]
-
-    @property
-    def mask(self):
-        return self.log("data", self.data_tag, "")["mask"]
-
-    @property
-    def avgx(self):
-        return self.log("data", self.data_tag, "")["avgx"]
-
-    @property
-    def nx(self):
-        return self.log("data", self.data_tag, "")["mask"].sum()
-
-    @property
-    def nt(self):
-        return self.log("data", self.data_tag, "")["nt"]
-
-    @property
-    def used_radius_min(self):
-        return self.log("find", self.find_tag, "")["radius_min"]
-
-    @property
-    def used_radius_max(self):
-        return self.log("find", self.find_tag, "")["radius_max"]
-
-    @property
-    def used_distance(self):
-        return self.log("test", self.tag, "")["distance"]
-
-    @property
-    def used_tau(self):
-        log = self.log("temporal", self.spike_tag, self.spike_stage)
+    def used_tau(self, tag, stage):
+        log = self.log("1temporal", tag, stage)
         return dict(
-            hz=self.hz,
-            tau1=log["tau_rise"],
-            tau2=log["tau_fall"],
-            tscale=log["tau_scale"],
+            rise=log["tau_rise"],
+            fall=log["tau_fall"],
+            scale=log["tau_scale"],
         )
 
-    @property
-    def radius(self):
-        if self.radius_type == "linear":
-            return np.linspace(
-                self.radius_min, self.radius_max, self.radius_num
-            )
-        elif self.radius_type == "log":
-            return np.logspace(
-                np.log10(self.radius_min),
-                np.log10(self.radius_max),
-                self.radius_num,
-            )
+    def penalty_opt(self, **args):
+        return {k[8:]: v for k, v in args.items() if k[:7] == "penalty"}
 
-    @property
-    def tau(self):
+    def compile_opt(
+        self, learning_rate, nesterov_scale, steps_per_epoch, **args
+    ):
         return dict(
-            hz=self.hz,
-            tau1=self.tau_rise,
-            tau2=self.tau_fall,
-            tscale=self.tau_scale,
+            learning_rate=learning_rate,
+            nesterov_scale=nesterov_scale,
+            reset_interval=steps_per_epoch,
         )
 
-    @property
-    def reg(self):
-        return dict(
-            la=self.la,
-            lu=self.lu,
-            bx=self.bx,
-            bt=self.bt,
-        )
+    def fit_opt(self, **args):
+        fit_opt_list = ["epochs", "min_delta", "patience"]
+        return {k: args[k] for k in fit_opt_list}
 
-    @property
-    def compile_opt(self):
-        return dict(
-            lr=self.lr,
-            reset=self.steps,
-        )
+    def get_radius(self, radius_type, radius_min, radius_max, radius_num):
+        if radius_type == "linear":
+            radius_func = np.linspace
+        elif radius_type == "log":
+            radius_func = np.logspace
+            radius_min = np.log10(radius_min)
+            radius_max = np.log10(radius_max)
+        return radius_func(radius_min, radius_max, radius_num)
 
-    @property
-    def fit_opt(self):
-        return dict(
-            epochs=self.epoch,
-            min_delta=self.tol,
-            patience=self.patience,
-        )
-
-    def out_path(self, kind=None, tag=None, stage=None):
-        if kind is None:
-            kind = self.kind
-        if tag is None:
-            tag = self.exec_tag
-        if stage is None:
-            stage = self.stage
-        if stage is None:
-            stage = ""
-        elif isinstance(stage, int):
-            if stage == -1:
-                stage = "_curr"
-            else:
-                stage = f"_{stage:03}"
-        os.makedirs(f"{self.workdir}/{kind}", exist_ok=True)
-        return f"{self.workdir}/{kind}/{tag}{stage}"
-
-    def summary_path(self, kind=None, tag=None, stage=None):
-        if kind is None:
-            kind = self.kind
-        if tag is None:
-            tag = self.tag
-        if stage is None:
-            stage = self.stage
-        if stage is None:
-            stage = ""
-        elif isinstance(stage, int):
-            if stage == -1:
-                stage = "_curr"
-            else:
-                stage = f"_{stage:03}"
-        return f"{self.workdir}/summary/{tag}/{kind}{stage}"
-
-    def log(self, kind, tag, stage):
-        key = kind, tag, stage
-        if key not in self._log:
-            if stage is None:
-                stage = ""
-            elif isinstance(stage, int):
-                stage = f"_{stage:03}"
-            path = f"{self.workdir}/log/{tag}{stage}_{kind}.pickle"
-            self._log[key] = load_pickle(path)
-        return self._log[key]
-
-    def log_path(self):
-        kind = self.kind
-        if kind in ("temporal", "spatial", "clean", "output"):
-            tag = self.exec_tag
-            stage = self.stage
-        else:
-            tag = self.exec_tag
-            stage = ""
-        if isinstance(stage, int):
-            stage = f"_{stage:03}"
-        os.makedirs(f"{self.workdir}/log", exist_ok=True)
-        return f"{self.workdir}/log/{tag}{stage}_{kind}.pickle"
-
-    def save_numpy(self, data, kind, tag=None, stage=None):
-        out_path = self.out_path(kind, tag, stage)
-        save_numpy(f"{out_path}.npy", data)
-
-    def save_csv(self, data, kind, tag=None, stage=None):
-        out_path = self.out_path(kind, tag, stage)
-        save_csv(f"{out_path}.csv", data)
-
-    def save_tiff(self, data, kind, tag=None, stage=None):
-        out_path = self.out_path(kind, tag, stage)
-        save_tiff(f"{out_path}.tif", data)
-
-    def save_log(self, log):
-        path = self.log_path()
-        save_pickle(path, log)
+    def callbacks(self, label, log_dir):
+        return [
+            tf.keras.callbacks.TensorBoard(
+                log_dir=log_dir,
+                update_freq="batch",
+                write_graph=False,
+            ),
+            ProgressCallback("TrainS"),
+        ]

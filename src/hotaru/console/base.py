@@ -4,6 +4,8 @@ import click
 
 from ..util.timer import Timer
 
+readable_file = click.Path(exists=True, dir_okay=False, readable=True)
+
 
 def configure(ctx, param, tag):
     tag = tag or ctx.obj.tag

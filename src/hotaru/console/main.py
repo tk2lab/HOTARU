@@ -8,16 +8,15 @@ from .driver.config import config
 
 # from .driver.trial import trial
 # from .evaluate.figure import figure
-# from .evaluate.mpeg import mpeg
-# from .evaluate.sample import sample
-# from .evaluate.stats import stats
+from .evaluate.mpeg import mpeg
+from .evaluate.output import output
+from .evaluate.sample import sample
+from .evaluate.stats import stats
 from .obj import Obj
 from .run.clean import clean
 from .run.data import data
 from .run.find import find
 from .run.make import make
-
-# from .run.output import output
 from .run.spatial import spatial
 from .run.temporal import temporal
 
@@ -58,17 +57,21 @@ def main(ctx, workdir, tag, force):
     ctx.obj.force = force
 
 
+main.add_command(sample)
+
 main.add_command(config)
+main.add_command(stats)
+# main.add_command(trial)
+# main.add_command(auto)
+
 main.add_command(data)
 main.add_command(find)
 main.add_command(make)
 main.add_command(temporal)
 main.add_command(spatial)
 main.add_command(clean)
-# main.add_command(output)
-# main.add_command(trial)
-# main.add_command(auto)
+
+main.add_command(output)
+main.add_command(mpeg)
+
 # main.add_command(figure)
-# main.add_command(mpeg)
-# main.add_command(sample)
-# main.add_command(stats)

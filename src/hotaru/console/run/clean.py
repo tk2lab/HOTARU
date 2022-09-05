@@ -91,4 +91,4 @@ def clean(obj, tag, stage, gauss, batch, **args):
         data_tag=data_tag,
         num_cell=int(nk),
     )
-    return log, "3sekgment", tag, stage
+    return log, "3segment", tag, stage

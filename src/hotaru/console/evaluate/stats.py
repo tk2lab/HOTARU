@@ -5,25 +5,24 @@ from ...filter.cor import calc_cor
 from ...filter.max import calc_max
 from ...filter.std import calc_std
 from ...io.image import load_data
-from ..base import run_command
+from ..base import configure
+from ..base import readable_file
 
 
-@run_command(
-    click.Option(
-        ["--imgs-path"],
-        type=click.Path(exists=True, dir_okay=False, readable=True),
-    ),
-)
-def stats(obj):
+@click.command(context_settings=dict(show_default=True))
+@click.option("--tag", type=str, callback=configure, is_eager=True)
+@click.option("--imgs-path", type=readable_file)
+@click.pass_obj
+def stats(obj, tag, imgs_path):
     """Stats"""
 
-    data = load_data(obj.imgs_path)
+    data = load_data(imgs_path)
     t, h, w = data.shape()
     data = data.clipped_dataset(0, h, 0, w).batch(100)
 
     fw = 1.5
     fh = fw * h / w
-    path = obj.out_path("figure", obj.tag, "_stats")
+    path = obj.out_path("figure", tag, "_stats")
 
     fig = plt.figure(figsize=(1, 1))
     for i, (l, f) in enumerate(zip("ABC", [calc_max, calc_std, calc_cor])):

@@ -8,8 +8,7 @@ from ...util.dataset import masked
 from ...util.dataset import normalized
 from ..base import command_wrap
 from ..base import configure
-
-readable_file = click.Path(exists=True, dir_okay=False, readable=True)
+from ..base import readable_file
 
 
 @click.command(context_settings=dict(show_default=True))

@@ -65,16 +65,16 @@ class DoubleExpMixin:
 
 
 class SpikeToCalciumDoubleExp(SpikeToCalcium, DoubleExpMixin):
-    def __init__(self, hz, tau1, tau2, tscale, **kwargs):
+    def __init__(self, hz, rise, fall, scale, **kwargs):
         super().__init__(**kwargs)
-        self.set(hz, tau1, tau2, tscale)
+        self.set(hz, rise, fall, scale)
         self.pad = tf.convert_to_tensor(self._pad(), tf.int32)
         self.kernel = tf.convert_to_tensor(self.forward(), tf.float32)
 
 
 class CalciumToSpikeDoubleExp(CalciumToSpike, DoubleExpMixin):
-    def __init__(self, hz, tau1, tau2, tscale, **kwargs):
+    def __init__(self, hz, rise, fall, scale, **kwargs):
         super().__init__(**kwargs)
-        self.set(hz, tau1, tau2, tscale)
+        self.set(hz, rise, fall, tscale)
         self.pad = tf.convert_to_tensor(self._pad(), tf.int32)
         self.kernel = tf.convert_to_tensor(self.backward(), tf.float32)

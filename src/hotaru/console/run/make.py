@@ -18,7 +18,7 @@ from ..base import configure
 @click.pass_obj
 @command_wrap
 def make(obj, tag, find_tag, distance, window, batch, only_reduce):
-    """Make"""
+    """Make Segmentation"""
 
     data_tag = obj.log("2find", find_tag, 0)["data_tag"]
     data = obj.data(data_tag)

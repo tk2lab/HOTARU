@@ -3,29 +3,37 @@ import matplotlib.pyplot as plt
 
 from ...evaluate.circle import plot_circle
 from ...evaluate.radius import plot_radius
+from ..base import configure
 from ..run.data import data
 from ..run.find import find
-from ..run.test import test
+from ..run.make import make
 
 
-@click.command()
+@click.command(context_settings=dict(show_default=True))
+@click.option("--tag", type=str, callback=configure, is_eager=True)
+@click.option("--make-tag", type=str)
 @click.pass_context
-def trial(ctx):
-    """Trial"""
+def tune(ctx, tag, make_tag):
+    """Visualize Statistics for Tuning Initial Candidates."""
 
     obj = ctx.obj
 
-    ctx.invoke(data)
-    ctx.invoke(find)
-    obj["force"] = True
-    ctx.invoke(test)
+    find_tag = obj.config.get(f"make/{make_tag}", "find_tag")
+    data_tag = obj.config.get(f"find/{find_tag}", "data_tag")
 
-    radius_min = obj.used_radius_min
-    radius_max = obj.used_radius_max
-    distance = obj.used_distance
-    h, w = obj.mask.shape
-    peak0 = obj.peak
-    peak1 = obj.peak_trial
+    obj.invoke(ctx, data, f"--tag={data_tag}")
+    obj.invoke(ctx, find, f"--tag={find_tag}")
+    obj.invoke(ctx, make, f"--tag={make_tag}", "--only-reduce")
+
+    radius_args = obj.used_radius_args(find_tag)
+    radius_min = radius_args["radius_min"]
+    radius_max = radius_args["radius_max"]
+    radius = obj.get_radius(**radius_args)
+    distance = obj.used_distance(make_tag)
+    h, w = obj.mask(data_tag).shape
+
+    peak0 = obj.peaks(find_tag)
+    peak1 = obj.peaks(make_tag, 0)
 
     fig = plt.figure(figsize=(1, 1))
     cmap = dict(r="r", g="g", b="b")
@@ -37,7 +45,7 @@ def trial(ctx):
         peak0,
         "intensity",
         "color",
-        obj.radius,
+        radius,
         palette=cmap,
         edgecolor="none",
         alpha=0.2,
@@ -52,7 +60,7 @@ def trial(ctx):
         peak1,
         "intensity",
         "accept",
-        obj.radius,  # palette=cmap,
+        radius,  # palette=cmap,
         edgecolor="none",
         alpha=0.2,
         size=2,
@@ -80,5 +88,6 @@ def trial(ctx):
     ax.set_xlim(0, w)
     ax.set_ylim(h, 0)
 
-    path = obj.out_path("figure", obj.tag, "_trial")
+    path = obj.out_path("figure", make_tag, "_tune")
     fig.savefig(f"{path}.pdf", bbox_inches="tight", pad_inches=0.1)
+    click.echo(f"see {path}.pdf")

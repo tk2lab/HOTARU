@@ -24,6 +24,6 @@ from ...evaluate.simulate import make_sim
 @click.option("--tau_fall", type=float, default=0.18, show_default=True)
 @click.option("--seed", type=int)
 def sample(**args):
-    """Make Sample"""
+    """Create Artifitial Sample Movie"""
 
     make_sim(**args)

@@ -20,7 +20,7 @@ from ..base import readable_file
 @click.pass_obj
 @command_wrap
 def data(obj, tag, imgs_path, mask_type, hz, batch):
-    """Data"""
+    """Prepare Data."""
 
     imgs = load_data(imgs_path)
     nt, h, w = imgs.shape()

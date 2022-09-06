@@ -24,10 +24,7 @@ from ..base import configure
 @click.pass_obj
 @command_wrap
 def spatial(obj, tag, stage, batch, **args):
-    """Update footprint"""
-
-    if stage <= 0:
-        stage = "_curr"
+    """Update Footprint from Spike."""
 
     spike_tag = tag
     spike_stage = stage

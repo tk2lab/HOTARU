@@ -17,7 +17,7 @@ from ..base import configure
 @click.pass_obj
 @command_wrap
 def find(obj, tag, data_tag, shard, batch, **radius_args):
-    """Find"""
+    """Find Initial Cell Candidate Peaks."""
 
     data = obj.data(data_tag)
     mask = obj.mask(data_tag)

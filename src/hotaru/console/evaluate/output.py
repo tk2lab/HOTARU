@@ -12,7 +12,7 @@ from ..base import configure
 @click.option("--stage", type=int)
 @click.pass_obj
 def output(obj, tag, stage):
-    """Output"""
+    """Output Tiff and CSV"""
 
     prev_log = obj.log("1temporal", tag, stage)
     data_tag = prev_log["data_tag"]

@@ -14,7 +14,7 @@ from ..base import readable_file
 @click.option("--imgs-path", type=readable_file)
 @click.pass_obj
 def stats(obj, tag, imgs_path):
-    """Stats"""
+    """Make Simple Stats Image (Max/Std/Cor)"""
 
     data = load_data(imgs_path)
     t, h, w = data.shape()
@@ -22,7 +22,6 @@ def stats(obj, tag, imgs_path):
 
     fw = 1.5
     fh = fw * h / w
-    path = obj.out_path("figure", tag, "_stats")
 
     fig = plt.figure(figsize=(1, 1))
     for i, (l, f) in enumerate(zip("ABC", [calc_max, calc_std, calc_cor])):
@@ -32,4 +31,7 @@ def stats(obj, tag, imgs_path):
         ax = fig.add_axes([0.15 + i * (0.2 + fw), -fh, fw, fh])
         ax.imshow(image, cmap="Greens")
         ax.axis("off")
+
+    path = obj.out_path("figure", tag, "_stats")
     fig.savefig(f"{path}.pdf", bbox_inches="tight", pad_inches=0.1)
+    click.echo(f"see {path}.pdf")

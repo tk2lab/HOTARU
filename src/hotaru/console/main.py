@@ -3,15 +3,13 @@ import pkgutil
 
 import click
 
-# from .driver.auto import auto
-from .driver.config import config
-
-# from .driver.trial import trial
-# from .evaluate.figure import figure
+from .config.config import config
+from .evaluate.figure import figure
 from .evaluate.mpeg import mpeg
 from .evaluate.output import output
 from .evaluate.sample import sample
 from .evaluate.stats import stats
+from .evaluate.tune import tune
 from .obj import Obj
 from .run.clean import clean
 from .run.data import data
@@ -19,6 +17,12 @@ from .run.find import find
 from .run.make import make
 from .run.spatial import spatial
 from .run.temporal import temporal
+from .run.workflow import workflow
+
+
+class NatureOrderGroup(click.Group):
+    def list_commands(self, ctx):
+        return self.commands.keys()
 
 
 def configure(ctx, param, configfile):
@@ -26,7 +30,7 @@ def configure(ctx, param, configfile):
         allow_no_value=True,
         interpolation=configparser.ExtendedInterpolation(),
     )
-    default = pkgutil.get_data("hotaru.console", "hotaru.ini")
+    default = pkgutil.get_data("hotaru.console.config", "default.ini")
     config.read_string(default.decode("utf-8"))
     config.read(configfile)
     ctx.default_map = config["main"]
@@ -34,7 +38,7 @@ def configure(ctx, param, configfile):
     ctx.obj.config = config
 
 
-@click.group()
+@click.group(cls=NatureOrderGroup)
 @click.option(
     "--config",
     "-c",
@@ -46,32 +50,40 @@ def configure(ctx, param, configfile):
     show_default=True,
 )
 @click.option("--workdir", "-w", type=str)
-@click.option("--tag", "-t", type=str)
 @click.option("--force", "-f", is_flag=True)
 @click.pass_context
-def main(ctx, workdir, tag, force):
+def main(ctx, workdir, force):
     """Main"""
 
     ctx.obj.workdir = workdir
-    ctx.obj.tag = tag
     ctx.obj.force = force
 
 
-main.add_command(sample)
+@click.group(cls=NatureOrderGroup)
+def run():
+    """Step Run"""
+
+
+@click.group()
+def output():
+    """Output Results"""
+
 
 main.add_command(config)
 main.add_command(stats)
-# main.add_command(trial)
-# main.add_command(auto)
-
-main.add_command(data)
-main.add_command(find)
-main.add_command(make)
-main.add_command(temporal)
-main.add_command(spatial)
-main.add_command(clean)
-
+main.add_command(tune)
+main.add_command(workflow)
 main.add_command(output)
-main.add_command(mpeg)
+main.add_command(run)
+main.add_command(sample)
 
-# main.add_command(figure)
+run.add_command(data)
+run.add_command(find)
+run.add_command(make)
+run.add_command(temporal)
+run.add_command(spatial)
+run.add_command(clean)
+
+output.add_command(output)
+output.add_command(figure)
+output.add_command(mpeg)

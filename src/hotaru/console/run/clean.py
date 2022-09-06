@@ -24,10 +24,7 @@ from ..base import configure
 @click.pass_obj
 @command_wrap
 def clean(obj, tag, stage, gauss, batch, **args):
-    """Clean"""
-
-    if stage <= 0:
-        stage = "_curr"
+    """Clean Footprint and Make Segment."""
 
     footprint_tag = tag
     footprint_stage = stage
@@ -80,9 +77,12 @@ def clean(obj, tag, stage, gauss, batch, **args):
     nk = cond.sum()
     sim = peaks.loc[cond, "sim"].values
     peaks.sort_values("firmness", ascending=False, inplace=True)
-    click.echo(peaks.loc[cond])
+    click.echo(peaks.loc[cond].head())
+    click.echo(peaks.loc[cond].tail())
     click.echo(peaks.loc[~cond])
-    click.echo(f"sim: {np.sort(sim[sim > 0])}")
+    peaks.sort_values("sim", ascending=False, inplace=True)
+    click.echo(peaks.loc[cond].head())
+    #click.echo(f"sim: {np.sort(sim[sim > 0])}")
     click.echo(f"ncell: {old_nk} -> {nk}")
 
     log = dict(

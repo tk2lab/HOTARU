@@ -37,21 +37,14 @@ def temporal(
     batch,
     **args,
 ):
-    """Update spike"""
+    """Update Spike from Segment."""
 
     if segment_tag != tag:
         stage = 1
     else:
         stage = segment_stage + 1
     if not storing_intermidiate_results:
-        stage = -1
-
-    if stage <= 0:
-        stage = "_curr"
-    if segment_stage < 0:
-        segment_stage = "_curr"
-
-    click.echo(f"{tag} {stage} {segment_tag} {segment_stage}")
+        stage = 999
 
     data_tag = obj.log("3segment", segment_tag, segment_stage)["data_tag"]
     data = obj.data(data_tag)

@@ -17,6 +17,8 @@ from .progress import ProgressCallback
 
 
 class Obj:
+    """HOTARU CLI Object."""
+
     def __init__(self):
         self._log = {}
 
@@ -31,16 +33,23 @@ class Obj:
         for k, v in x.items():
             setattr(self, k, v)
 
+    def invoke(self, ctx, command, *args):
+        ctx = command.make_context(command.name, list(args), ctx)
+        command.invoke(ctx)
+
+    def get_config(self, kind, tag, key):
+        if f"{kind}/{tag}" in self.config:
+            return self.config.get(f"{kind}/{tag}", key)
+        else:
+            return self.config.get(kind, key)
+
     # SAVE
 
     def out_path(self, kind=None, tag=None, stage=None):
         if stage is None:
             stage = ""
         elif isinstance(stage, int):
-            if stage == -1:
-                stage = "_curr"
-            else:
-                stage = f"_{stage:03}"
+            stage = f"_{stage:03}"
         os.makedirs(f"{self.workdir}/{kind}", exist_ok=True)
         return f"{self.workdir}/{kind}/{tag}{stage}"
 
@@ -66,45 +75,54 @@ class Obj:
         if stage is None:
             stage = ""
         elif isinstance(stage, int):
-            if stage == -1:
-                stage = "_curr"
-            else:
-                stage = f"_{stage:03}"
+            stage = f"_{stage:03}"
         return f"{self.workdir}/summary/{tag}/{kind}{stage}"
 
     # LOG
 
-    def log_path(self, kind=None, tag=None, stage=None):
-        if stage is None:
-            stage = ""
-        elif isinstance(stage, int):
-            if stage == -1:
-                stage = "_curr"
-            else:
-                stage = f"_{stage:03}"
+    def save_log(self, log, kind, tag, stage):
         os.makedirs(f"{self.workdir}/log", exist_ok=True)
-        return f"{self.workdir}/log/{tag}{stage}_{kind}.json"
-
-    def save_log(self, log, kind=None, tog=None, stage=None):
-        path = self.log_path(kind, tog, stage)
+        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.json"
         save_json(path, log)
         self._log[path] = log
 
     def log(self, kind, tag, stage):
-        path = self.log_path(kind, tag, stage)
+        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.json"
         if path not in self._log:
             self._log[path] = load_json(path)
         return self._log[path]
 
-    def can_skip(self, kind=None, tag=None, stage=None):
+    def can_skip(self, kind, tag, **args):
         if self.force:
             return False
-        if kind == "output":
+
+        if kind == "temporal":
+            segment_tag = args["segment_tag"]
+            segment_stage = args["segment_stage"]
+            storing_intermidiate_results = args["storing_intermidiate_results"]
+            if segment_tag != tag:
+                stage = 1
+            else:
+                stage = segment_stage + 1
+            if not storing_intermidiate_results:
+                stage = -1
+        elif (kind == "spatial") or (kind == "clean"):
+            stage = args["stage"]
+        else:
+            stage = 0
+
+        if stage == -1:
             return False
-        if kind in ("temporal", "spatial", "clean"):
-            if not isinstance(self.stage, int):
-                return False
-        path = self.log_path(kind, tag, stage)
+
+        kind = dict(
+            data="1data",
+            find="2find",
+            make="3segment",
+            temporal="1temporal",
+            spatial="2spatial",
+            clean="3segment",
+        )[kind]
+        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.json"
         return os.path.exists(path)
 
     def need_exec(self):
@@ -152,6 +170,10 @@ class Obj:
         path = self.out_path("peak", tag, stage)
         return load_csv(f"{path}.csv")
 
+    def used_radius_args(self, tag, stage=0):
+        log = self.log("2find", tag, stage)
+        return {k: v for k, v in log.items() if k[:6] == "radius"}
+
     def used_radius_min(self, tag, stage=0):
         return self.log("2find", tag, stage)["radius_min"]
 
@@ -159,6 +181,9 @@ class Obj:
         return self.log("2find", tag, stage)["radius_max"]
 
     # INIT
+
+    def used_distance(self, tag):
+        return self.log("3segment", tag, stage=0)["distance"]
 
     def segment(self, tag, stage):
         path = self.out_path("segment", tag, stage)

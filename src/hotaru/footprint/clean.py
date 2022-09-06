@@ -94,10 +94,10 @@ def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):
     dataset = dataset.batch(batch)
 
     mask = tf.convert_to_tensor(mask, tf.bool)
-    if gauss > 0.0:
-        gauss = tf.convert_to_tensor(gauss, tf.float32)
-    else:
+    if gauss <= 0.0:
         gauss = None
+    else:
+        gauss = tf.convert_to_tensor(gauss, tf.float32)
     radius = tf.convert_to_tensor(radius, tf.float32)
 
     footprint, f, r, y, x = _clean(dataset, mask, gauss, radius, prog=prog)

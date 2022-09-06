@@ -10,7 +10,7 @@ from ..base import configure
 @click.option("--has-truth", is_flag=True)
 @click.pass_obj
 def mpeg(obj, tag, stage, has_truth):
-    """Make Mp4"""
+    """Output Reconstraction Movie"""
 
     data_tag = obj.log("3segment", tag, stage)["data_tag"]
     if stage is None:

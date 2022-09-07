@@ -1,8 +1,8 @@
 import click
 import matplotlib.pyplot as plt
 
-from ...evaluate.circle import plot_circle
-from ...evaluate.radius import plot_radius
+from ...evaluate.peaks import plot_circle
+from ...evaluate.peaks import plot_radius
 from ..base import configure
 from ..run.data import data
 from ..run.find import find
@@ -18,8 +18,8 @@ def tune(ctx, tag, make_tag):
 
     obj = ctx.obj
 
-    find_tag = obj.config.get(f"make/{make_tag}", "find_tag")
-    data_tag = obj.config.get(f"find/{find_tag}", "data_tag")
+    find_tag = obj.get_config("make", make_tag, "find_tag")
+    data_tag = obj.get_config("find", find_tag, "data_tag")
 
     obj.invoke(ctx, data, f"--tag={data_tag}")
     obj.invoke(ctx, find, f"--tag={find_tag}")
@@ -35,58 +35,46 @@ def tune(ctx, tag, make_tag):
     peak0 = obj.peaks(find_tag)
     peak1 = obj.peaks(make_tag, 0)
 
-    fig = plt.figure(figsize=(1, 1))
-    cmap = dict(r="r", g="g", b="b")
+    cond = (peak1["radius"] > radius_min) & (peak1["radius"] < radius_max)
+    peak2 = peak1[cond].copy()
 
-    ax = fig.add_axes([0, 0, 3, 2])
-    peak0["color"] = "b"
+    ymax = 1.1 * peak0.intensity.max()
+
+    fig = plt.figure(figsize=(1, 1))
+
+    ax = fig.add_axes([0.6, 0.5, 3, 2])
     plot_radius(
         ax,
         peak0,
         "intensity",
-        "color",
         radius,
-        palette=cmap,
-        edgecolor="none",
-        alpha=0.2,
-        size=2,
-        legend=False,
-        rasterized=True,
+        color="b",
+        alpha=0.1,
     )
+    ax.set_ylim(0, ymax)
 
-    ax = fig.add_axes([4, 0, 3, 2])
+    ax = fig.add_axes([3.8, 0.5, 3, 2])
     plot_radius(
         ax,
         peak1,
         "intensity",
-        "accept",
-        radius,  # palette=cmap,
-        edgecolor="none",
-        alpha=0.2,
-        size=2,
-        legend=False,
-        rasterized=True,
+        radius,
+        hue="accept",
+        palette=dict(yes="b", no="r"),
+        alpha=0.5,
         ylabel=False,
     )
+    ax.set_ylim(0, ymax)
 
-    ax = fig.add_axes([0, 3, 7, 7 * h / w])
-    cond = (peak1["radius"] > radius_min) & (peak1["radius"] < radius_max)
-    ax.scatter(
-        peak1.loc[cond, "x"].values,
-        peak1.loc[cond, "y"].values,
-        s=5,
-        c="r",
-    )
+    ax = fig.add_axes([0, -7 * h / w, 7, 7 * h / w])
     plot_circle(
         ax,
-        peak1[cond].copy(),
+        peak2,
         h,
         w,
         distance,
         color="g",
     )
-    ax.set_xlim(0, w)
-    ax.set_ylim(h, 0)
 
     path = obj.out_path("figure", make_tag, "_tune")
     fig.savefig(f"{path}.pdf", bbox_inches="tight", pad_inches=0.1)

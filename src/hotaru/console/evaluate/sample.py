@@ -16,7 +16,6 @@ from ...evaluate.simulate import make_sim
 @click.option("--intensity-max", type=float, default=2.0, show_default=True)
 @click.option("--radius-min", type=float, default=4.0, show_default=True)
 @click.option("--radius-max", type=float, default=8.0, show_default=True)
-@click.option("--radius-min", type=float, default=4.0, show_default=True)
 @click.option("--distance", type=float, default=1.8, show_default=True)
 @click.option("--firingrate-min", type=float, default=0.2, show_default=True)
 @click.option("--firingrate-max", type=float, default=2.2, show_default=True)

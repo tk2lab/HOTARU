@@ -6,8 +6,11 @@ import numpy as np
 def label_out_of_range(peaks, radius_min, radius_max):
     r = peaks["radius"].values
     peaks["accept"] = "yes"
-    peaks.loc[r == radius_min, "accept"] = "small_r"
-    peaks.loc[r == radius_max, "accept"] = "large_r"
+    peaks["reason"] = ""
+    peaks.loc[r == radius_min, "accept"] = "no"
+    peaks.loc[r == radius_min, "reason"] = "small_r"
+    peaks.loc[r == radius_max, "accept"] = "no"
+    peaks.loc[r == radius_max, "reason"] = "large_r"
     return peaks
 
 

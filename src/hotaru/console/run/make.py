@@ -33,20 +33,16 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     with click.progressbar(iterable=idx_data, label="Reduce") as prog:
         idx = reduce_peak_idx_finish(prog)
     peaks = label_out_of_range(peaks.loc[idx], radius_min, radius_max)
+    obj.save_csv(peaks, "peak", tag, 0)
+
     accept = peaks.query("accept == 'yes'")
     click.echo(f"num: {accept.shape[0]}")
 
-    if only_reduce:
-        return
+    if not only_reduce:
+        with click.progressbar(length=nt, label="Make") as prog:
+            with obj.strategy.scope():
+                segment = make_segment(data, mask, accept, batch, prog=prog)
+        obj.save_numpy(segment, "segment", tag, 0)
 
-    with click.progressbar(length=nt, label="Make") as prog:
-        with obj.strategy.scope():
-            segment = make_segment(data, mask, accept, batch, prog=prog)
-    obj.save_csv(peaks, "peak", tag, 0)
-    obj.save_numpy(segment, "segment", tag, 0)
-
-    log = dict(
-        data_tag=data_tag,
-        find_tag=find_tag,
-    )
+    log = dict(data_tag=data_tag, find_tag=find_tag)
     return log, "3segment", tag, 0

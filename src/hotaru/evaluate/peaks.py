@@ -1,12 +1,29 @@
 import numpy as np
 import seaborn as sns
+import matplotlib.pyplot as plt
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import ScalarFormatter
 
 
-def plot_radius(
-    ax, df, yname, cname, radius, xlabel=True, ylabel=True, **args
-):
+def plot_circle(ax, df, h, w, dist, **args):
+    ax.scatter(df.x, df.y, s=5, c="r")
+    m = df.intensity.values
+    df["g"] = m / m.max()
+    for x, y, r, g in df[["x", "y", "radius", "g"]].values:
+        ax.add_artist(
+            plt.Circle((x, y), dist * r, alpha=g, fill=False, **args)
+        )
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlim(0, w)
+    ax.set_ylim(h, 0)
+
+
+def plot_radius(ax, df, yname, radius, xlabel=True, ylabel=True, **args):
+    args.setdefault("s", 10)
+    args.setdefault("edgecolor", "none")
+    args.setdefault("rasterized", True)
+
     rmin = radius[0]
     rmax = radius[-1]
     logr = np.log(radius)
@@ -16,19 +33,17 @@ def plot_radius(
         + list(2 ** np.arange(np.log2(rmin), 1.1 * np.log2(rmax), 1.0))
         + [rmax]
     )
-
-    r = df["radius"]
-    y = df[yname]
     df["rj"] = np.exp(
-        np.log(r) + 0.8 * diff * (np.random.random(r.size) - 0.5)
+        np.log(df.radius)
+        + 0.8 * diff * (np.random.random(df.radius.size) - 0.5)
     )
-    sns.scatterplot(x="rj", y=yname, hue=cname, data=df, ax=ax, **args)
+
+    sns.scatterplot(x="rj", y=yname, data=df, ax=ax, **args)
     ax.set_xscale("log")
     ax.set_xticks(rlist[1:-1])
     ax.xaxis.set_major_formatter(ScalarFormatter())
     ax.xaxis.set_minor_formatter(NullFormatter())
     ax.set_xlim(rlist[0] * 0.8, rlist[-1] * 1.2)
-    ax.set_ylim(0, y.max() * 1.1)
     if xlabel:
         ax.set_xlabel("radius (pixel)")
     else:

@@ -1,5 +1,4 @@
 import click
-import tqdm
 import tensorflow as tf
 
 from ...evaluate.summary import write_spike_summary

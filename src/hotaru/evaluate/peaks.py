@@ -1,9 +1,9 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-import matplotlib.pyplot as plt
+from matplotlib import cm
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import ScalarFormatter
-from matplotlib import cm
 
 
 def plot_circle(ax, df, h, w, scale, **args):
@@ -15,7 +15,10 @@ def plot_circle(ax, df, h, w, scale, **args):
     ax.scatter(df.x, df.y, s=5, c="r")
     for x, y, r, g in df[["x", "y", "radius", "intensity"]].values:
         circle = plt.Circle(
-            (x, y), scale * r, facecolor=cmap(g / gmax), **args,
+            (x, y),
+            scale * r,
+            facecolor=cmap(g / gmax),
+            **args,
         )
         ax.add_artist(circle)
     ax.set_xticks([])

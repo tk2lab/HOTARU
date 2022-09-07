@@ -1,5 +1,5 @@
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked

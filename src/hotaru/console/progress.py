@@ -3,7 +3,6 @@ from tqdm import tqdm
 
 
 class Progress(tqdm):
-
     def __init__(self, iterable=None, length=None, label=None, **args):
         super().__init__(iterable, desc=label, total=length, **args)
 
@@ -17,7 +16,7 @@ class ProgressCallback(tf.keras.callbacks.Callback):
 
     def on_train_begin(self, logs=None):
         self.progress = Progress(
-            label=self.name, 
+            label=self.name,
             length=self.params.get("epochs", self.total),
             unit="epoch",
         )

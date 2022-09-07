@@ -83,7 +83,7 @@ def clean(obj, tag, stage, gauss, batch, **args):
     click.echo(peaks.loc[~cond])
     peaks.sort_values("sim", ascending=False, inplace=True)
     click.echo(peaks.loc[cond].head())
-    #click.echo(f"sim: {np.sort(sim[sim > 0])}")
+    # click.echo(f"sim: {np.sort(sim[sim > 0])}")
     click.echo(f"ncell: {old_nk} -> {nk}")
 
     log = dict(

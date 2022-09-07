@@ -39,7 +39,12 @@ def get_segment_py(img, y0, x0, mask):
 
 
 def get_segment_index_py(img, y0, x0, mask):
-    delta = [(dy, dx) for dy in [-1, 0, 1] for dx in [-1, 0, 1] if (dy, dx) != (0, 0)]
+    delta = [
+        (dy, dx)
+        for dy in [-1, 0, 1]
+        for dx in [-1, 0, 1]
+        if (dy, dx) != (0, 0)
+    ]
     mask = np.pad(mask, [[0, 1], [0, 1]])
     pos = np.zeros_like(mask, bool)
     pos = np.pad(pos, [[0, 1], [0, 1]], constant_values=True)

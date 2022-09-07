@@ -6,6 +6,7 @@ from ...footprint.reduce import reduce_peak_idx_data
 from ...footprint.reduce import reduce_peak_idx_finish
 from ..base import command_wrap
 from ..base import configure
+from ..progress import Progress
 
 
 @click.command(context_settings=dict(show_default=True))
@@ -30,7 +31,7 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     radius_max = obj.used_radius_max(find_tag)
 
     idx_data = reduce_peak_idx_data(peaks, distance, window)
-    with click.progressbar(iterable=idx_data, label="Reduce") as prog:
+    with Progress(iterable=idx_data, label="Reduce", unit="block") as prog:
         idx = reduce_peak_idx_finish(prog)
     peaks = label_out_of_range(peaks.loc[idx], radius_min, radius_max)
     obj.save_csv(peaks, "peak", tag, 0)
@@ -43,7 +44,7 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     if only_reduce:
         return log, "3segment", tag, "tune"
     else:
-        with click.progressbar(length=nt, label="Make") as prog:
+        with Progress(length=nt, label="Make", unit="frame") as prog:
             with obj.strategy.scope():
                 segment = make_segment(data, mask, accept, batch, prog=prog)
         obj.save_numpy(segment, "segment", tag, 0)

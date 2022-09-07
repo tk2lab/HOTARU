@@ -1,10 +1,12 @@
 import click
+import tqdm
 import tensorflow as tf
 
 from ...evaluate.summary import write_spike_summary
 from ...train.temporal import TemporalModel
 from ..base import command_wrap
 from ..base import configure
+from ..progress import Progress
 
 
 @click.command(context_settings=dict(show_default=True))
@@ -74,7 +76,7 @@ def temporal(
     summary_dir = obj.summary_path("temporal", tag, stage)
     writer = tf.summary.create_file_writer(summary_dir)
 
-    with click.progressbar(length=nt, label="InitT") as prog:
+    with Progress(length=nt, label="InitT", unit="frame") as prog:
         model.prepare_fit(segment, batch, prog=prog)
 
     cb = obj.callbacks("TrainT", summary_dir)

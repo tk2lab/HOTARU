@@ -7,6 +7,7 @@ from ...footprint.clean import clean_footprint
 from ...footprint.clean import modify_footprint
 from ..base import command_wrap
 from ..base import configure
+from ..progress import Progress
 
 
 @click.command(context_settings=dict(show_default=True))
@@ -47,7 +48,7 @@ def clean(obj, tag, stage, gauss, batch, **args):
     radius = obj.get_radius(**radius_opt)
     thr_opt = {k: v for k, v in args.items() if k[:3] == "thr"}
 
-    with click.progressbar(length=nk, label="Clean") as prog:
+    with Progress(length=nk, label="Clean", unit="cell") as prog:
         with obj.strategy.scope():
             segment, peaks = clean_footprint(
                 footprint[cond],

@@ -3,6 +3,7 @@ import click
 from ...footprint.find import find_peak
 from ..base import command_wrap
 from ..base import configure
+from ..progress import Progress
 
 
 @click.command(context_settings=dict(show_default=True))
@@ -25,7 +26,7 @@ def find(obj, tag, data_tag, shard, batch, **radius_args):
     radius = obj.get_radius(**radius_args)
 
     total = (nt + shard - 1) // shard
-    with click.progressbar(length=total, label="Find") as prog:
+    with Progress(length=total, label="Find", unit="frame") as prog:
         with obj.strategy.scope():
             peaks = find_peak(data, mask, radius, shard, batch, prog=prog)
     num_cell = peaks.shape[0]

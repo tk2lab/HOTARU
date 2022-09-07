@@ -5,6 +5,7 @@ from ...evaluate.summary import write_footprint_summary
 from ...train.spatial import SpatialModel
 from ..base import command_wrap
 from ..base import configure
+from ..progress import Progress
 
 
 @click.command(context_settings=dict(show_default=True))
@@ -59,7 +60,7 @@ def spatial(obj, tag, stage, batch, **args):
     summary_dir = obj.summary_path("spatial", tag, stage)
     writer = tf.summary.create_file_writer(summary_dir)
 
-    with click.progressbar(length=nt, label="InitS") as prog:
+    with Progress(length=nt, label="InitS", unit="frame") as prog:
         model.prepare_fit(spike, batch, prog=prog)
 
     cb = obj.callbacks("TrainS", summary_dir)

@@ -65,9 +65,9 @@ def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):
         xs = (pos % hw) % w
         logs = tf.gather_nd(logs, tf.stack([tf.range(nk), rs], axis=1))
 
-        out = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        firmness = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         nx = tf.size(rs)
+        out = tf.TensorArray(tf.float32, size=nk)
+        firmness = tf.TensorArray(tf.float32, size=nk)
         for k in tf.range(nx):
             img, log, y, x = imgs[k], logs[k], ys[k], xs[k]
             pos = get_segment_index(log, y, x, mask)

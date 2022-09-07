@@ -13,7 +13,7 @@ def workflow_local(ctx, obj, tag, stage, save, non_stop):
     click.echo(f"workflow {tag} {stage}")
     prev_tag = obj.get_config("workflow", tag, "prev_tag")
     if prev_tag:
-        prev_stage = obj.get_config("workflow", tag, "prev_stage")
+        prev_stage = int(obj.get_config("workflow", tag, "prev_stage"))
         workflow_local(ctx, obj, prev_tag, prev_stage, True, True)
     else:
         prev_tag = tag

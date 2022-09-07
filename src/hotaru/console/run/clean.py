@@ -17,6 +17,7 @@ from ..progress import Progress
 @click.option("--radius-min", type=float)
 @click.option("--radius-max", type=float)
 @click.option("--radius-num", type=int)
+@click.option("--distance", type=float)
 @click.option("--thr-area-abs", type=click.FloatRange(0.0))
 @click.option("--thr-area-rel", type=click.FloatRange(0.0))
 @click.option("--thr-sim", type=click.FloatRange(0.0, 1.0))
@@ -24,7 +25,7 @@ from ..progress import Progress
 @click.option("--batch", type=click.IntRange(0))
 @click.pass_obj
 @command_wrap
-def clean(obj, tag, stage, gauss, batch, **args):
+def clean(obj, tag, stage, distance, gauss, batch, **args):
     """Clean Footprint and Make Segment."""
 
     footprint_tag = tag
@@ -63,7 +64,8 @@ def clean(obj, tag, stage, gauss, batch, **args):
     idx = np.argsort(peaks["firmness"].values)[::-1]
     segment = segment[idx]
     peaks = peaks.iloc[idx].copy()
-    check_accept(segment, peaks, radius, **thr_opt)
+
+    check_accept(segment, peaks, radius, distance, **thr_opt)
 
     cond = peaks["accept"] == "yes"
     peaks = pd.concat([peaks, no_seg], axis=0)

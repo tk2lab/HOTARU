@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -8,6 +10,7 @@ from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
+from .reduce import reduce_peak_mask
 from .segment import get_segment_index
 from .segment import remove_noise
 
@@ -22,17 +25,19 @@ def modify_footprint(footprint):
 
 
 def check_accept(
-    footprint, peaks, radius, thr_area_abs, thr_area_rel, thr_sim
+    footprint, peaks, radius, distance, thr_area_abs, thr_area_rel, thr_sim
 ):
     peaks["accept"] = "yes"
-    x = peaks["radius"]
+    x = peaks.radius.values
+
+    cond0 = reduce_peak_mask(peaks, distance) == False
     cond1 = x == radius[0]
     cond2 = x == radius[-1]
 
     segment = (footprint > 0.5).astype(np.float32)
     area = np.sum(segment, axis=1)
     peaks["area"] = area
-    cond3 = area >= thr_area_abs + thr_area_rel * np.pi * x**2
+    cond3 = area >= thr_area_abs + thr_area_rel * math.pi * x**2
 
     sim = calc_sim_area(segment, ~(cond1 ^ cond2 ^ cond3))
     # sim = calc_sim_cos(segment)
@@ -43,6 +48,7 @@ def check_accept(
     peaks.loc[cond3, "accept"] = "large_area"
     peaks.loc[cond2, "accept"] = "large_r"
     peaks.loc[cond1, "accept"] = "small_r"
+    peaks.loc[cond0, "accept"] = "near"
 
 
 def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):

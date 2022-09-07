@@ -14,16 +14,14 @@ def label_out_of_range(peaks, radius_min, radius_max):
     return peaks
 
 
-def reduce_peak_simple(peaks, radius, thr_distance):
-    idx = reduce_peak_idx_simple(peaks, radius, thr_distance)
-    return tuple(v[idx] for v in peaks)
-
-
-def reduce_peak_idx_simple(peaks, radius, thr_distance):
-    ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
-    rs = np.array(radius)[rs]
+def reduce_peak_mask(peaks, thr_distance):
+    rs = peaks["radius"].values
+    ys = peaks["y"].values
+    xs = peaks["x"].values
     idx = _reduce_peak_idx(ys, xs, rs, thr_distance)
-    return np.array(idx, np.int32)
+    out = np.zeros_like(rs)
+    out[idx] = True
+    return out
 
 
 def reduce_peak_idx_data(peaks, thr_distance, size):

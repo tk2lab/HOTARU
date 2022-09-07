@@ -24,11 +24,11 @@ def figure(obj, tag, stage):
     tau = obj.used_tau(tag, stage)
 
     segment = obj.segment(segment_tag, segment_stage)
-    u = obj.spike(tag, stage)
-    nk = u.shape[0]
-
+    nk = segment.shape[0]
     imgs = np.zeros((nk, h, w))
     imgs[:, mask] = segment
+
+    spike = obj.spike(tag, stage)
 
     fig = plt.figure(figsize=(1, 1))
 

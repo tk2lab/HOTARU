@@ -64,7 +64,7 @@ def tune(ctx, tag, make_tag):
     ax.set_ylim(0, ymax)
 
     ax = fig.add_axes([0, -7 * h / w, 7, 7 * h / w])
-    plot_circle(ax, peak2, h, w, scale)
+    plot_circle(ax, peak2, h, w, "intensity", scale)
 
     path = obj.out_path("figure", make_tag, "_tune")
     fig.savefig(f"{path}.pdf", bbox_inches="tight", pad_inches=0.1)

@@ -43,7 +43,8 @@ def clean(obj, tag, stage, distance, gauss, batch, **args):
 
     cond = modify_footprint(footprint)
     no_seg = pd.DataFrame(index=index[~cond])
-    no_seg["accept"] = "no_seg"
+    no_seg["accept"] = "no"
+    no_seg["reason"] = "no_seg"
 
     radius_opt = {k: v for k, v in args.items() if k[:6] == "radius"}
     radius = obj.get_radius(**radius_opt)

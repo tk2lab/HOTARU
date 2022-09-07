@@ -171,14 +171,11 @@ class Obj:
         return load_csv(f"{path}.csv")
 
     def used_radius_args(self, tag, stage=0):
-        log = self.log("2find", tag, stage)
+        if stage == 0:
+            log = self.log("2find", tag, stage)
+        else:
+            log = self.log("3segment", tag, stage)
         return {k: v for k, v in log.items() if k[:6] == "radius"}
-
-    def used_radius_min(self, tag, stage=0):
-        return self.log("2find", tag, stage)["radius_min"]
-
-    def used_radius_max(self, tag, stage=0):
-        return self.log("2find", tag, stage)["radius_max"]
 
     # INIT
 

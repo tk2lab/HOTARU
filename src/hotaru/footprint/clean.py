@@ -28,6 +28,7 @@ def check_accept(
     footprint, peaks, radius, distance, thr_area_abs, thr_area_rel, thr_sim
 ):
     peaks["accept"] = "yes"
+    peaks["reason"] = "-"
     x = peaks.radius.values
 
     cond0 = reduce_peak_mask(peaks, distance) == False
@@ -44,11 +45,12 @@ def check_accept(
     peaks["sim"] = sim
     cond4 = sim > thr_sim
 
-    peaks.loc[cond4, "accept"] = "large_sim"
-    peaks.loc[cond3, "accept"] = "large_area"
-    peaks.loc[cond2, "accept"] = "large_r"
-    peaks.loc[cond1, "accept"] = "small_r"
-    peaks.loc[cond0, "accept"] = "near"
+    peaks.loc[cond0 | cond1 | cond2 | cond3 | cond4, "accept"] = "no"
+    peaks.loc[cond4, "reason"] = "large_sim"
+    peaks.loc[cond3, "reason"] = "large_area"
+    peaks.loc[cond2, "reason"] = "large_r"
+    peaks.loc[cond1, "reason"] = "small_r"
+    peaks.loc[cond0, "reason"] = "near"
 
 
 def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):

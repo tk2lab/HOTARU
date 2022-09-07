@@ -10,6 +10,7 @@ from .evaluate.output import output
 from .evaluate.sample import sample
 from .evaluate.stats import stats
 from .evaluate.tune import tune
+from .evaluate.peaks import peak
 from .obj import Obj
 from .run.clean import clean
 from .run.data import data
@@ -87,3 +88,4 @@ run.add_command(clean)
 output.add_command(output)
 output.add_command(figure)
 output.add_command(mpeg)
+output.add_command(peak)

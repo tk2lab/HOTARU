@@ -6,14 +6,14 @@ from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import ScalarFormatter
 
 
-def plot_circle(ax, df, h, w, scale, **args):
+def plot_circle(ax, df, h, w, scale, g, **args):
     args.setdefault("edgecolor", "w")
     args.setdefault("alpha", 0.5)
     cmap = cm.get_cmap("Greens")
-    gmax = df.intensity.max()
+    gmax = df[g].max()
 
     ax.scatter(df.x, df.y, s=5, c="r")
-    for x, y, r, g in df[["x", "y", "radius", "intensity"]].values:
+    for x, y, r, g in df[["x", "y", "radius", g]].values:
         circle = plt.Circle(
             (x, y),
             scale * r,

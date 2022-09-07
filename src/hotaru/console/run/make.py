@@ -27,7 +27,7 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     nt = obj.nt(data_tag)
 
     peaks = obj.peaks(find_tag)
-    radius_arg = obj.used_radius_arg(find_tag)
+    radius_arg = obj.used_radius_args(find_tag)
     radius_min = radius_arg["radius_min"]
     radius_max = radius_arg["radius_max"]
 

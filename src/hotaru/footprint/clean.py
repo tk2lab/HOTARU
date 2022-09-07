@@ -24,14 +24,30 @@ def modify_footprint(footprint):
     return cond
 
 
+def nearest(peaks):
+    rs = peaks["radius"].values
+    ys = peaks["y"].values
+    xs = peaks["x"].values
+    distance = []
+    index = []
+    for y, x, r in zip(ys, xs, rs):
+        d = np.square(y - ys) + np.square(x - xs)
+        idx = np.argsort(d)[1]
+        distance.append(np.sqrt(d[idx]))
+        index.append(idx)
+    return distance, index
+
+
 def check_accept(
-    footprint, peaks, radius, distance, thr_area_abs, thr_area_rel, thr_sim
+    footprint, peaks, radius, thr_distance, thr_area_abs, thr_area_rel, thr_sim,
 ):
-    peaks["accept"] = "yes"
-    peaks["reason"] = "-"
     x = peaks.radius.values
 
-    cond0 = reduce_peak_mask(peaks, distance) == False
+    distance, index = nearest(peaks)
+    peaks["nearest_distance"] = distance
+    peaks["nearest_index"] = index
+
+    cond0 = reduce_peak_mask(peaks, thr_distance) == False
     cond1 = x == radius[0]
     cond2 = x == radius[-1]
 
@@ -45,7 +61,10 @@ def check_accept(
     peaks["sim"] = sim
     cond4 = sim > thr_sim
 
+    peaks["accept"] = "yes"
     peaks.loc[cond0 | cond1 | cond2 | cond3 | cond4, "accept"] = "no"
+
+    peaks["reason"] = "-"
     peaks.loc[cond4, "reason"] = "large_sim"
     peaks.loc[cond3, "reason"] = "large_area"
     peaks.loc[cond2, "reason"] = "large_r"

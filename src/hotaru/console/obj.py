@@ -93,9 +93,6 @@ class Obj:
         return self._log[path]
 
     def can_skip(self, kind, tag, **args):
-        if self.force:
-            return False
-
         if kind == "temporal":
             segment_tag = args["segment_tag"]
             segment_stage = args["segment_stage"]
@@ -110,6 +107,12 @@ class Obj:
             stage = args["stage"]
         else:
             stage = 0
+
+        click.echo("-----------------------------------")
+        click.echo(f"{tag} {stage:03} {kind}:")
+
+        if self.force:
+            return False
 
         if stage == -1:
             return False

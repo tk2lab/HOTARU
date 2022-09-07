@@ -25,9 +25,6 @@ def command_wrap(command):
     def wraped_command(obj, tag, **args):
         kind = command.__name__
 
-        click.echo("-----------------------------------")
-        click.echo(f"{kind}, {tag}:")
-
         if obj.can_skip(kind, tag, **args):
             click.echo("    skip")
             return

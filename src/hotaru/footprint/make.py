@@ -8,7 +8,7 @@ from .segment import get_segment_index
 
 
 def make_segment(dataset, mask, peaks, batch, prog=None):
-    @distributed(ReduceOp.CONCAT)
+    @distributed(ReduceOp.CONCAT, ReduceOp.CONCAT)
     def _make(data, mask, index, ts, rs, ys, xs, radius):
         h, w = tf.shape(mask)[0], tf.shape(mask)[1]
         idx, imgs = data
@@ -25,8 +25,7 @@ def make_segment(dataset, mask, peaks, batch, prog=None):
 
         out = tf.TensorArray(
             tf.float32,
-            size=0,
-            dynamic_size=True,
+            size=tf.size(ids),
             element_shape=[nx],
         )
         for k in tf.range(tf.size(ids)):
@@ -39,7 +38,7 @@ def make_segment(dataset, mask, peaks, batch, prog=None):
             img = tf.scatter_nd(pos, val, [h, w])
             img = tf.boolean_mask(img, mask)
             out = out.write(k, img)
-        return (out.stack(),)
+        return ids, out.stack()
 
     nk = peaks.shape[0]
     nx = mask.sum()
@@ -52,5 +51,5 @@ def make_segment(dataset, mask, peaks, batch, prog=None):
 
     dataset = unmasked(dataset, mask)
     dataset = dataset.enumerate().batch(batch)
-    (segment,) = _make(dataset, mask, index, ts, rs, ys, xs, radius, prog=prog)
-    return segment.numpy()
+    ids, segment = _make(dataset, mask, index, ts, rs, ys, xs, radius, prog=prog)
+    return tf.gather(segment, ids).numpy()

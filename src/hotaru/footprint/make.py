@@ -6,6 +6,7 @@ from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 from .segment import get_segment_index
+from .segment import remove_noise
 
 
 def make_segment(dataset, mask, peaks, batch, prog=None):
@@ -31,11 +32,7 @@ def make_segment(dataset, mask, peaks, batch, prog=None):
             gmin = tf.math.reduce_min(val)
             gmax = tf.math.reduce_max(val)
             val = (val - gmin) / (gmax - gmin)
-            num_bins = tf.size(val) // 100 + 1
-            hist = tf.histogram_fixed_width(val, [0.0, 1.0], num_bins)
-            hist_pos = tf.math.argmax(hist)
-            thr = tf.cast(hist_pos, tf.float32) / tf.cast(num_bins, tf.float32)
-            val = tf.where(val >= thr, (val - thr) / (1 - thr), 0)
+            val = remove_noise(val, scale=100)
             img = tf.scatter_nd(pos, val, [h, w])
             img = tf.boolean_mask(img, mask)
             out = out.write(k, img)

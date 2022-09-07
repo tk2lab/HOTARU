@@ -3,6 +3,14 @@ import tensorflow as tf
 from scipy.ndimage import label
 
 
+def remove_noise(val, scale=100):
+    num_bins = (tf.size(val) // scale) + 1
+    hist = tf.histogram_fixed_width(val, [0.0, 1.0], num_bins)
+    hist_pos = tf.math.argmax(hist)
+    thr = tf.cast(hist_pos, tf.float32) / tf.cast(num_bins, tf.float32)
+    return tf.where(val >= thr, (val - thr) / (1 - thr), 0)
+
+
 def get_segment_simple_py(img, y, x, thr):
     lbl, n = label(img > thr)
     return lbl == lbl[y, x]
@@ -31,42 +39,27 @@ def get_segment_py(img, y0, x0, mask):
 
 
 def get_segment_index_py(img, y0, x0, mask):
-    def push(y, x, dy, dx):
-        yn, xn = y + dy, x + dx
-        if mask[yn, xn] and (img[yn, xn] <= img[y, x]):
-            q.append([yn, xn, dy, dx])
+    delta = [(dy, dx) for dy in [-1, 0, 1] for dx in [-1, 0, 1] if (dy, dx) != (0, 0)]
+    mask = np.pad(mask, [[1, 1], [1, 1]])
+    pos = np.zeros_like(mask, bool)
+    pos = np.pad(pos, [[1, 1], [1, 1]], constant_values=True)
 
-    mask = np.pad(mask, [[0, 1], [0, 1]])
-
-    pos = [[y0, x0]]
+    pos[y0 + 1, x0 + 1] = True
     q = []
-
-    start = [
-        [1, 0],
-        [1, 1],
-        [0, 1],
-        [-1, 1],
-        [-1, 0],
-        [-1, -1],
-        [0, -1],
-        [1, -1],
-    ]
-    for dy, dx in start:
-        push(y0, x0, dy, dx)
+    for dy, dx in delta:
+        q.append((y0 + dy, x0 + dx, -dy, -dx))
 
     while len(q) > 0:
-        y, x, dy, dx = q[0]
-        pos.append([y, x])
-        q = q[1:]
-        push(y, x, dy, dx)
-        if dx == 0:
-            push(y, x, dy, +1)
-            push(y, x, dy, -1)
-        elif dy == 0:
-            push(y, x, +1, dx)
-            push(y, x, -1, dx)
+        yt, xt, dy, dx = q.pop()
+        yo, xo = yt + dy, xt + dx
+        if mask[yt + 1, xt + 1] and (0 < img[yt, xt] <= img[yo, xo]):
+            pos[yt + 1, xt + 1] = True
+            q = [(y, x, dy, dx) for y, x, dy, dx in q if (y, x) != (yt, xt)]
+            for dy, dx in delta:
+                if not pos[yt + dy + 1, xt + dx + 1]:
+                    q.append([yt + dy, xt + dx, -dy, -dx])
 
-    return np.array(pos, np.int32)
+    return np.stack(np.where(pos), axis=1).astype(np.int32)
 
 
 def get_segment_index_tf(img, y0, x0, mask):

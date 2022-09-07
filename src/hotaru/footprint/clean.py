@@ -9,6 +9,7 @@ from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 from .segment import get_segment_index
+from .segment import remove_noise
 
 
 def modify_footprint(footprint):
@@ -78,9 +79,7 @@ def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):
             simgmin = tf.math.reduce_min(simg)
             simgmax = tf.math.reduce_max(simg)
             val = (simg - simgmin) / (simgmax - simgmin)
-            # hist = tf.histogram_fixed_width(val, [0.0, 1.0], 50)[1:]
-            # thr = 0.02 + 0.02 * tf.cast(tf.math.argmax(hist), tf.float32)
-            # val = tf.where(val >= thr, (val - thr) / (1 - thr), 0)
+            val = remove_noise(val)
             img = tf.scatter_nd(pos, val, [h, w])
             out = out.write(k, tf.boolean_mask(img, mask))
             firmness = firmness.write(

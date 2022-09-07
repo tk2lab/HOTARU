@@ -23,6 +23,7 @@ class ProgressCallback(tf.keras.callbacks.Callback):
         )
 
     def on_epoch_end(self, epoch, logs=None):
+        self.progress.set_postfix(dict(score=logs["score"]))
         self.progress.update(1)
 
     def on_train_end(self, logs=None):

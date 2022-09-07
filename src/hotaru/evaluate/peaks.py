@@ -3,16 +3,21 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import ScalarFormatter
+from matplotlib import cm
 
 
-def plot_circle(ax, df, h, w, dist, **args):
+def plot_circle(ax, df, h, w, scale, **args):
+    args.setdefault("edgecolor", "w")
+    args.setdefault("alpha", 0.5)
+    cmap = cm.get_cmap("Greens")
+    gmax = df.intensity.max()
+
     ax.scatter(df.x, df.y, s=5, c="r")
-    m = df.intensity.values
-    df["g"] = m / m.max()
-    for x, y, r, g in df[["x", "y", "radius", "g"]].values:
-        ax.add_artist(
-            plt.Circle((x, y), dist * r, alpha=g, fill=False, **args)
+    for x, y, r, g in df[["x", "y", "radius", "intensity"]].values:
+        circle = plt.Circle(
+            (x, y), scale * r, facecolor=cmap(g / gmax), **args,
         )
+        ax.add_artist(circle)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_xlim(0, w)

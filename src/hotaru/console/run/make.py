@@ -38,11 +38,13 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     accept = peaks.query("accept == 'yes'")
     click.echo(f"num: {accept.shape[0]}")
 
-    if not only_reduce:
+    log = dict(data_tag=data_tag, find_tag=find_tag)
+
+    if only_reduce:
+        return log, "3segment", tag, "tune"
+    else:
         with click.progressbar(length=nt, label="Make") as prog:
             with obj.strategy.scope():
                 segment = make_segment(data, mask, accept, batch, prog=prog)
         obj.save_numpy(segment, "segment", tag, 0)
-
-    log = dict(data_tag=data_tag, find_tag=find_tag)
-    return log, "3segment", tag, 0
+        return log, "3segment", tag, 0

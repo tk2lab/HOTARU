@@ -25,19 +25,16 @@ def tune(ctx, tag, make_tag):
     obj.invoke(ctx, find, f"--tag={find_tag}")
     obj.invoke(ctx, make, f"--tag={make_tag}", "--only-reduce")
 
+    peak0 = obj.peaks(find_tag)
+    peak1 = obj.peaks(make_tag, 0)
+    peak2 = peak1.query("accept == 'yes'")
+
+    h, w = obj.mask(data_tag).shape
     radius_args = obj.used_radius_args(find_tag)
     radius_min = radius_args["radius_min"]
     radius_max = radius_args["radius_max"]
     radius = obj.get_radius(**radius_args)
-    distance = obj.used_distance(make_tag)
-    h, w = obj.mask(data_tag).shape
-
-    peak0 = obj.peaks(find_tag)
-    peak1 = obj.peaks(make_tag, 0)
-
-    cond = (peak1["radius"] > radius_min) & (peak1["radius"] < radius_max)
-    peak2 = peak1[cond].copy()
-
+    scale = obj.used_distance(make_tag, "tune")
     ymax = 1.1 * peak0.intensity.max()
 
     fig = plt.figure(figsize=(1, 1))
@@ -67,14 +64,7 @@ def tune(ctx, tag, make_tag):
     ax.set_ylim(0, ymax)
 
     ax = fig.add_axes([0, -7 * h / w, 7, 7 * h / w])
-    plot_circle(
-        ax,
-        peak2,
-        h,
-        w,
-        distance,
-        color="g",
-    )
+    plot_circle(ax, peak2, h, w, scale)
 
     path = obj.out_path("figure", make_tag, "_tune")
     fig.savefig(f"{path}.pdf", bbox_inches="tight", pad_inches=0.1)

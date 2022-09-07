@@ -182,8 +182,8 @@ class Obj:
 
     # INIT
 
-    def used_distance(self, tag):
-        return self.log("3segment", tag, stage=0)["distance"]
+    def used_distance(self, tag, stage=0):
+        return self.log("3segment", tag, stage=stage)["distance"]
 
     def segment(self, tag, stage):
         path = self.out_path("segment", tag, stage)

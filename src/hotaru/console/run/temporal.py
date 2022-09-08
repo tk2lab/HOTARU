@@ -12,7 +12,7 @@ from ..progress import Progress
 @click.option("--tag", type=str, callback=configure, is_eager=True)
 @click.option("--segment-tag", type=str)
 @click.option("--segment-stage", type=int)
-@click.option("--storing-intermidiate-results", is_flag=True)
+@click.option("--storage-saving", is_flag=True)
 @click.option("--tau-rise", type=float)
 @click.option("--tau-fall", type=float)
 @click.option("--tau-scale", type=float)
@@ -34,7 +34,7 @@ def temporal(
     tag,
     segment_tag,
     segment_stage,
-    storing_intermidiate_results,
+    storage_saving,
     batch,
     **args,
 ):
@@ -43,8 +43,12 @@ def temporal(
     if segment_tag != tag:
         stage = 1
     else:
-        stage = segment_stage + 1
-    if not storing_intermidiate_results:
+        if segment_stage == 999:
+            stage = 999
+        else:
+            stage = segment_stage + 1
+
+    if storage_saving:
         stage = 999
 
     data_tag = obj.log("3segment", segment_tag, segment_stage)["data_tag"]

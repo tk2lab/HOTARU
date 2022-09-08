@@ -12,7 +12,9 @@ from ..progress import Progress
 
 @click.command(context_settings=dict(show_default=True))
 @click.option("--tag", type=str, callback=configure, is_eager=True)
-@click.option("--stage", type=int)
+@click.option("--footprint-tag", type=str)
+@click.option("--footprint-stage", type=int)
+@click.option("--storage-saving", is_flag=True)
 @click.option("--radius-type", type=click.Choice(["log", "linear"]))
 @click.option("--radius-min", type=float)
 @click.option("--radius-max", type=float)
@@ -22,11 +24,16 @@ from ..progress import Progress
 @click.option("--batch", type=click.IntRange(0))
 @click.pass_obj
 @command_wrap
-def clean(obj, tag, stage, thr_area, thr_overwrap, batch, **args):
+def clean(obj, tag, footprint_tag, footprint_stage, storage_saving, thr_area, thr_overwrap, batch, **args):
     """Clean Footprint and Make Segment."""
 
-    footprint_tag = tag
-    footprint_stage = stage
+    if footprint_tag != tag:
+        stage = 1
+    else:
+        stage = footprint_stage
+
+    if storage_saving:
+        stage = 999
 
     prev_log = obj.log("2spatial", footprint_tag, footprint_stage)
     data_tag = prev_log["data_tag"]

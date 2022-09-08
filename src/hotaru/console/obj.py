@@ -40,10 +40,8 @@ class Obj:
 
     def get_config(self, kind, tag, key):
         if f"{kind}/{tag}" in self.config:
-            print(kind, tag, key)
             return self.config.get(f"{kind}/{tag}", key)
         else:
-            print(kind, key)
             return self.config.get(kind, key)
 
     # SAVE
@@ -97,17 +95,29 @@ class Obj:
 
     def can_skip(self, kind, tag, **args):
         if kind == "temporal":
-            segment_tag = args["segment_tag"]
-            segment_stage = args["segment_stage"]
-            storing_intermidiate_results = args["storing_intermidiate_results"]
-            if segment_tag != tag:
+            if args["segment_tag"] != tag:
                 stage = 1
             else:
-                stage = segment_stage + 1
-            if not storing_intermidiate_results:
-                stage = -1
-        elif (kind == "spatial") or (kind == "clean"):
-            stage = args["stage"]
+                if args["storage_saving"] or (args["segment_stage"] == 999):
+                    stage = 999
+                else:
+                    stage = args["segment_stage"] + 1
+        elif kind == "spatial":
+            if args["spike_tag"] != tag:
+                stage = 1
+            else:
+                if args["storage_saving"]:
+                    stage = 999
+                else:
+                    stage = args["spike_stage"]
+        elif kind == "clean":
+            if args["footprint_tag"] != tag:
+                stage = 1
+            else:
+                if args["storage_saving"]:
+                    stage = 999
+                else:
+                    stage = args["footprint_stage"]
         else:
             stage = 0
 
@@ -117,7 +127,7 @@ class Obj:
         if self.force:
             return False
 
-        if stage == -1:
+        if stage == 999:
             return False
 
         kind = dict(

@@ -10,7 +10,9 @@ from ..progress import Progress
 
 @click.command(context_settings=dict(show_default=True))
 @click.option("--tag", type=str, callback=configure, is_eager=True)
-@click.option("--stage", type=int)
+@click.option("--spike-tag", type=str)
+@click.option("--spike-stage", type=int)
+@click.option("--storage-saving", is_flag=True)
 @click.option("--penalty-la", type=float)
 @click.option("--penalty-lu", type=float)
 @click.option("--penalty-bx", type=float)
@@ -24,11 +26,16 @@ from ..progress import Progress
 @click.option("--batch", type=int)
 @click.pass_obj
 @command_wrap
-def spatial(obj, tag, stage, batch, **args):
+def spatial(obj, tag, spike_tag, spike_stage, storage_saving, batch, **args):
     """Update Footprint from Spike."""
 
-    spike_tag = tag
-    spike_stage = stage
+    if spike_tag != tag:
+        stage = 1
+    else:
+        stage = spike_stage
+
+    if storage_saving:
+        stage = 999
 
     prev_log = obj.log("1temporal", spike_tag, spike_stage)
     data_tag = prev_log["data_tag"]

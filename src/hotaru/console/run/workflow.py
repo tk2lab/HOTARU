@@ -9,6 +9,19 @@ from .spatial import spatial
 from .temporal import temporal
 
 
+@click.command(context_settings=dict(show_default=True))
+@click.option("--tag", type=str, callback=configure, is_eager=True)
+@click.option("--end-stage", type=int)
+@click.option("--end-kind", type=click.Choice(["spike", "footprint", "segment"]))
+@click.option("--non-stop", is_flag=True)
+@click.option("--storage-saving", is_flag=True)
+@click.pass_context
+def workflow(ctx, tag, end_stage, end_kind, non_stop, storage_saving):
+    """Workflow"""
+
+    workflow_local(ctx, ctx.obj, tag, end_stage, end_kind, non_stop, storage_saving)
+
+
 def workflow_local(ctx, obj, tag, end_stage, end_kind, non_stop, storage_saving):
     prev_tag = obj.get_config("workflow", tag, "prev_tag")
     if prev_tag and (prev_tag != tag):
@@ -67,16 +80,3 @@ def workflow_local(ctx, obj, tag, end_stage, end_kind, non_stop, storage_saving)
             )
             stage += 1
             kind = "segment"
-
-
-@click.command(context_settings=dict(show_default=True))
-@click.option("--tag", type=str, callback=configure, is_eager=True)
-@click.option("--end-stage", type=int)
-@click.option("--end-kind", type=str)
-@click.option("--non-stop", is_flag=True)
-@click.option("--storage-saving", is_flag=True)
-@click.pass_context
-def workflow(ctx, tag, end_stage, end_kind, non_stop, storage_saving):
-    """Workflow"""
-
-    workflow_local(ctx, ctx.obj, tag, end_stage, end_kind, non_stop, storage_saving)

@@ -79,7 +79,7 @@ def clean(obj, tag, footprint_tag, footprint_stage, storage_saving, thr_area, th
     cond_seg = peaks_seg["accept"] == "yes"
     obj.save_numpy(segment[cond_seg], "segment", tag, stage)
 
-    cond_remove = peaks.loc[index, "accept"] == "yes"
+    cond_remove = peaks.loc[index, "accept"] == "no"
     obj.save_numpy(footprint[cond_remove], "removed", tag, stage)
 
     peaks["x"] = peaks.x.astype(np.int32)

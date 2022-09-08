@@ -17,15 +17,13 @@ from ..progress import Progress
 @click.option("--radius-min", type=float)
 @click.option("--radius-max", type=float)
 @click.option("--radius-num", type=int)
-@click.option("--distance", type=float)
-@click.option("--thr-area-abs", type=click.FloatRange(0.0))
-@click.option("--thr-area-rel", type=click.FloatRange(0.0))
-@click.option("--thr-sim", type=click.FloatRange(0.0, 1.0))
+@click.option("--thr-area", type=click.FloatRange(0.0, 1.0))
+@click.option("--thr-overwrap", type=click.FloatRange(0.0, 1.0))
 @click.option("--gauss", type=float)
 @click.option("--batch", type=click.IntRange(0))
 @click.pass_obj
 @command_wrap
-def clean(obj, tag, stage, distance, gauss, batch, **args):
+def clean(obj, tag, stage, thr_area, thr_overwrap, gauss, batch, **args):
     """Clean Footprint and Make Segment."""
 
     footprint_tag = tag
@@ -43,16 +41,20 @@ def clean(obj, tag, stage, distance, gauss, batch, **args):
 
     cond = modify_footprint(footprint)
     no_seg = pd.DataFrame(index=index[~cond])
+    no_seg["x"] = -1
+    no_seg["y"] = -1
+    no_seg["next"] = -1
     no_seg["accept"] = "no"
     no_seg["reason"] = "no_seg"
 
     radius_opt = {k: v for k, v in args.items() if k[:6] == "radius"}
     radius = obj.get_radius(**radius_opt)
-    thr_opt = {k: v for k, v in args.items() if k[:3] == "thr"}
+    radius_min = radius[0]
+    radius_max = radius[-1]
 
     with Progress(length=nk, label="Clean", unit="cell") as prog:
         with obj.strategy.scope():
-            segment, peaks = clean_footprint(
+            segment, peaks_seg = clean_footprint(
                 footprint[cond],
                 index[cond],
                 mask,
@@ -62,31 +64,31 @@ def clean(obj, tag, stage, distance, gauss, batch, **args):
                 prog=prog,
             )
 
-    idx = np.argsort(peaks["firmness"].values)[::-1]
+    idx = np.argsort(peaks_seg.firmness.values)[::-1]
     segment = segment[idx]
-    peaks = peaks.iloc[idx].copy()
+    peaks_seg = peaks_seg.iloc[idx].copy()
 
-    check_accept(segment, peaks, radius, distance, **thr_opt)
+    check_accept(segment, peaks_seg, radius_min, radius_max, thr_area, thr_overwrap)
+    peaks = pd.concat([peaks_seg, no_seg], axis=0)
 
-    cond = peaks["accept"] == "yes"
-    peaks = pd.concat([peaks, no_seg], axis=0)
-    obj.save_numpy(segment[cond], "segment", tag, stage)
+    cond_seg = peaks_seg["accept"] == "yes"
+    obj.save_numpy(segment[cond_seg], "segment", tag, stage)
+
+    cond_remove = peaks.loc[index, "accept"] == "yes"
+    obj.save_numpy(footprint[cond_remove], "removed", tag, stage)
+
+    peaks["x"] = peaks.x.astype(np.int32)
+    peaks["y"] = peaks.y.astype(np.int32)
+    peaks["next"] = peaks.next.astype(np.int32)
+    peaks = peaks[["x", "y", "radius", "firmness", "area", "next", "overwrap", "accept", "reason"]]
+    peaks.reset_index(inplace=True)
     obj.save_csv(peaks, "peak", tag, stage)
 
-    peaks = peaks.loc[index]
     cond = peaks["accept"] == "yes"
-    obj.save_numpy(footprint[~cond], "removed", tag, stage)
-
     old_nk = footprint.shape[0]
     nk = cond.sum()
-    sim = peaks.loc[cond, "sim"].values
-    peaks.sort_values("firmness", ascending=False, inplace=True)
-    click.echo(peaks.loc[cond].head())
-    click.echo(peaks.loc[cond].tail())
+    click.echo(peaks.loc[cond])
     click.echo(peaks.loc[~cond])
-    peaks.sort_values("sim", ascending=False, inplace=True)
-    click.echo(peaks.loc[cond].head())
-    # click.echo(f"sim: {np.sort(sim[sim > 0])}")
     click.echo(f"ncell: {old_nk} -> {nk}")
 
     log = dict(

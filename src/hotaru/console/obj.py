@@ -40,8 +40,10 @@ class Obj:
 
     def get_config(self, kind, tag, key):
         if f"{kind}/{tag}" in self.config:
+            print(kind, tag, key)
             return self.config.get(f"{kind}/{tag}", key)
         else:
+            print(kind, key)
             return self.config.get(kind, key)
 
     # SAVE

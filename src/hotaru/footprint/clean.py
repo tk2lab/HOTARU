@@ -24,51 +24,57 @@ def modify_footprint(footprint):
     return cond
 
 
-def nearest(peaks):
-    ys = peaks["y"].values
-    xs = peaks["x"].values
-    distance = []
-    index = []
-    for y, x in zip(ys, xs):
-        d = np.square(y - ys) + np.square(x - xs)
-        idx = np.argsort(d)[1]
-        distance.append(np.sqrt(d[idx]))
-        index.append(idx)
-    return distance, index
+def check_overwrap(segment):
+    index = [-1]
+    overwrap = [np.nan]
+    cov = segment @ segment.T
+    for i in range(1, segment.shape[0]):
+        val = cov[i, :i] / segment[i].sum()
+        j = np.argmax(val)
+        index.append(j)
+        overwrap.append(val[j])
+    return index, overwrap
+
+
+def check_nearest(peaks):
+    ys = peaks.y.values
+    xs = peaks.x.values
+    index = [-1]
+    distance = [np.nan]
+    for i in range(1, xs.size):
+        dist = np.square(ys[i]- ys[:i]) + np.square(xs[i] - xs[:i])
+        j = np.argmin(dist)
+        index.append(j)
+        distance.append(np.sqrt(dist[j]))
+    return index, distance
 
 
 def check_accept(
-    footprint, peaks, radius, thr_distance, thr_area_abs, thr_area_rel, thr_sim,
+    segment, peaks, radius_min, radius_max, thr_area, thr_overwrap,
 ):
-    x = peaks.radius.values
+    cond_min = peaks.radius.values == radius_min
+    cond_max = peaks.radius.values == radius_max
 
-    distance, index = nearest(peaks)
-    peaks["nearest_distance"] = distance
-    peaks["nearest_index"] = index
+    binary = (segment > thr_area).astype(np.float32)
+    peaks["area"] = area = binary.sum(axis=1)
 
-    cond0 = reduce_peak_mask(peaks, thr_distance) == False
-    cond1 = x == radius[0]
-    cond2 = x == radius[-1]
+    mask = ~(cond_min | cond_max)
+    select = peaks.loc[mask].index
 
-    segment = (footprint > 0.5).astype(np.float32)
-    area = np.sum(segment, axis=1)
-    peaks["area"] = area
-    cond3 = area >= thr_area_abs + thr_area_rel * math.pi * x**2
-
-    sim = calc_sim_area(segment, ~(cond1 ^ cond2 ^ cond3))
-    # sim = calc_sim_cos(segment)
-    peaks["sim"] = sim
-    cond4 = sim > thr_sim
+    peaks["next"] = -1
+    peaks["overwrap"] = np.nan
+    index, overwrap = check_overwrap(binary[mask])
+    peaks.loc[select[1:], "next"] = index[1:]
+    peaks.loc[select[1:], "overwrap"] = overwrap[1:]
+    cond_sim = peaks.overwrap.values > thr_overwrap
 
     peaks["accept"] = "yes"
-    peaks.loc[cond0 | cond1 | cond2 | cond3 | cond4, "accept"] = "no"
+    peaks.loc[cond_min | cond_max | cond_sim, "accept"] = "no"
 
     peaks["reason"] = "-"
-    peaks.loc[cond4, "reason"] = "large_sim"
-    peaks.loc[cond3, "reason"] = "large_area"
-    peaks.loc[cond2, "reason"] = "large_r"
-    peaks.loc[cond1, "reason"] = "small_r"
-    peaks.loc[cond0, "reason"] = "near"
+    peaks.loc[cond_sim, "reason"] = "overwrap"
+    peaks.loc[cond_max, "reason"] = "large_r"
+    peaks.loc[cond_min, "reason"] = "small_r"
 
 
 def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):

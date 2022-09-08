@@ -25,12 +25,11 @@ def modify_footprint(footprint):
 
 
 def nearest(peaks):
-    rs = peaks["radius"].values
     ys = peaks["y"].values
     xs = peaks["x"].values
     distance = []
     index = []
-    for y, x, r in zip(ys, xs, rs):
+    for y, x in zip(ys, xs):
         d = np.square(y - ys) + np.square(x - xs)
         idx = np.argsort(d)[1]
         distance.append(np.sqrt(d[idx]))

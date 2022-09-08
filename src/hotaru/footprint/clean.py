@@ -5,7 +5,6 @@ import pandas as pd
 import tensorflow as tf
 
 from ..evaluate.footprint import calc_sim_area
-from ..filter.gaussian import gaussian
 from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
@@ -77,7 +76,7 @@ def check_accept(
     peaks.loc[cond_min, "reason"] = "small_r"
 
 
-def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):
+def clean_footprint(data, index, mask, radius, batch, prog=None):
     @distributed(
         ReduceOp.CONCAT,
         ReduceOp.CONCAT,
@@ -85,9 +84,7 @@ def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):
         ReduceOp.CONCAT,
         ReduceOp.CONCAT,
     )
-    def _clean(imgs, mask, gauss, radius):
-        if gauss is not None:
-            imgs = gaussian(imgs, gauss)
+    def _clean(imgs, mask, radius):
         logs = gaussian_laplace_multi(imgs, radius)
         nk, h, w = tf.shape(logs)[0], tf.shape(logs)[2], tf.shape(logs)[3]
         hw = h * w
@@ -125,13 +122,9 @@ def clean_footprint(data, index, mask, gauss, radius, batch, prog=None):
     dataset = dataset.batch(batch)
 
     mask = tf.convert_to_tensor(mask, tf.bool)
-    if gauss <= 0.0:
-        gauss = None
-    else:
-        gauss = tf.convert_to_tensor(gauss, tf.float32)
     radius = tf.convert_to_tensor(radius, tf.float32)
 
-    footprint, f, r, y, x = _clean(dataset, mask, gauss, radius, prog=prog)
+    footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
     r = tf.gather(radius, r)
     peaks = pd.DataFrame(
         dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()),

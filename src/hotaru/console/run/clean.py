@@ -19,11 +19,10 @@ from ..progress import Progress
 @click.option("--radius-num", type=int)
 @click.option("--thr-area", type=click.FloatRange(0.0, 1.0))
 @click.option("--thr-overwrap", type=click.FloatRange(0.0, 1.0))
-@click.option("--gauss", type=float)
 @click.option("--batch", type=click.IntRange(0))
 @click.pass_obj
 @command_wrap
-def clean(obj, tag, stage, thr_area, thr_overwrap, gauss, batch, **args):
+def clean(obj, tag, stage, thr_area, thr_overwrap, batch, **args):
     """Clean Footprint and Make Segment."""
 
     footprint_tag = tag
@@ -58,7 +57,6 @@ def clean(obj, tag, stage, thr_area, thr_overwrap, gauss, batch, **args):
                 footprint[cond],
                 index[cond],
                 mask,
-                gauss,
                 radius,
                 batch,
                 prog=prog,

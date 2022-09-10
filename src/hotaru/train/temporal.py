@@ -11,7 +11,8 @@ class TemporalModel(BaseModel):
     """Temporal Model"""
 
     def __init__(
-        self, data, nk, nx, nt, hz, rise, fall, scale, bx, bt, la, lu, **args
+        self, data, nk, nx, nt, hz, rise, fall, scale, bx, bt, la, lu,
+        local_strategy=None, **args
     ):
         layers = self.prepare_layers(nk, nx, nt, hz, rise, fall, scale)
         spike_to_calcium, dummy, footprint_l, spike_l = layers
@@ -29,6 +30,7 @@ class TemporalModel(BaseModel):
         penalty = footprint_penalty + spike_penalty
         self.add_metric(loss + penalty, "score")
 
+        self.local_strategy = local_strategy
         self.spike_to_calcium = spike_to_calcium
         self.footprint_tensor = lambda: footprint_l.val
         self.get_footprint = footprint_l.get_val

@@ -76,7 +76,7 @@ def check_accept(
     peaks.loc[cond_min, "reason"] = "small_r"
 
 
-def clean_footprint(data, index, mask, radius, batch, prog=None):
+def clean_footprint(footprint, index, mask, radius, batch, prog=None):
     @distributed(
         ReduceOp.CONCAT,
         ReduceOp.CONCAT,
@@ -116,8 +116,8 @@ def clean_footprint(data, index, mask, radius, batch, prog=None):
             )
         return out.stack(), firmness.stack(), rs, ys, xs
 
-    nk = data.shape[0]
-    dataset = tf.data.Dataset.from_tensor_slices(data)
+    nk = footprint.shape[0]
+    dataset = tf.data.Dataset.from_tensor_slices(footprint)
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
 

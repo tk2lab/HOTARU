@@ -1,21 +1,35 @@
 import multiprocessing as mp
 
 import numpy as np
-import click
+
 
 def label_out_of_range(peaks, radius_min, radius_max):
-    r = peaks['radius'].values
-    peaks['accept'] = 'yes'
-    peaks.loc[r == radius_min, 'accept'] = 'small_r'
-    peaks.loc[r == radius_max, 'accept'] = 'large_r'
+    r = peaks["radius"].values
+
+    peaks["accept"] = "yes"
+    peaks.loc[(r == radius_min) | (r == radius_max), "accept"] = "no"
+
+    peaks["reason"] = "-"
+    peaks.loc[r == radius_min, "reason"] = "small_r"
+    peaks.loc[r == radius_max, "reason"] = "large_r"
     return peaks
 
 
-def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):
+def reduce_peak_mask(peaks, thr_distance):
+    rs = peaks["radius"].values
+    ys = peaks["y"].values
+    xs = peaks["x"].values
+    idx = _reduce_peak_idx(ys, xs, rs, thr_distance)
+    out = np.zeros_like(rs)
+    out[idx] = True
+    return out
+
+
+def reduce_peak_idx_data(peaks, thr_distance, size):
     ind = peaks.index.values
-    rs = peaks['radius'].values
-    ys = peaks['y'].values
-    xs = peaks['x'].values
+    rs = peaks["radius"].values
+    ys = peaks["y"].values
+    xs = peaks["x"].values
     xmax = xs.max()
     ymax = ys.max()
     margin = int(np.ceil(thr_distance * rs.max()))
@@ -33,20 +47,19 @@ def reduce_peak_idx_mp(peaks, thr_distance, size, verbose=1):
             ytmp = ys[cond]
             rtmp = rs[cond]
             data.append([x, y, index, ytmp, xtmp, rtmp, size, thr_distance])
+    return data
 
-    total = int(np.ceil((xmax - margin) / size) * np.ceil((ymax - margin) / size))
+
+def reduce_peak_idx_finish(data):
     with mp.Pool() as pool:
-        with click.progressbar(length=total, label='Reduce') as prog:
-            ind = []
-            for x in pool.imap_unordered(_reduce_peak_idx_mp_local, data):
-                ind.append(x)
-                prog.update(1)
+        imap = pool.imap_unordered(_reduce_peak_idx_local, data)
+        ind = [x for x in imap]
     return np.unique(np.concatenate(ind, 0))
 
 
-def _reduce_peak_idx_mp_local(data):
+def _reduce_peak_idx_local(data):
     x, y, index, ytmp, xtmp, rtmp, size, thr_distance = data
-    idx = _reduce_peak_idx(ytmp, xtmp, rtmp, thr_distance, verbose=0)
+    idx = _reduce_peak_idx(ytmp, xtmp, rtmp, thr_distance)
     xtmp = xtmp[idx]
     ytmp = ytmp[idx]
     cond = (x <= xtmp) & (xtmp < x + size) & (y <= ytmp) & (ytmp < y + size)
@@ -56,7 +69,7 @@ def _reduce_peak_idx_mp_local(data):
         return np.array([], np.int32)
 
 
-def _reduce_peak_idx(ys, xs, rs, thr_distance, verbose=1):
+def _reduce_peak_idx(ys, xs, rs, thr_distance):
     flg = np.arange(rs.size, dtype=np.int32)
     idx = []
     while flg.size > 0:
@@ -72,15 +85,3 @@ def _reduce_peak_idx(ys, xs, rs, thr_distance, verbose=1):
         else:
             flg = j
     return idx
-
-
-def reduce_peak(peaks, radius, thr_distance, verbose=1):
-    idx = reduce_peak_idx(peaks, radius, thr_distance, verbose)
-    return tuple(v[idx] for v in peaks)
-
-
-def reduce_peak_idx(peaks, radius, thr_distance, verbose=1):
-    ts, rs, ys, xs = peaks[:, 0], peaks[:, 1], peaks[:, 2], peaks[:, 3]
-    rs = np.array(radius)[rs]
-    idx = _reduce_peak_idx(ys, xs, rs, thr_distance, verbose)
-    return np.array(idx, np.int32)

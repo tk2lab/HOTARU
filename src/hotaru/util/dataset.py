@@ -2,7 +2,6 @@ import tensorflow as tf
 
 
 def normalized(data, std, avgt, avgx):
-
     def normalize(img, avgt):
         return (img - avgt - avgx) / std
 

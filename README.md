@@ -17,8 +17,8 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ## Install
 
 ### Require
-- python >= 3.8
-- tensorflow >= 2.8
+- python >= 3.7
+- tensorflow >= 2.7
 
 ### Install Procedure (using venv)
 - Create venv environment for hotaru
@@ -40,12 +40,13 @@ pip install hotaru
 hotaru sample --outdir mysample
 cd mysample
 hotaru config
-# edit mysample/hotaru.ini if you need
+# edit hotaru.ini if you need
 hotaru trial
+# see hotar/figure/ and tune hotaru.ini if you need
 hotaru auto
+# see hotaru/figure/ and hotaru/output/
 hotaru mpeg --has-truth
 ```
-- see `mysample/hotaru/figure/`
 
 [Sample Video](https://drive.google.com/file/d/12jl1YTZDuNAq94ciJ-_Cj5tBcKmCqgRH)
 

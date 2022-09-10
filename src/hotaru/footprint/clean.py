@@ -1,17 +1,17 @@
-import tensorflow.keras.backend as K
-import tensorflow as tf
+import math
+
 import numpy as np
 import pandas as pd
-import click
+import tensorflow as tf
 
-from ..util.distribute import distributed, ReduceOp
+from ..evaluate.footprint import calc_sim_area
+from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
-from ..image.filter.gaussian import gaussian
-from ..image.filter.laplace import gaussian_laplace_multi
-from ..eval.footprint import calc_sim_cos
-from ..eval.footprint import calc_sim_area
-
+from ..util.distribute import ReduceOp
+from ..util.distribute import distributed
+from .reduce import reduce_peak_mask
 from .segment import get_segment_index
+from .segment import remove_noise
 
 
 def modify_footprint(footprint):
@@ -23,30 +23,67 @@ def modify_footprint(footprint):
     return cond
 
 
-def check_accept(footprint, peaks, radius, thr_abs, thr_rel, thr_sim):
-    peaks['accept'] = 'yes'
-    x = peaks['radius']
-    cond1 = x == radius[0]
-    cond2 = x == radius[-1]
-
-    segment = (footprint > 0.5).astype(np.float32)
-    area = np.sum(segment, axis=1)
-    peaks['area'] = area
-    cond3 = (area >= thr_abs + thr_rel * np.pi * x ** 2)
-
-    sim = calc_sim_area(segment, ~(cond1 ^ cond2 ^ cond3))
-    peaks['sim'] = sim
-    cond4 = sim > thr_sim
-
-    peaks.loc[cond4, 'accept'] = 'large_sim'
-    peaks.loc[cond3, 'accept'] = 'large_area'
-    peaks.loc[cond2, 'accept'] = 'large_r'
-    peaks.loc[cond1, 'accept'] = 'small_r'
+def check_overwrap(segment):
+    index = [-1]
+    overwrap = [np.nan]
+    cov = segment @ segment.T
+    for i in range(1, segment.shape[0]):
+        val = cov[i, :i] / segment[i].sum()
+        j = np.argmax(val)
+        index.append(j)
+        overwrap.append(val[j])
+    return index, overwrap
 
 
-def clean_footprint(data, index, mask, radius, batch, verbose):
+def check_nearest(peaks):
+    ys = peaks.y.values
+    xs = peaks.x.values
+    index = [-1]
+    distance = [np.nan]
+    for i in range(1, xs.size):
+        dist = np.square(ys[i]- ys[:i]) + np.square(xs[i] - xs[:i])
+        j = np.argmin(dist)
+        index.append(j)
+        distance.append(np.sqrt(dist[j]))
+    return index, distance
 
-    @distributed(ReduceOp.CONCAT, ReduceOp.CONCAT, ReduceOp.CONCAT, ReduceOp.CONCAT, ReduceOp.CONCAT)
+
+def check_accept(
+    segment, peaks, radius_min, radius_max, thr_area, thr_overwrap,
+):
+    cond_min = peaks.radius.values == radius_min
+    cond_max = peaks.radius.values == radius_max
+
+    binary = (segment > thr_area).astype(np.float32)
+    peaks["area"] = area = binary.sum(axis=1)
+
+    mask = ~(cond_min | cond_max)
+    select = peaks.loc[mask].index
+
+    peaks["next"] = -1
+    peaks["overwrap"] = np.nan
+    index, overwrap = check_overwrap(binary[mask])
+    peaks.loc[select[1:], "next"] = index[1:]
+    peaks.loc[select[1:], "overwrap"] = overwrap[1:]
+    cond_sim = peaks.overwrap.values > thr_overwrap
+
+    peaks["accept"] = "yes"
+    peaks.loc[cond_min | cond_max | cond_sim, "accept"] = "no"
+
+    peaks["reason"] = "-"
+    peaks.loc[cond_sim, "reason"] = "overwrap"
+    peaks.loc[cond_max, "reason"] = "large_r"
+    peaks.loc[cond_min, "reason"] = "small_r"
+
+
+def clean_footprint(data, index, mask, radius, batch, prog=None):
+    @distributed(
+        ReduceOp.CONCAT,
+        ReduceOp.CONCAT,
+        ReduceOp.CONCAT,
+        ReduceOp.CONCAT,
+        ReduceOp.CONCAT,
+    )
     def _clean(imgs, mask, radius):
         logs = gaussian_laplace_multi(imgs, radius)
         nk, h, w = tf.shape(logs)[0], tf.shape(logs)[2], tf.shape(logs)[3]
@@ -57,11 +94,10 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
         ys = (pos % hw) // w
         xs = (pos % hw) % w
         logs = tf.gather_nd(logs, tf.stack([tf.range(nk), rs], axis=1))
-        tf.print(tf.shape(logs))
 
-        out = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
-        firmness = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         nx = tf.size(rs)
+        out = tf.TensorArray(tf.float32, size=nk)
+        firmness = tf.TensorArray(tf.float32, size=nk)
         for k in tf.range(nx):
             img, log, y, x = imgs[k], logs[k], ys[k], xs[k]
             pos = get_segment_index(log, y, x, mask)
@@ -72,9 +108,12 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
             simgmin = tf.math.reduce_min(simg)
             simgmax = tf.math.reduce_max(simg)
             val = (simg - simgmin) / (simgmax - simgmin)
+            val = remove_noise(val)
             img = tf.scatter_nd(pos, val, [h, w])
             out = out.write(k, tf.boolean_mask(img, mask))
-            firmness = firmness.write(k, (slogmax - slogmin) / (simgmax - simgmin))
+            firmness = firmness.write(
+                k, (slogmax - slogmin) / (simgmax - simgmin)
+            )
         return out.stack(), firmness.stack(), rs, ys, xs
 
     nk = data.shape[0]
@@ -85,8 +124,10 @@ def clean_footprint(data, index, mask, radius, batch, verbose):
     mask = tf.convert_to_tensor(mask, tf.bool)
     radius = tf.convert_to_tensor(radius, tf.float32)
 
-    with click.progressbar(length=nk, label='Clean') as prog:
-        footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
+    footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
     r = tf.gather(radius, r)
-    peaks = pd.DataFrame(dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()), index=index)
+    peaks = pd.DataFrame(
+        dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()),
+        index=index,
+    )
     return footprint.numpy(), peaks

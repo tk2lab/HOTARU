@@ -2,7 +2,6 @@ import time
 
 
 class Timer:
-
     def __enter__(self):
         self.time = time.time()
         self.ptime = time.process_time()

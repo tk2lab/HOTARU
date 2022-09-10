@@ -1,22 +1,21 @@
-import tensorflow as tf
 import numpy as np
 import pandas as pd
-import click
+import tensorflow as tf
 
-from ..util.distribute import distributed, ReduceOp
+from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
-from ..image.filter.laplace import gaussian_laplace_multi
+from ..util.distribute import ReduceOp
+from ..util.distribute import distributed
 
 
-def find_peak(data, mask, radius, shard, batch, nt=None, verbose=1):
-
+def find_peak(data, mask, radius, shard, batch, prog=None):
     @distributed(ReduceOp.STACK, ReduceOp.STACK, ReduceOp.STACK)
     def _find(data, mask, radius):
         times, imgs = data
         times = tf.cast(times, tf.int32)
         gl = gaussian_laplace_multi(imgs, radius)
         max_gl = tf.nn.max_pool3d(
-            gl[..., None], [1, 3, 3, 3, 1], [1, 1, 1, 1, 1], padding='SAME'
+            gl[..., None], [1, 3, 3, 3, 1], [1, 1, 1, 1, 1], padding="SAME"
         )[..., 0]
         bit = tf.equal(gl, max_gl) & mask
         glp = tf.where(bit, gl, tf.cast(0, gl.dtype))
@@ -32,9 +31,7 @@ def find_peak(data, mask, radius, shard, batch, nt=None, verbose=1):
     data = data.enumerate().shard(shard, 0).batch(batch)
     mask = tf.convert_to_tensor(mask, tf.bool)
     radius_ = tf.convert_to_tensor(radius, tf.float32)
-    total = (nt + shard - 1) // shard
-    with click.progressbar(length=total, label='Find') as prog:
-        t, r, g = _find(data, mask, radius_, prog=prog)
+    t, r, g = _find(data, mask, radius_, prog=prog)
 
     idx = tf.math.argmax(g, axis=0, output_type=tf.int32)
     shape = tf.shape(mask)
@@ -48,6 +45,16 @@ def find_peak(data, mask, radius, shard, batch, nt=None, verbose=1):
 
     idx = np.argsort(g)[::-1]
     idx = idx[g[idx] > 0.0]
-    return pd.DataFrame(dict(
-        t=t, radius=radius[r], intensity=g, x=x, y=y,
-    )).iloc[idx].reset_index(drop=True)
+    return (
+        pd.DataFrame(
+            dict(
+                t=t,
+                radius=radius[r],
+                intensity=g,
+                x=x,
+                y=y,
+            )
+        )
+        .iloc[idx]
+        .reset_index(drop=True)
+    )

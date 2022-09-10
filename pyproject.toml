@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hotaru"
-version = "4.0.2"
+version = "4.1.0-dev"
 description = "High performance Optimizer to extract spike Timing And cell location from calcium imaging data via lineaR impUlse"
 license = "GPL-3.0-only"
 authors = [
@@ -14,26 +14,27 @@ keywords = [
     "Cell Extraction",
 ]
 classifiers = [
+    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.7.1,<3.11"
 tensorflow = ">=2.7,<2.10"
-click = "^8.0"
+scipy = "^1.7"
 
-scipy = "^1.8"
-pandas = "^1.4"
-matplotlib = "^3.5"
+click = "^8.1"
+tqdm = "^4.64"
 
-tifffile = ">=2022.3"
-seaborn = ">=0.11"
-ffmpeg-python = ">=0.2"
+tifffile = ">=2021.11.2"
+pandas = ">=1.3,<1.4"
+seaborn = ">=0.11,<0.12"
+ffmpeg-python = ">=0.2.0"
 
 [tool.poetry.scripts]
-hotaru = "hotaru.console.app:app"
+hotaru = "hotaru.__main__:app"
 
 [tool.pytest.ini_options]
 filterwarnings = [

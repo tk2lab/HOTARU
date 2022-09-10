@@ -50,17 +50,17 @@ def spatial(obj, tag, spike_tag, spike_stage, storage_saving, batch, **args):
     tau_opt = obj.used_tau(spike_tag, spike_stage)
 
     if not hasattr(obj, "spatial_model"):
-        with obj.strategy.scope():
-            model = SpatialModel(
-                data,
-                nk,
-                nx,
-                nt,
-                hz,
-                **tau_opt,
-                **obj.penalty_opt(**args),
-            )
-            model.compile(**obj.compile_opt(**args))
+        model = SpatialModel(
+            data,
+            nk,
+            nx,
+            nt,
+            hz,
+            **tau_opt,
+            **obj.penalty_opt(**args),
+            local_strategy=obj.strategy,
+        )
+        model.compile(**obj.compile_opt(**args))
         obj.spatial_model = model
     model = obj.spatial_model
 

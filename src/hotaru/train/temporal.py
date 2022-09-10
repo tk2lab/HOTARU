@@ -38,7 +38,7 @@ class TemporalModel(BaseModel):
         self._cache = loss_l._cache
 
     def prepare_fit(self, footprint, batch, prog=None):
-        @distributed(ReduceOp.CONCAT, strategy=self.distribute_strategy)
+        @distributed(ReduceOp.CONCAT, strategy=self.local_strategy)
         def _matmul(data, footprint):
             return (tf.matmul(data, footprint, False, True),)
 

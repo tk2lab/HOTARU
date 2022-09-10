@@ -62,17 +62,17 @@ def temporal(
     tau_opt = {k[4:]: v for k, v in args.items() if k[:3] == "tau"}
 
     if not hasattr(obj, "temporal_model"):
-        with obj.strategy.scope():
-            model = TemporalModel(
-                data,
-                nk,
-                nx,
-                nt,
-                hz,
-                **tau_opt,
-                **obj.penalty_opt(**args),
-            )
-            model.compile(**obj.compile_opt(**args))
+        model = TemporalModel(
+            data,
+            nk,
+            nx,
+            nt,
+            hz,
+            **tau_opt,
+            **obj.penalty_opt(**args),
+            local_strategy=obj.strategy,
+        )
+        model.compile(**obj.compile_opt(**args))
         obj.temporal_model = model
     model = obj.temporal_model
 

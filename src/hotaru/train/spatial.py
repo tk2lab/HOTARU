@@ -11,8 +11,10 @@ class SpatialModel(BaseModel):
     """Spatial Model"""
 
     def __init__(
-        self, data, nk, nx, nt, hz, rise, fall, scale, bx, bt, la, lu, **args
+        self, data, nk, nx, nt, hz, rise, fall, scale, bx, bt, la, lu,
+        local_strategy, **args
     ):
+        self.local_strategy = local_strategy
         layers = self.prepare_layers(nk, nx, nt, hz, rise, fall, scale)
         spike_to_calcium, dummy, footprint_l, spike_l = layers
 
@@ -37,7 +39,7 @@ class SpatialModel(BaseModel):
         self._cache = loss_l._cache
 
     def prepare_fit(self, spike, batch, prog=None):
-        @distributed(ReduceOp.SUM, strategy=self.distribute_strategy)
+        @distributed(ReduceOp.SUM, strategy=self.local_strategy)
         def _matmul(data, calcium):
             t, d = data
             c_p = tf.gather(calcium, t, axis=1)

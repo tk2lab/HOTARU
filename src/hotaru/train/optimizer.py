@@ -1,6 +1,13 @@
 import tensorflow as tf
 
-from .prox import get_prox
+
+def get_prox(var):
+    if hasattr(var, "_distributed_container"):
+        var = var._distributed_container()
+    if hasattr(var, "regularizer") and hasattr(var.regularizer, "prox"):
+        return var.regularizer.prox
+    else:
+        return lambda x, _: x
 
 
 class ProxOptimizer(tf.keras.optimizers.Optimizer):
@@ -24,6 +31,14 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
             or callable(nesterov_scale)
             or nesterov_scale > 0.0
         )
+
+    def set(self, learning_rate=0.01, nesterov_scale=20.0, reset_interval=100):
+        self.default_learning_rate = learning_rate
+        self.nesterov_scale = nesterov_scale
+        self.reset_interval = reset_interval
+
+    def set_lipschitz(self, lipschitz):
+        self.learning_rate = self.default_learning_rate * (2 / lipschitz)
 
     def _create_slots(self, var_list):
         if self._nesterov:

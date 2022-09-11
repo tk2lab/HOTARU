@@ -4,6 +4,7 @@ import click
 import numpy as np
 import tensorflow as tf
 
+from ..train.model import HotaruModel as Model
 from ..io.csv import load_csv
 from ..io.csv import save_csv
 from ..io.json import load_json
@@ -22,6 +23,7 @@ class Obj:
 
     def __init__(self):
         self._log = {}
+        self._model_tag = None
 
     def __enter__(self):
         self.strategy = MirroredStrategy()
@@ -43,6 +45,44 @@ class Obj:
             return self.config.get(f"{kind}/{tag}", key)
         else:
             return self.config.get(kind, key)
+
+    # Model
+
+    def model(self, data_tag, nk=1):
+        if self._model_tag != data_tag:
+            prev_log = self.log("1data", data_tag, 0)
+            data = self.data(data_tag)
+            nx = prev_log["nx"]
+            nt = prev_log["nt"]
+            hz = prev_log["hz"]
+            tausize = prev_log["tausize"]
+
+            model = Model(name="Hotaru")
+            model.build(data, nk, nx, nt, hz, tausize, self.strategy)
+            model.compile_temporal()
+            model.compile_spatial()
+            self._model_tag = data_tag
+            self._model = model
+        return self._model
+
+    def get_radius(self, radius_type, radius_min, radius_max, radius_num):
+        if radius_type == "linear":
+            radius_func = np.linspace
+        elif radius_type == "log":
+            radius_func = np.logspace
+            radius_min = np.log10(radius_min)
+            radius_max = np.log10(radius_max)
+        return radius_func(radius_min, radius_max, radius_num)
+
+    def callbacks(self, label, log_dir):
+        return [
+            tf.keras.callbacks.TensorBoard(
+                log_dir=log_dir,
+                update_freq="batch",
+                write_graph=False,
+            ),
+            ProgressCallback(label),
+        ]
 
     # SAVE
 
@@ -163,15 +203,6 @@ class Obj:
         path = self.out_path("data", tag, "_mask")
         return load_numpy(f"{path}.npy")
 
-    def hz(self, tag):
-        return self.log("1data", tag, 0)["hz"]
-
-    def nt(self, tag):
-        return self.log("1data", tag, 0)["nt"]
-
-    def nx(self, tag):
-        return self.log("1data", tag, 0)["nx"]
-
     def avgt(self, tag):
         path = self.out_path("data", tag, "argt")
         return load_numpy(f"{path}.npy")
@@ -193,16 +224,20 @@ class Obj:
             log = self.log("3segment", tag, stage)
         return {k: v for k, v in log.items() if k[:6] == "radius"}
 
-    # INIT
-
-    def used_distance(self, tag, stage=0):
-        return self.log("3segment", tag, stage=stage)["distance"]
+    # MAKE
 
     def segment(self, tag, stage):
         path = self.out_path("segment", tag, stage)
         if stage == "_curr":
             if not os.path.exists(f"{path}.npy"):
                 path = self.out_path("segment", tag, "_000")
+        return load_numpy(f"{path}.npy")
+
+    def localx(self, tag, stage):
+        path = self.out_path("localx", tag, stage)
+        if stage == "_curr":
+            if not os.path.exists(f"{path}.npy"):
+                path = self.out_path("localx", tag, "_000")
         return load_numpy(f"{path}.npy")
 
     def index(self, tag, stage):
@@ -212,53 +247,31 @@ class Obj:
                 path = self.out_path("peak", tag, "_000")
         return load_csv(f"{path}.csv").query('accept == "yes"').index
 
+    def used_distance(self, tag, stage=0):
+        return self.log("3segment", tag, stage=stage)["distance"]
+
+    # Temporal
+
     def spike(self, tag, stage):
         path = self.out_path("spike", tag, stage)
         return load_numpy(f"{path}.npy")
 
-    def footprint(self, tag, stage):
-        path = self.out_path("footprint", tag, stage)
+    def localt(self, tag, stage):
+        path = self.out_path("localt", tag, stage)
+        if stage == "_curr":
+            if not os.path.exists(f"{path}.npy"):
+                path = self.out_path("localt", tag, "_000")
         return load_numpy(f"{path}.npy")
 
     def used_tau(self, tag, stage):
         log = self.log("1temporal", tag, stage)
         return dict(
-            rise=log["tau_rise"],
-            fall=log["tau_fall"],
-            scale=log["tau_scale"],
+            tau1=log["tau1"],
+            tau2=log["tau2"],
         )
 
-    def penalty_opt(self, **args):
-        return {k[8:]: v for k, v in args.items() if k[:7] == "penalty"}
+    # Spatial
 
-    def compile_opt(
-        self, learning_rate, nesterov_scale, steps_per_epoch, **args
-    ):
-        return dict(
-            learning_rate=learning_rate,
-            nesterov_scale=nesterov_scale,
-            reset_interval=steps_per_epoch,
-        )
-
-    def fit_opt(self, **args):
-        fit_opt_list = ["epochs", "min_delta", "patience"]
-        return {k: args[k] for k in fit_opt_list}
-
-    def get_radius(self, radius_type, radius_min, radius_max, radius_num):
-        if radius_type == "linear":
-            radius_func = np.linspace
-        elif radius_type == "log":
-            radius_func = np.logspace
-            radius_min = np.log10(radius_min)
-            radius_max = np.log10(radius_max)
-        return radius_func(radius_min, radius_max, radius_num)
-
-    def callbacks(self, label, log_dir):
-        return [
-            tf.keras.callbacks.TensorBoard(
-                log_dir=log_dir,
-                update_freq="batch",
-                write_graph=False,
-            ),
-            ProgressCallback("TrainS"),
-        ]
+    def footprint(self, tag, stage):
+        path = self.out_path("footprint", tag, stage)
+        return load_numpy(f"{path}.npy")

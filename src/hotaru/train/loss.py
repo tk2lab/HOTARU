@@ -4,24 +4,22 @@ import tensorflow as tf
 class LossLayer(tf.keras.layers.Layer):
     """Variance"""
 
-    def __init__(self, nk, n0, n1, b0, b1, **args):
+    def __init__(self, nk, n0, n1, **args):
         super().__init__(**args)
 
-        nn = n0 * n1
-        nm = nn
-        if b0 > 0.0:
-            nm += n0
-        if b1 > 0.0:
-            nm += n1
-        self._b0 = b0
-        self._b1 = b1
         self._n1 = n1
-        self._nn = nn
-        self._nm = nm
+        self._nn = n0 * n1
+        self._nm = n0 * n1 + n0 + n1
 
+        self._b0 = self.add_weight("b0", (), trainable=False)
+        self._b1 = self.add_weight("b1", (), trainable=False)
         self._dat = self.add_weight("dat", (nk, n0), trainable=False)
         self._cov = self.add_weight("cov", (nk, nk), trainable=False)
         self._out = self.add_weight("out", (nk, nk), trainable=False)
+
+    def set_background_penalty(self, b0, b1):
+        self._b0.assign(b0 / self._nm)
+        self._b1.assign(b1 / self._nm)
 
     def call(self, xdat):
         nk, nx = tf.shape(xdat)[0], tf.shape(xdat)[1]
@@ -60,3 +58,10 @@ class LossLayer(tf.keras.layers.Layer):
 
         lipschitz = tf.math.reduce_max(tf.linalg.eigvalsh(cov)) / self._nm
         return lipschitz
+
+
+class HotaruLoss(tf.keras.losses.Loss):
+    """Loss"""
+
+    def call(self, y_true, y_pred):
+        return y_pred

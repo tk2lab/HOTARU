@@ -22,7 +22,8 @@ def find(obj, tag, data_tag, shard, batch, **radius_args):
 
     data = obj.data(data_tag)
     mask = obj.mask(data_tag)
-    nt = obj.nt(data_tag)
+    log = obj.log("1data", data_tag, 0)
+    nt = log["nt"]
     radius = obj.get_radius(**radius_args)
 
     total = (nt + shard - 1) // shard

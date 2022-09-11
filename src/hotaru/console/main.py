@@ -6,7 +6,7 @@ import click
 from .config.config import config
 from .evaluate.figure import figure
 from .evaluate.mpeg import mpeg
-from .evaluate.output import output
+#from .evaluate.output import output
 from .evaluate.sample import sample
 from .evaluate.stats import stats
 from .evaluate.tune import tune
@@ -74,7 +74,7 @@ main.add_command(config)
 main.add_command(stats)
 main.add_command(tune)
 main.add_command(workflow)
-main.add_command(output)
+#main.add_command(output)
 main.add_command(run)
 main.add_command(sample)
 

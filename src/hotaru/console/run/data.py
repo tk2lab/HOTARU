@@ -15,12 +15,13 @@ from ..progress import Progress
 @click.command(context_settings=dict(show_default=True))
 @click.option("--tag", type=str, callback=configure, is_eager=True)
 @click.option("--imgs-path", type=readable_file)
-@click.option("--mask-type", type=str)
 @click.option("--hz", type=float)
+@click.option("--mask-type", type=str)
+@click.option("--tausize", type=int)
 @click.option("--batch", type=int)
 @click.pass_obj
 @command_wrap
-def data(obj, tag, imgs_path, mask_type, hz, batch):
+def data(obj, tag, imgs_path, hz, mask_type, tausize, batch):
     """Prepare Data."""
 
     imgs = load_data(imgs_path)

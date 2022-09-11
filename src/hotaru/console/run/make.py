@@ -1,4 +1,5 @@
 import click
+import numpy as np
 
 from ...footprint.make import make_segment
 from ...footprint.reduce import label_out_of_range
@@ -24,7 +25,8 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     data_tag = obj.log("2find", find_tag, 0)["data_tag"]
     data = obj.data(data_tag)
     mask = obj.mask(data_tag)
-    nt = obj.nt(data_tag)
+    log = obj.log("1data", data_tag, 0)
+    nt = log["nt"]
 
     peaks = obj.peaks(find_tag)
     radius_arg = obj.used_radius_args(find_tag)
@@ -40,7 +42,7 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     accept = peaks.query("accept == 'yes'")
     click.echo(f"num: {accept.shape[0]}")
 
-    log = dict(data_tag=data_tag, find_tag=find_tag)
+    log = dict(data_tag=data_tag)
 
     if only_reduce:
         return log, "3segment", tag, "tune"
@@ -49,4 +51,5 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
             with obj.strategy.scope():
                 segment = make_segment(data, mask, accept, batch, prog=prog)
         obj.save_numpy(segment, "segment", tag, 0)
+        obj.save_numpy(np.zeros_like(segment[:1]), "localx", tag, 0)
         return log, "3segment", tag, 0

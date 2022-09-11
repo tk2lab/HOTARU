@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ...train.dynamics import SpikeToCalciumDoubleExp
+from ...train.dynamics import DoubleExpMixin
 from ..base import configure
 
 
@@ -20,9 +20,12 @@ def output(obj, tag, stage):
     segment_stage = prev_log["segment_stage"]
 
     mask = obj.mask(data_tag)
-    hz = obj.hz(data_tag)
     h, w = mask.shape
-    tau = obj.used_tau(tag, stage)
+
+    data_log = obj.log("1data", data_tag, 0)
+    hz = data_log["hz"]
+    tausize = data_log["tausize"]
+    tau1, tau2 = obj.used_tau(tag, stage)
 
     segment = obj.segment(segment_tag, segment_stage)
     u = obj.spike(tag, stage)
@@ -33,8 +36,10 @@ def output(obj, tag, stage):
     obj.save_tiff(imgs, "output", f"footprint_{tag}", stage)
 
     with tf.device("CPU"):
-        g = SpikeToCalciumDoubleExp(hz=hz, **tau)
-        v = g(u).numpy()
+        model = DoubleExpMixin()
+        model.init_double_exp(hz, tausize)
+        model.set_double_exp(tau1, tau2)
+        v = model.spike_to_calsium(u).numpy()
 
     gap = u.shape[1] - v.shape[1]
     time = np.arange(-gap, v.shape[1]) / hz

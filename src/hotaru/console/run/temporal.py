@@ -2,7 +2,6 @@ import click
 import tensorflow as tf
 
 from ...evaluate.summary import write_spike_summary
-from ...train.temporal import TemporalModel
 from ..base import command_wrap
 from ..base import configure
 from ..progress import Progress
@@ -13,18 +12,18 @@ from ..progress import Progress
 @click.option("--segment-tag", type=str)
 @click.option("--segment-stage", type=int)
 @click.option("--storage-saving", is_flag=True)
-@click.option("--tau-rise", type=float)
-@click.option("--tau-fall", type=float)
-@click.option("--tau-scale", type=float)
-@click.option("--penalty-la", type=float)
-@click.option("--penalty-lu", type=float)
-@click.option("--penalty-bx", type=float)
-@click.option("--penalty-bt", type=float)
-@click.option("--learning-rate", type=float)
-@click.option("--nesterov-scale", type=float)
-@click.option("--steps-per-epoch", type=int)
-@click.option("--min-delta", type=float)
-@click.option("--patience", type=int)
+@click.option("--tau1", type=float)
+@click.option("--tau2", type=float)
+@click.option("--penalty-footprint", type=float)
+@click.option("--penalty-spike", type=float)
+@click.option("--penalty-localt", type=float)
+@click.option("--penalty-spatial", type=float)
+@click.option("--penalty-temporal", type=float)
+@click.option("--optimizer-learning-rate", type=float)
+@click.option("--optimizer-nesterov-scale", type=float)
+@click.option("--optimizer-reset-interval", type=int)
+@click.option("--early-stop-min-delta", type=float)
+@click.option("--early-stop-patience", type=int)
 @click.option("--epochs", type=int)
 @click.option("--batch", type=int)
 @click.pass_obj
@@ -51,43 +50,41 @@ def temporal(
     if storage_saving:
         stage = 999
 
-    data_tag = obj.log("3segment", segment_tag, segment_stage)["data_tag"]
-    data = obj.data(data_tag)
-    segment = obj.segment(segment_tag, segment_stage)
-
-    nk = segment.shape[0]
-    nx = obj.nx(data_tag)
-    nt = obj.nt(data_tag)
-    hz = obj.hz(data_tag)
-    tau_opt = {k[4:]: v for k, v in args.items() if k[:3] == "tau"}
-
-    if not hasattr(obj, "temporal_model"):
-        model = TemporalModel(
-            data,
-            nk,
-            nx,
-            nt,
-            hz,
-            **tau_opt,
-            **obj.penalty_opt(**args),
-            local_strategy=obj.strategy,
-        )
-        model.compile(**obj.compile_opt(**args))
-        obj.temporal_model = model
-    model = obj.temporal_model
+    tau_args = [v for k, v in args.items() if k.startswith("tau")]
+    penalty_args = [v for k, v in args.items() if k.startswith("penalty")]
+    opt_args = [v for k, v in args.items() if k.startswith("opt")]
+    early_stop_args = [v for k, v in args.items() if k.startswith("early")]
 
     summary_dir = obj.summary_path("temporal", tag, stage)
     writer = tf.summary.create_file_writer(summary_dir)
 
+    prev_log = obj.log("3segment", segment_tag, segment_stage)
+    segment = obj.segment(segment_tag, segment_stage)
+    localx = obj.localx(segment_tag, segment_stage)
+    nk = segment.shape[0] + localx.shape[0]
+    data_tag = prev_log["data_tag"]
+    data_log = obj.log("1data", data_tag, 0)
+    nt = data_log["nt"]
+
+    model = obj.model(data_tag, nk)
+    model.set_double_exp(*tau_args)
+    model.set_penalty(*penalty_args)
+    model.set_optimizer(*opt_args)
+    model.set_early_stop(*early_stop_args)
+
     with Progress(length=nt, label="InitT", unit="frame") as prog:
-        model.prepare_fit(segment, batch, prog=prog)
+        model.footprint.set_val(segment)
+        model.localx.set_val(localx)
+        model.prepare_temporal(batch, prog=prog)
 
     cb = obj.callbacks("TrainT", summary_dir)
-    model_log = model.fit(callbacks=cb, verbose=0, **obj.fit_opt(**args))
+    model_log = model.fit_temporal(callbacks=cb, verbose=0)
 
-    val = model.spike.get_val()
-    obj.save_numpy(val, "spike", tag, stage)
-    write_spike_summary(writer, val)
+    spike = model.spike.get_val()
+    localt = model.localt.get_val()
+    obj.save_numpy(spike, "spike", tag, stage)
+    obj.save_numpy(localt, "localt", tag, stage)
+    write_spike_summary(writer, spike)
 
     log = dict(
         segment_tag=segment_tag,

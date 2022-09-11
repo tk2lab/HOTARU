@@ -5,7 +5,8 @@ import tensorflow as tf
 
 class MirroredStrategy(tf.distribute.MirroredStrategy):
     def close(self):
-        self._extended._collective_ops._pool.close()
+        if int(tf.version.VERSION.split(".")[1]) <= 9:
+            self._extended._collective_ops._pool.close()
 
 
 class ReduceOp(Enum):
@@ -63,6 +64,8 @@ def distributed(*types, strategy=None, loop=True):
         @tf.function(experimental_relax_shapes=True)
         def dist_run(*args, **kwargs):
             xs = strategy.run(func, args, kwargs)
+            if len(types) == 1:
+                xs = xs,
             return tuple(serialize(x, t) for x, t in zip(xs, types))
 
         def loop_run(data, *args, prog=None, **kwargs):
@@ -81,6 +84,8 @@ def distributed(*types, strategy=None, loop=True):
                     else:
                         prog.update(tf.shape(dx)[0].numpy())
             out = tuple(finish(o, t) for o, t in zip(os, types))
+            if len(types) == 1:
+                out = out[0]
             return out
 
         return loop_run

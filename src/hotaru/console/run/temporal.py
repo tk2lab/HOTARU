@@ -16,6 +16,7 @@ from ..progress import Progress
 @click.option("--tau2", type=float)
 @click.option("--penalty-footprint", type=float)
 @click.option("--penalty-spike", type=float)
+@click.option("--penalty-localx", type=float)
 @click.option("--penalty-localt", type=float)
 @click.option("--penalty-spatial", type=float)
 @click.option("--penalty-temporal", type=float)

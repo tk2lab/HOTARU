@@ -1,15 +1,11 @@
-import math
-
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..evaluate.footprint import calc_sim_area
 from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
-from .reduce import reduce_peak_mask
 from .segment import get_segment_index
 from .segment import remove_noise
 
@@ -41,7 +37,7 @@ def check_nearest(peaks):
     index = [-1]
     distance = [np.nan]
     for i in range(1, xs.size):
-        dist = np.square(ys[i]- ys[:i]) + np.square(xs[i] - xs[:i])
+        dist = np.square(ys[i] - ys[:i]) + np.square(xs[i] - xs[:i])
         j = np.argmin(dist)
         index.append(j)
         distance.append(np.sqrt(dist[j]))
@@ -49,7 +45,12 @@ def check_nearest(peaks):
 
 
 def check_accept(
-    segment, peaks, radius_min, radius_max, thr_area, thr_overwrap,
+    segment,
+    peaks,
+    radius_min,
+    radius_max,
+    thr_area,
+    thr_overwrap,
 ):
     cond_min = peaks.radius.values == radius_min
     cond_max = peaks.radius.values == radius_max
@@ -68,7 +69,8 @@ def check_accept(
     cond_sim = peaks.overwrap.values > thr_overwrap
 
     peaks["accept"] = "yes"
-    peaks.loc[cond_min | cond_max | cond_sim, "accept"] = "no"
+    peaks.loc[cond_min | cond_sim, "accept"] = "no"
+    peaks.loc[cond_max, "accept"] = "localx"
 
     peaks["reason"] = "-"
     peaks.loc[cond_sim, "reason"] = "overwrap"

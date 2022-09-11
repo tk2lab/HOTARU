@@ -2,11 +2,11 @@ import tensorflow as tf
 
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
-from .dynamics import DoubleExpMixin
-from .variable import HotaruVariableMixin as VariableMixin
-from .optimizer import ProxOptimizer as Optimizer
 from .config import HotaruConfigMixin as ConfigMixin
+from .dynamics import DoubleExpMixin
 from .loss import HotaruLoss as Loss
+from .optimizer import ProxOptimizer as Optimizer
+from .variable import HotaruVariableMixin as VariableMixin
 
 
 class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
@@ -33,11 +33,15 @@ class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
         tval = concat_layer([calcium, localt])
         temporal_loss = self.temporal_loss(tval)
 
-        spatial_model = tf.keras.Model(dummy_input, spatial_loss, name="spatial")
+        spatial_model = tf.keras.Model(
+            dummy_input, spatial_loss, name="spatial"
+        )
         spatial_model.add_metric(penalty, "penalty")
         spatial_model.add_metric(spatial_loss + penalty, "score")
 
-        temporal_model = tf.keras.Model(dummy_input, temporal_loss, name="temporal")
+        temporal_model = tf.keras.Model(
+            dummy_input, temporal_loss, name="temporal"
+        )
         temporal_model.add_metric(penalty, "penalty")
         temporal_model.add_metric(temporal_loss + penalty, "score")
 

@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 
 
 class DynamicInputLayer(tf.keras.layers.Layer):
@@ -53,7 +52,9 @@ class TemporalBackground(DynamicInputLayer):
 
     @property
     def val(self):
-        return tf.pad(tf.math.cumsum(self._val[:self._nk], axis=1), [[0, 0], [1, 0]])
+        return tf.pad(
+            tf.math.cumsum(self._val[: self._nk], axis=1), [[0, 0], [1, 0]]
+        )
 
     def call(self, dummy=None):
         return self.val

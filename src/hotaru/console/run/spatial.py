@@ -14,6 +14,7 @@ from ..progress import Progress
 @click.option("--storage-saving", is_flag=True)
 @click.option("--penalty-footprint", type=float)
 @click.option("--penalty-spike", type=float)
+@click.option("--penalty-localx", type=float)
 @click.option("--penalty-localt", type=float)
 @click.option("--penalty-spatial", type=float)
 @click.option("--penalty-temporal", type=float)
@@ -47,6 +48,7 @@ def spatial(obj, tag, spike_tag, spike_stage, storage_saving, batch, **args):
     mask = obj.mask(data_tag)
     spike = obj.spike(spike_tag, spike_stage)
     localt = obj.localt(spike_tag, spike_stage)
+    nk = spike.shape[0] + localt.shape[0]
     tau_args = obj.used_tau(spike_tag, spike_stage).values()
     data_log = obj.log("1data", data_tag, 0)
     nt = data_log["nt"]
@@ -54,7 +56,7 @@ def spatial(obj, tag, spike_tag, spike_stage, storage_saving, batch, **args):
     summary_dir = obj.summary_path("spatial", tag, stage)
     writer = tf.summary.create_file_writer(summary_dir)
 
-    model = obj.model(data_tag)
+    model = obj.model(data_tag, nk)
     model.set_double_exp(*tau_args)
     model.set_penalty(*penalty_args)
     model.set_optimizer(*opt_args)
@@ -71,7 +73,7 @@ def spatial(obj, tag, spike_tag, spike_stage, storage_saving, batch, **args):
     footprint = model.footprint.get_val()
     localx = model.localx.get_val()
     obj.save_numpy(footprint, "footprint", tag, stage)
-    obj.save_numpy(localx, "localx", tag, stage)
+    obj.save_numpy(localx, "localx0", tag, stage)
     write_footprint_summary(writer, footprint, mask)
 
     log = dict(

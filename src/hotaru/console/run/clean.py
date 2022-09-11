@@ -24,7 +24,17 @@ from ..progress import Progress
 @click.option("--batch", type=click.IntRange(0))
 @click.pass_obj
 @command_wrap
-def clean(obj, tag, footprint_tag, footprint_stage, storage_saving, thr_area, thr_overwrap, batch, **args):
+def clean(
+    obj,
+    tag,
+    footprint_tag,
+    footprint_stage,
+    storage_saving,
+    thr_area,
+    thr_overwrap,
+    batch,
+    **args,
+):
     """Clean Footprint and Make Segment."""
 
     if footprint_tag != tag:
@@ -42,11 +52,14 @@ def clean(obj, tag, footprint_tag, footprint_stage, storage_saving, thr_area, th
 
     mask = obj.mask(data_tag)
     footprint = obj.footprint(footprint_tag, footprint_stage)
+    localx0 = obj.localx0(footprint_tag, footprint_stage)
     index = obj.index(prev_tag, prev_stage)
-    nk = footprint.shape[0]
+    old_nk = footprint.shape[0]
 
     cond = modify_footprint(footprint)
+    num_seg = cond.sum()
     no_seg = pd.DataFrame(index=index[~cond])
+    no_seg["segmentid"] = -1
     no_seg["x"] = -1
     no_seg["y"] = -1
     no_seg["next"] = -1
@@ -58,7 +71,7 @@ def clean(obj, tag, footprint_tag, footprint_stage, storage_saving, thr_area, th
     radius_min = radius[0]
     radius_max = radius[-1]
 
-    with Progress(length=nk, label="Clean", unit="cell") as prog:
+    with Progress(length=num_seg, label="Clean", unit="cell") as prog:
         with obj.strategy.scope():
             segment, peaks_seg = clean_footprint(
                 footprint[cond],
@@ -73,28 +86,34 @@ def clean(obj, tag, footprint_tag, footprint_stage, storage_saving, thr_area, th
     segment = segment[idx]
     peaks_seg = peaks_seg.iloc[idx].copy()
 
-    check_accept(segment, peaks_seg, radius_min, radius_max, thr_area, thr_overwrap)
+    check_accept(
+        segment, peaks_seg, radius_min, radius_max, thr_area, thr_overwrap,
+    )
+    peaks_seg["segmentid"] = np.arange(num_seg)
     peaks = pd.concat([peaks_seg, no_seg], axis=0)
+    peaks.loc[index, "oldid"] = np.arange(old_nk)
+    peaks_ordered = peaks.loc[index]
 
     cond_seg = peaks_seg["accept"] == "yes"
     obj.save_numpy(segment[cond_seg], "segment", tag, stage)
 
-    cond_remove = peaks.loc[index, "accept"] == "no"
+    cond_local = peaks_ordered["accept"] == "localx"
+    localx = np.concatenate([localx0, footprint[cond_local]], axis=0)
+    num_localx = localx.shape[0]
+    obj.save_numpy(localx, "localx", tag, stage)
+
+    cond_remove = peaks_ordered["accept"] == "no"
     obj.save_numpy(footprint[cond_remove], "removed", tag, stage)
 
-    peaks["x"] = peaks.x.astype(np.int32)
-    peaks["y"] = peaks.y.astype(np.int32)
-    peaks["next"] = peaks.next.astype(np.int32)
-    peaks = peaks[["x", "y", "radius", "firmness", "area", "next", "overwrap", "accept", "reason"]]
-    peaks.reset_index(inplace=True)
+    accept = peaks_seg["accept"] == "yes"
+    nk = accept.sum()
+    peaks = clean_peaks_df(peaks)
     obj.save_csv(peaks, "peak", tag, stage)
 
-    cond = peaks["accept"] == "yes"
-    old_nk = footprint.shape[0]
-    nk = cond.sum()
-    click.echo(peaks.loc[cond])
-    click.echo(peaks.loc[~cond])
-    click.echo(f"ncell: {old_nk} -> {nk}")
+    click.echo(peaks.query("accept == 'yes'"))
+    click.echo(peaks.query("reason == 'large_r'"))
+    click.echo(peaks.query("accept == 'no'"))
+    click.echo(f"ncell: {old_nk} -> {nk}, {num_localx}")
 
     log = dict(
         footprint_tag=footprint_tag,
@@ -103,3 +122,24 @@ def clean(obj, tag, footprint_tag, footprint_stage, storage_saving, thr_area, th
         num_cell=int(nk),
     )
     return log, "3segment", tag, stage
+
+
+def clean_peaks_df(peaks):
+    peaks["x"] = peaks.x.astype(np.int32)
+    peaks["y"] = peaks.y.astype(np.int32)
+    peaks["next"] = peaks.next.astype(np.int32)
+    return peaks[
+        [
+            "segmentid",
+            "oldid",
+            "x",
+            "y",
+            "radius",
+            "firmness",
+            "area",
+            "next",
+            "overwrap",
+            "accept",
+            "reason",
+        ]
+    ]

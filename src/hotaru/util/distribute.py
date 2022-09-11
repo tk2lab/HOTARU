@@ -65,7 +65,7 @@ def distributed(*types, strategy=None, loop=True):
         def dist_run(*args, **kwargs):
             xs = strategy.run(func, args, kwargs)
             if len(types) == 1:
-                xs = xs,
+                xs = (xs,)
             return tuple(serialize(x, t) for x, t in zip(xs, types))
 
         def loop_run(data, *args, prog=None, **kwargs):

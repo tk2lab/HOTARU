@@ -3,7 +3,6 @@ import tensorflow as tf
 
 
 class DoubleExpMixin:
-
     def init_double_exp(self, hz, tausize):
         self.hz = hz
         self.tausize = tausize

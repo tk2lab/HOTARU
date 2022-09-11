@@ -37,10 +37,16 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     with Progress(iterable=idx_data, label="Reduce", unit="block") as prog:
         idx = reduce_peak_idx_finish(prog)
     peaks = label_out_of_range(peaks.loc[idx], radius_min, radius_max)
-    obj.save_csv(peaks, "peak", tag, 0)
 
-    accept = peaks.query("accept == 'yes'")
-    click.echo(f"num: {accept.shape[0]}")
+    accept = peaks["accept"] == "yes"
+    localx = peaks["accept"] == "localx"
+    num_accept = accept.sum()
+    num_localx = localx.sum()
+    peaks["segmentid"] = -1
+    peaks.loc[accept, "segmentid"] = np.arange(num_accept)
+    peaks = clean_peaks_df(peaks)
+    obj.save_csv(peaks, "peak", tag, 0)
+    click.echo(f"num: {num_accept}, {num_localx}")
 
     log = dict(data_tag=data_tag)
 
@@ -49,7 +55,27 @@ def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     else:
         with Progress(length=nt, label="Make", unit="frame") as prog:
             with obj.strategy.scope():
-                segment = make_segment(data, mask, accept, batch, prog=prog)
-        obj.save_numpy(segment, "segment", tag, 0)
-        obj.save_numpy(np.zeros_like(segment[:1]), "localx", tag, 0)
+                peaks = peaks[accept | localx]
+                segment = make_segment(data, mask, peaks, batch, prog=prog)
+        accept = peaks["accept"] == "yes"
+        localx = peaks["accept"] == "localx"
+        obj.save_numpy(segment[accept], "segment", tag, 0)
+        obj.save_numpy(segment[localx], "localx", tag, 0)
         return log, "3segment", tag, 0
+
+
+def clean_peaks_df(peaks):
+    peaks["x"] = peaks.x.astype(np.int32)
+    peaks["y"] = peaks.y.astype(np.int32)
+    return peaks[
+        [
+            "segmentid",
+            "t",
+            "x",
+            "y",
+            "radius",
+            "intensity",
+            "accept",
+            "reason",
+        ]
+    ]

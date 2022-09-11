@@ -4,7 +4,6 @@ import click
 import numpy as np
 import tensorflow as tf
 
-from ..train.model import HotaruModel as Model
 from ..io.csv import load_csv
 from ..io.csv import save_csv
 from ..io.json import load_json
@@ -14,6 +13,7 @@ from ..io.numpy import save_numpy
 from ..io.tfrecord import load_tfrecord
 from ..io.tfrecord import save_tfrecord
 from ..io.tiff import save_tiff
+from ..train.model import HotaruModel as Model
 from ..util.distribute import MirroredStrategy
 from .progress import ProgressCallback
 
@@ -274,4 +274,11 @@ class Obj:
 
     def footprint(self, tag, stage):
         path = self.out_path("footprint", tag, stage)
+        return load_numpy(f"{path}.npy")
+
+    def localx0(self, tag, stage):
+        path = self.out_path("localx0", tag, stage)
+        if stage == "_curr":
+            if not os.path.exists(f"{path}.npy"):
+                path = self.out_path("localx0", tag, "_000")
         return load_numpy(f"{path}.npy")

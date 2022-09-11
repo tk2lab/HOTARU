@@ -5,9 +5,13 @@ import numpy as np
 
 def label_out_of_range(peaks, radius_min, radius_max):
     r = peaks["radius"].values
+    r = np.round(r, 3)
+    radius_min = np.round(radius_min, 3)
+    radius_max = np.round(radius_max, 3)
 
     peaks["accept"] = "yes"
-    peaks.loc[(r == radius_min) | (r == radius_max), "accept"] = "no"
+    peaks.loc[r == radius_max, "accept"] = "localx"
+    peaks.loc[r == radius_min, "accept"] = "no"
 
     peaks["reason"] = "-"
     peaks.loc[r == radius_min, "reason"] = "small_r"

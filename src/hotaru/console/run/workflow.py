@@ -12,17 +12,23 @@ from .temporal import temporal
 @click.command(context_settings=dict(show_default=True))
 @click.option("--tag", type=str, callback=configure, is_eager=True)
 @click.option("--end-stage", type=int)
-@click.option("--end-kind", type=click.Choice(["spike", "footprint", "segment"]))
+@click.option(
+    "--end-kind", type=click.Choice(["spike", "footprint", "segment"])
+)
 @click.option("--non-stop", is_flag=True)
 @click.option("--storage-saving", is_flag=True)
 @click.pass_context
 def workflow(ctx, tag, end_stage, end_kind, non_stop, storage_saving):
     """Workflow"""
 
-    workflow_local(ctx, ctx.obj, tag, end_stage, end_kind, non_stop, storage_saving)
+    workflow_local(
+        ctx, ctx.obj, tag, end_stage, end_kind, non_stop, storage_saving
+    )
 
 
-def workflow_local(ctx, obj, tag, end_stage, end_kind, non_stop, storage_saving):
+def workflow_local(
+    ctx, obj, tag, end_stage, end_kind, non_stop, storage_saving
+):
     prev_tag = obj.get_config("workflow", tag, "prev_tag")
     if prev_tag and (prev_tag != tag):
         prev_stage = int(obj.get_config("workflow", tag, "prev_stage"))
@@ -47,17 +53,29 @@ def workflow_local(ctx, obj, tag, end_stage, end_kind, non_stop, storage_saving)
     stage = 1
     if prev_kind == "segment":
         obj.invoke(
-            ctx, temporal, f"--segment-tag={prev_tag}", f"--segment-stage={prev_stage}", *args
+            ctx,
+            temporal,
+            f"--segment-tag={prev_tag}",
+            f"--segment-stage={prev_stage}",
+            *args,
         )
         kind = "spike"
     elif prev_kind == "spike":
         obj.invoke(
-            ctx, spatial, f"--spike-tag={prev_tag}", f"--spike-stage={prev_stage}", *args
+            ctx,
+            spatial,
+            f"--spike-tag={prev_tag}",
+            f"--spike-stage={prev_stage}",
+            *args,
         )
         kind = "footprint"
     elif prev_kind == "footprint":
         obj.invoke(
-            ctx, clean, f"--footprint-tag={prev_tag}", f"--footprint-stage={prev_stage}", *args
+            ctx,
+            clean,
+            f"--footprint-tag={prev_tag}",
+            f"--footprint-stage={prev_stage}",
+            *args,
         )
         stage += 1
         kind = "segment"
@@ -66,17 +84,29 @@ def workflow_local(ctx, obj, tag, end_stage, end_kind, non_stop, storage_saving)
         _s = 999 if storage_saving else stage
         if kind == "segment":
             obj.invoke(
-                ctx, temporal, f"--segment-tag={tag}", f"--segment-stage={stage-1}", *args
+                ctx,
+                temporal,
+                f"--segment-tag={tag}",
+                f"--segment-stage={stage-1}",
+                *args,
             )
             kind = "spike"
         elif kind == "spike":
             obj.invoke(
-                ctx, spatial, f"--spike-tag={tag}", f"--spike-stage={stage}", *args
+                ctx,
+                spatial,
+                f"--spike-tag={tag}",
+                f"--spike-stage={stage}",
+                *args,
             )
             kind = "footprint"
         elif kind == "footprint":
             obj.invoke(
-                ctx, clean, f"--footprint-tag={tag}", f"--footprint-stage={stage}", *args
+                ctx,
+                clean,
+                f"--footprint-tag={tag}",
+                f"--footprint-stage={stage}",
+                *args,
             )
             stage += 1
             kind = "segment"

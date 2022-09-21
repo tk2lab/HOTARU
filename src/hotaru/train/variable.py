@@ -48,5 +48,6 @@ class HotaruVariableMixin:
         return (
             self.footprint.penalty(footprint)
             + self.spike.penalty(spike)
+            + self.localx.penalty(localx)
             + self.localt.penalty(localt)
         )

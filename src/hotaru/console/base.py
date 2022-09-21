@@ -9,14 +9,11 @@ readable_file = click.Path(exists=True, dir_okay=False, readable=True)
 
 def configure(ctx, param, tag):
     if tag is None:
-        tag = ctx.obj.config.get("main", "tag")
-    section = ctx.info_name
+        tag = ctx.obj.config.get("main", param)
     ctx.default_map = ctx.obj.config.defaults()
-    if section in ctx.obj.config:
-        ctx.default_map.update(ctx.obj.config[section])
-    section = f"{ctx.info_name}/{tag}"
-    if section in ctx.obj.config:
-        ctx.default_map.update(ctx.obj.config[section])
+    for section in [ctx.info_name, f"{ctx.info_name}/{tag}"]:
+        if section in ctx.obj.config:
+            ctx.default_map.update(ctx.obj.config[section])
     return tag
 
 

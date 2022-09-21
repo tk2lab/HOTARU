@@ -125,6 +125,7 @@ def clean(
 
 
 def clean_peaks_df(peaks):
+    peaks["oldid"] = peaks.oldid.astype(np.int32)
     peaks["x"] = peaks.x.astype(np.int32)
     peaks["y"] = peaks.y.astype(np.int32)
     peaks["next"] = peaks.next.astype(np.int32)

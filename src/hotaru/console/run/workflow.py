@@ -9,104 +9,86 @@ from .spatial import spatial
 from .temporal import temporal
 
 
+_kind_choice = click.Choice(["spike", "footprint", "segment"])
+_next_kind = dict(segment="spike", spike="footprint", footprint="segment")
+
+
 @click.command(context_settings=dict(show_default=True))
 @click.option("--tag", type=str, callback=configure, is_eager=True)
 @click.option("--end-stage", type=int)
-@click.option(
-    "--end-kind", type=click.Choice(["spike", "footprint", "segment"])
-)
+@click.option("--end-kind", type=_kind_choice)
 @click.option("--non-stop", is_flag=True)
-@click.option("--storage-saving", is_flag=True)
 @click.pass_context
-def workflow(ctx, tag, end_stage, end_kind, non_stop, storage_saving):
+def workflow(ctx, tag, end_stage, end_kind, non_stop):
     """Workflow"""
 
-    workflow_local(
-        ctx, ctx.obj, tag, end_stage, end_kind, non_stop, storage_saving
-    )
+    get_config = lambda *x: ctx.obj.get_config(*x)
+    invoke = lambda *x: ctx.obj.invoke(ctx, *x)
+    workflow_local(get_config, invoke, tag, end_stage, end_kind, non_stop)
 
 
-def workflow_local(
-    ctx, obj, tag, end_stage, end_kind, non_stop, storage_saving
-):
-    prev_tag = obj.get_config("workflow", tag, "prev_tag")
+def workflow_local(get_config, invoke, tag, end_stage, end_kind, non_stop):
+    prev_tag = get_config("workflow", tag, "prev_tag")
     if prev_tag and (prev_tag != tag):
-        prev_stage = int(obj.get_config("workflow", tag, "prev_stage"))
-        prev_kind = obj.get_config("workflow", tag, "prev_kind")
-        workflow_local(ctx, obj, prev_tag, prev_stage, prev_kind, True, False)
+        prev_kind = get_config("workflow", tag, "prev_kind")
+        prev_stage = int(get_config("workflow", tag, "prev_stage"))
+        workflow_local(get_config, invoke, prev_tag, prev_stage, prev_kind, True)
         click.echo(f"workflow {tag} {end_stage} {end_kind}")
+        prev_tag = tag
+        if prev_kind == "data":
+            find_tag = get_config("make", prev_tag, "find_tag") or prev_tag
+            invoke(find, f"--tag={find_tag}")
+            prev_kind = "find"
+        if prev_kind == "find":
+            invoke(make, f"--tag={prev_tag}")
+            prev_kind = "segment"
+            prev_stage = 1
+        kind, stage = workflow_step(invoke, tag, prev_tag, prev_kind, prev_stage)
     else:
         click.echo(f"workflow {tag} {end_stage} {end_kind}")
         prev_tag = tag
-        find_tag = obj.get_config("make", prev_tag, "find_tag")
-        data_tag = obj.get_config("find", find_tag, "data_tag")
-        obj.invoke(ctx, data, f"--tag={data_tag}")
-        obj.invoke(ctx, find, f"--tag={find_tag}")
-        obj.invoke(ctx, make, f"--tag={prev_tag}")
-        prev_stage = 0
-        prev_kind = "segment"
-
-    args = [f"--tag={tag}"]
-    if storage_saving:
-        args.append(f"--storage-saving")
-
-    stage = 1
-    if prev_kind == "segment":
-        obj.invoke(
-            ctx,
-            temporal,
-            f"--segment-tag={prev_tag}",
-            f"--segment-stage={prev_stage}",
-            *args,
-        )
-        kind = "spike"
-    elif prev_kind == "spike":
-        obj.invoke(
-            ctx,
-            spatial,
-            f"--spike-tag={prev_tag}",
-            f"--spike-stage={prev_stage}",
-            *args,
-        )
-        kind = "footprint"
-    elif prev_kind == "footprint":
-        obj.invoke(
-            ctx,
-            clean,
-            f"--footprint-tag={prev_tag}",
-            f"--footprint-stage={prev_stage}",
-            *args,
-        )
-        stage += 1
-        kind = "segment"
+        find_tag = get_config("make", prev_tag, "find_tag") or prev_tag
+        data_tag = get_config("find", find_tag, "data_tag") or find_tag
+        invoke(data, f"--tag={data_tag}")
+        if end_kind == "data":
+            return
+        invoke(find, f"--tag={find_tag}")
+        if end_kind == "find":
+            return
+        invoke(make, f"--tag={prev_tag}")
+        kind, stage = "segment", 1
 
     while (stage < end_stage) or (kind != end_kind):
-        _s = 999 if storage_saving else stage
-        if kind == "segment":
-            obj.invoke(
-                ctx,
-                temporal,
-                f"--segment-tag={tag}",
-                f"--segment-stage={stage-1}",
-                *args,
-            )
-            kind = "spike"
-        elif kind == "spike":
-            obj.invoke(
-                ctx,
-                spatial,
-                f"--spike-tag={tag}",
-                f"--spike-stage={stage}",
-                *args,
-            )
-            kind = "footprint"
-        elif kind == "footprint":
-            obj.invoke(
-                ctx,
-                clean,
-                f"--footprint-tag={tag}",
-                f"--footprint-stage={stage}",
-                *args,
-            )
+        kind, stage = workflow_step(invoke, tag, tag, kind, stage)
+
+
+def workflow_step(invoke, tag, prev_tag, prev_kind, prev_stage):
+    kind = _next_kind[prev_kind]
+    if tag != prev_tag:
+        stage = 1
+    else:
+        stage = prev_stage
+        if kind == "footprint":
             stage += 1
-            kind = "segment"
+    if kind == "footprint":
+        invoke(
+            spatial,
+            f"--tag={tag}",
+            f"--spike-tag={prev_tag}",
+            f"--spike-stage={prev_stage}",
+        )
+    elif kind == "segment":
+        invoke(
+            clean,
+            f"--tag={tag}",
+            f"--footprint-tag={prev_tag}",
+            f"--footprint-stage={prev_stage}",
+        )
+    elif kind == "spike":
+        invoke(
+            temporal,
+            f"--tag={tag}",
+            f"--segment-tag={prev_tag}",
+            f"--segment-stage={prev_stage}",
+        )
+    return kind, stage

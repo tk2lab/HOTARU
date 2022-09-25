@@ -20,10 +20,14 @@ class ProgressCallback(tf.keras.callbacks.Callback):
             length=self.params.get("epochs", self.total),
             unit="epoch",
         )
+        self.prev = None
 
     def on_epoch_end(self, epoch, logs=None):
-        self.progress.set_postfix(dict(score=logs["score"]))
+        if self.prev is not None:
+            diff = self.prev - logs["score"]
+            self.progress.set_postfix(dict(diff=diff))
         self.progress.update(1)
+        self.prev = logs["score"]
 
     def on_train_end(self, logs=None):
         self.progress.close()

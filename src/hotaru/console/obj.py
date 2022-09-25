@@ -2,12 +2,13 @@ import os
 
 import click
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 from ..io.csv import load_csv
 from ..io.csv import save_csv
-from ..io.json import load_json
-from ..io.json import save_json
+from ..io.pickle import load_pickle
+from ..io.pickle import save_pickle
 from ..io.numpy import load_numpy
 from ..io.numpy import save_numpy
 from ..io.tfrecord import load_tfrecord
@@ -65,15 +66,6 @@ class Obj:
             self._model = model
         return self._model
 
-    def get_radius(self, radius_type, radius_min, radius_max, radius_num):
-        if radius_type == "linear":
-            radius_func = np.linspace
-        elif radius_type == "log":
-            radius_func = np.logspace
-            radius_min = np.log10(radius_min)
-            radius_max = np.log10(radius_max)
-        return radius_func(radius_min, radius_max, radius_num)
-
     def callbacks(self, label, log_dir):
         return [
             tf.keras.callbacks.TensorBoard(
@@ -123,25 +115,19 @@ class Obj:
 
     def save_log(self, log, kind, tag, stage):
         os.makedirs(f"{self.workdir}/log", exist_ok=True)
-        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.json"
-        save_json(path, log)
+        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.pickle"
+        save_pickle(path, log)
         self._log[path] = log
 
     def log(self, kind, tag, stage):
-        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.json"
+        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.pickle"
         if path not in self._log:
-            self._log[path] = load_json(path)
+            self._log[path] = load_pickle(path)
         return self._log[path]
 
     def can_skip(self, kind, tag, **args):
-        if kind == "temporal":
-            if args["segment_tag"] != tag:
-                stage = 1
-            else:
-                if args["storage_saving"] or (args["segment_stage"] == 999):
-                    stage = 999
-                else:
-                    stage = args["segment_stage"] + 1
+        if kind == "make":
+            stage = 1
         elif kind == "spatial":
             if args["spike_tag"] != tag:
                 stage = 1
@@ -149,7 +135,7 @@ class Obj:
                 if args["storage_saving"]:
                     stage = 999
                 else:
-                    stage = args["spike_stage"]
+                    stage = args["spike_stage"] + 1
         elif kind == "clean":
             if args["footprint_tag"] != tag:
                 stage = 1
@@ -158,6 +144,14 @@ class Obj:
                     stage = 999
                 else:
                     stage = args["footprint_stage"]
+        elif kind == "temporal":
+            if args["segment_tag"] != tag:
+                stage = 1
+            else:
+                if args["storage_saving"] or (args["segment_stage"] == 999):
+                    stage = 999
+                else:
+                    stage = args["segment_stage"]
         else:
             stage = 0
 
@@ -173,25 +167,29 @@ class Obj:
         kind = dict(
             data="1data",
             find="2find",
-            make="3segment",
-            temporal="1temporal",
-            spatial="2spatial",
-            clean="3segment",
+            make="2segment",
+            temporal="3temporal",
+            spatial="1spatial",
+            clean="2segment",
         )[kind]
-        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.json"
+        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.pickle"
         return os.path.exists(path)
 
-    def need_exec(self):
-        kind = self.kind
-        if self.force:
-            return True
-        if kind == "output":
-            return True
-        if kind in ("temporal", "spatial", "clean"):
-            if not isinstance(self.stage, int):
-                return True
-        path = self.log_path()
-        return not os.path.exists(path)
+    def data_tag(self, kind, tag, stage):
+        return self.log(kind, tag, stage)["data_tag"]
+
+    def used_radius(self, tag, stage=0):
+        if stage == 0:
+            log = self.log("2find", tag, stage)
+        else:
+            log = self.log("2segment", tag, stage)
+        return log["radius"]
+
+    def used_distance(self, tag, stage=0):
+        return self.log("2segment", tag, stage)["distance"]
+
+    def used_dynamics(self, tag, stage):
+        return self.log("3temporal", tag, stage)["dynamics"]
 
     # DATA
 
@@ -202,6 +200,9 @@ class Obj:
     def mask(self, tag):
         path = self.out_path("data", tag, "_mask")
         return load_numpy(f"{path}.npy")
+
+    def nt(self, tag):
+        return self.log("1data", tag, 0)["nt"]
 
     def avgt(self, tag):
         path = self.out_path("data", tag, "argt")
@@ -216,13 +217,6 @@ class Obj:
     def peaks(self, tag, stage="-find"):
         path = self.out_path("peak", tag, stage)
         return load_csv(f"{path}.csv")
-
-    def used_radius_args(self, tag, stage=0):
-        if stage == 0:
-            log = self.log("2find", tag, stage)
-        else:
-            log = self.log("3segment", tag, stage)
-        return {k: v for k, v in log.items() if k[:6] == "radius"}
 
     # MAKE
 
@@ -240,15 +234,26 @@ class Obj:
                 path = self.out_path("localx", tag, "_000")
         return load_numpy(f"{path}.npy")
 
-    def index(self, tag, stage):
+    def index(self, kind, tag, stage):
+        tag = self.index_tag(kind, tag, stage)
+        stage = self.index_stage(kind, tag, stage)
+        return self._index(tag, stage)
+
+    def index_tag(self, kind, tag, stage):
+        return self.log(kind, tag, stage)["index_tag"]
+
+    def index_stage(self, kind, tag, stage):
+        return self.log(kind, tag, stage)["index_stage"]
+
+    def _index(self, tag, stage):
         path = self.out_path("peak", tag, stage)
         if stage == "_curr":
             if not os.path.exists(f"{path}.csv"):
                 path = self.out_path("peak", tag, "_000")
-        return load_csv(f"{path}.csv").query('accept == "yes"').index
-
-    def used_distance(self, tag, stage=0):
-        return self.log("3segment", tag, stage=stage)["distance"]
+        peaks = load_csv(f"{path}.csv")
+        cell = peaks.query("kind == 'cell'")
+        local = peaks.query("kind == 'local'")
+        return cell.shape[0], local.shape[0], pd.concat([cell, local], axis=0)
 
     # Temporal
 
@@ -262,13 +267,6 @@ class Obj:
             if not os.path.exists(f"{path}.npy"):
                 path = self.out_path("localt", tag, "_000")
         return load_numpy(f"{path}.npy")
-
-    def used_tau(self, tag, stage):
-        log = self.log("1temporal", tag, stage)
-        return dict(
-            tau1=log["tau1"],
-            tau2=log["tau2"],
-        )
 
     # Spatial
 

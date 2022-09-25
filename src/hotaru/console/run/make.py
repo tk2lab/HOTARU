@@ -22,60 +22,34 @@ from ..progress import Progress
 def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     """Make Initial Segment."""
 
-    data_tag = obj.log("2find", find_tag, 0)["data_tag"]
-    data = obj.data(data_tag)
-    mask = obj.mask(data_tag)
-    log = obj.log("1data", data_tag, 0)
-    nt = log["nt"]
-
     peaks = obj.peaks(find_tag)
-    radius_arg = obj.used_radius_args(find_tag)
-    radius_min = radius_arg["radius_min"]
-    radius_max = radius_arg["radius_max"]
-
     idx_data = reduce_peak_idx_data(peaks, distance, window)
     with Progress(iterable=idx_data, label="Reduce", unit="block") as prog:
         idx = reduce_peak_idx_finish(prog)
-    peaks = label_out_of_range(peaks.loc[idx], radius_min, radius_max)
 
-    accept = peaks["accept"] == "yes"
-    localx = peaks["accept"] == "localx"
-    num_accept = accept.sum()
-    num_localx = localx.sum()
-    peaks["segmentid"] = -1
-    peaks.loc[accept, "segmentid"] = np.arange(num_accept)
-    peaks = clean_peaks_df(peaks)
-    obj.save_csv(peaks, "peak", tag, 0)
-    click.echo(f"num: {num_accept}, {num_localx}")
-
-    log = dict(data_tag=data_tag)
+    radius = obj.used_radius(find_tag)
+    peaks = label_out_of_range(peaks.loc[idx], radius)
+    obj.save_csv(peaks, "peak", tag, 1)
+    cell = peaks.kind == "cell"
+    local = peaks.kind == "local"
+    click.echo(f"num: {cell.sum()}, {local.sum()}")
 
     if only_reduce:
-        return log, "3segment", tag, "tune"
-    else:
-        with Progress(length=nt, label="Make", unit="frame") as prog:
-            with obj.strategy.scope():
-                peaks = peaks[accept | localx]
-                segment = make_segment(data, mask, peaks, batch, prog=prog)
-        accept = peaks["accept"] == "yes"
-        localx = peaks["accept"] == "localx"
-        obj.save_numpy(segment[accept], "segment", tag, 0)
-        obj.save_numpy(segment[localx], "localx", tag, 0)
-        return log, "3segment", tag, 0
+        return {}, "3segment", tag, "tune"
 
+    data_tag = obj.data_tag("2find", find_tag, 0)
+    data = obj.data(data_tag)
+    mask = obj.mask(data_tag)
+    nt = obj.nt(data_tag)
 
-def clean_peaks_df(peaks):
-    peaks["x"] = peaks.x.astype(np.int32)
-    peaks["y"] = peaks.y.astype(np.int32)
-    return peaks[
-        [
-            "segmentid",
-            "t",
-            "x",
-            "y",
-            "radius",
-            "intensity",
-            "accept",
-            "reason",
-        ]
-    ]
+    with Progress(length=nt, label="Make", unit="frame") as prog:
+        with obj.strategy.scope():
+            peaks = peaks[cell | local]
+            segment = make_segment(data, mask, peaks, batch, prog=prog)
+    cell = peaks.kind == "cell"
+    local = peaks.kind == "local"
+    obj.save_numpy(segment[cell], "segment", tag, 1)
+    obj.save_numpy(segment[local], "localx", tag, 1)
+
+    log = dict(data_tag=data_tag)
+    return log, "2segment", tag, 1

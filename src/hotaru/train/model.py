@@ -24,7 +24,7 @@ class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
         spike = self.spike(dummy_input)
         localx = self.localx(dummy_input)
         localt = self.localt(dummy_input)
-        penalty = self.penalty(footprint, spike, localx, localt)
+        penalty = self.penalty(dummy_input)
 
         xval = concat_layer([footprint, localx])
         spatial_loss = self.spatial_loss(xval)

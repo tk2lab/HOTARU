@@ -44,10 +44,10 @@ class HotaruVariableMixin:
         self.spatial_loss.set_background_penalty(spatial, temporal)
         self.temporal_loss.set_background_penalty(temporal, spatial)
 
-    def penalty(self, footprint, spike, localx, localt):
+    def penalty(self, dummy=None):
         return (
-            self.footprint.penalty(footprint)
-            + self.spike.penalty(spike)
-            + self.localx.penalty(localx)
-            + self.localt.penalty(localt)
+            self.footprint.penalty(self.footprint(dummy))
+            + self.spike.penalty(self.spike(dummy))
+            + self.localx.penalty(self.localx(dummy))
+            + self.localt.penalty(self.localt(dummy))
         )

@@ -56,9 +56,6 @@ class LossLayer(tf.keras.layers.Layer):
         self._cov[:nk, :nk].assign(cov)
         self._out[:nk, :nk].assign(out)
 
-        lipschitz = tf.math.reduce_max(tf.linalg.eigvalsh(cov)) / self._nm
-        return lipschitz
-
 
 class HotaruLoss(tf.keras.losses.Loss):
     """Loss"""

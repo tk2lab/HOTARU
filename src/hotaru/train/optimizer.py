@@ -33,12 +33,9 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
         )
 
     def set(self, learning_rate=0.01, nesterov_scale=20.0, reset_interval=100):
-        self.default_learning_rate = learning_rate
+        self.learning_rate = learning_rate
         self.nesterov_scale = nesterov_scale
         self.reset_interval = reset_interval
-
-    def set_lipschitz(self, lipschitz):
-        self.learning_rate = self.default_learning_rate * (2 / lipschitz)
 
     def _create_slots(self, var_list):
         if self._nesterov:

@@ -69,8 +69,7 @@ class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
 
         data = self.data.enumerate().batch(batch)
         cor = _matmul(data, val, prog=prog)
-        lipschitz = self.spatial_loss._cache(val, cor)
-        self.spatial.optimizer.set_lipschitz(lipschitz.numpy())
+        self.spatial_loss._cache(val, cor)
 
     def prepare_temporal(self, batch, prog=None):
         @distributed(ReduceOp.CONCAT, strategy=self.local_strategy)
@@ -83,9 +82,7 @@ class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
 
         data = self.data.batch(batch)
         cor = tf.transpose(_matmul(data, val, prog=prog))
-        lipschitz = self.temporal_loss._cache(val, cor)
-        lipschitz *= tf.math.reduce_sum(self.spike_to_calcium.kernel)
-        self.temporal.optimizer.set_lipschitz(lipschitz.numpy())
+        self.temporal_loss._cache(val, cor)
 
     def fit_spatial(self, **kwargs):
         self.footprint.clear(self.spike.get_num())

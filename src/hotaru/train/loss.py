@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 class LossLayer(tf.keras.layers.Layer):
-    """Variance"""
+    """Log Standard Deviation"""
 
     def __init__(self, nk, n0, n1, **args):
         super().__init__(**args)
@@ -36,9 +36,9 @@ class LossLayer(tf.keras.layers.Layer):
             + tf.math.reduce_sum(ycov * xcov)
             + tf.math.reduce_sum(yout * xout)
         )
-        variance = (self._nn + variance) / self._nm
-        self.add_metric(tf.math.sqrt(variance), "sigma")
-        return tf.math.log(variance) / 2
+        sigma = tf.math.sqrt((self._nn + variance) / self._nm)
+        self.add_metric(sigma, "sigma")
+        return tf.math.log(sigma)
 
     @tf.function
     def _cache(self, yval, dat):

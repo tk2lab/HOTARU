@@ -28,17 +28,15 @@ class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
 
         xval = concat_layer([footprint, localx])
         spatial_loss = self.spatial_loss(xval)
-
-        calcium = self.spike_to_calcium(spike)
-        tval = concat_layer([calcium, localt])
-        temporal_loss = self.temporal_loss(tval)
-
         spatial_model = tf.keras.Model(
             dummy_input, spatial_loss, name="spatial"
         )
         spatial_model.add_metric(penalty, "penalty")
         spatial_model.add_metric(spatial_loss + penalty, "score")
 
+        calcium = self.spike_to_calcium(spike)
+        tval = concat_layer([calcium, localt])
+        temporal_loss = self.temporal_loss(tval)
         temporal_model = tf.keras.Model(
             dummy_input, temporal_loss, name="temporal"
         )
@@ -63,11 +61,10 @@ class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
             val = tf.gather(val, t, axis=1)
             return tf.linalg.matmul(val, dat)
 
+        data = self.data.enumerate().batch(batch)
         calcium = self.spike_to_calcium(self.spike.val)
         localt = self.localt.val
         val = tf.concat([calcium, localt], axis=0)
-
-        data = self.data.enumerate().batch(batch)
         cor = _matmul(data, val, prog=prog)
         self.spatial_loss._cache(val, cor)
 
@@ -76,11 +73,10 @@ class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
         def _matmul(dat, val):
             return tf.matmul(dat, val, False, True)
 
+        data = self.data.batch(batch)
         footprint = self.footprint.val
         localx = self.localx.val
         val = tf.concat([footprint, localx], axis=0)
-
-        data = self.data.batch(batch)
         cor = tf.transpose(_matmul(data, val, prog=prog))
         self.temporal_loss._cache(val, cor)
 

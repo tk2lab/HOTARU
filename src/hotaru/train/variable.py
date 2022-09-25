@@ -6,6 +6,8 @@ from .prox import MaxNormNonNegativeL1
 
 
 class HotaruVariableMixin:
+    """Variable"""
+
     def init_variable(self, nk, nx, nt, tausize):
         nu = nt + tausize - 1
 

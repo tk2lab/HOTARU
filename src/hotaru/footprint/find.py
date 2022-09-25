@@ -42,19 +42,8 @@ def find_peak(data, mask, radius, shard, batch, prog=None):
     g = tf.gather_nd(g, idx).numpy()
     x = tf.reshape(x, -1).numpy()
     y = tf.reshape(y, -1).numpy()
+    df = pd.DataFrame(dict(t=t, x=x, y=y, radius=radius[r], intensity=g))
 
     idx = np.argsort(g)[::-1]
     idx = idx[g[idx] > 0.0]
-    return (
-        pd.DataFrame(
-            dict(
-                t=t,
-                radius=radius[r],
-                intensity=g,
-                x=x,
-                y=y,
-            )
-        )
-        .iloc[idx]
-        .reset_index(drop=True)
-    )
+    return df.iloc[idx].reset_index(drop=True)

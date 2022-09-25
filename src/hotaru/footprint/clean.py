@@ -7,7 +7,7 @@ from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 from .segment import get_segment_index
-from .segment import remove_noise
+#from .segment import remove_noise
 
 
 def modify_footprint(footprint):
@@ -17,65 +17,6 @@ def modify_footprint(footprint):
     footprint[i, j[:, 0]] = second
     cond = second > 0.0
     return cond
-
-
-def check_overwrap(segment):
-    index = [-1]
-    overwrap = [np.nan]
-    cov = segment @ segment.T
-    for i in range(1, segment.shape[0]):
-        val = cov[i, :i] / segment[i].sum()
-        j = np.argmax(val)
-        index.append(j)
-        overwrap.append(val[j])
-    return index, overwrap
-
-
-def check_nearest(peaks):
-    ys = peaks.y.values
-    xs = peaks.x.values
-    index = [-1]
-    distance = [np.nan]
-    for i in range(1, xs.size):
-        dist = np.square(ys[i] - ys[:i]) + np.square(xs[i] - xs[:i])
-        j = np.argmin(dist)
-        index.append(j)
-        distance.append(np.sqrt(dist[j]))
-    return index, distance
-
-
-def check_accept(
-    segment,
-    peaks,
-    radius_min,
-    radius_max,
-    thr_area,
-    thr_overwrap,
-):
-    cond_min = peaks.radius.values == radius_min
-    cond_max = peaks.radius.values == radius_max
-
-    binary = (segment > thr_area).astype(np.float32)
-    peaks["area"] = area = binary.sum(axis=1)
-
-    mask = ~(cond_min | cond_max)
-    select = peaks.loc[mask].index
-
-    peaks["next"] = -1
-    peaks["overwrap"] = np.nan
-    index, overwrap = check_overwrap(binary[mask])
-    peaks.loc[select[1:], "next"] = index[1:]
-    peaks.loc[select[1:], "overwrap"] = overwrap[1:]
-    cond_sim = peaks.overwrap.values > thr_overwrap
-
-    peaks["accept"] = "yes"
-    peaks.loc[cond_min | cond_sim, "accept"] = "no"
-    peaks.loc[cond_max, "accept"] = "localx"
-
-    peaks["reason"] = "-"
-    peaks.loc[cond_sim, "reason"] = "overwrap"
-    peaks.loc[cond_max, "reason"] = "large_r"
-    peaks.loc[cond_min, "reason"] = "small_r"
 
 
 def clean_footprint(footprint, index, mask, radius, batch, prog=None):
@@ -110,7 +51,7 @@ def clean_footprint(footprint, index, mask, radius, batch, prog=None):
             simgmin = tf.math.reduce_min(simg)
             simgmax = tf.math.reduce_max(simg)
             val = (simg - simgmin) / (simgmax - simgmin)
-            val = remove_noise(val)
+            #val = remove_noise(val)
             img = tf.scatter_nd(pos, val, [h, w])
             out = out.write(k, tf.boolean_mask(img, mask))
             firmness = firmness.write(
@@ -123,13 +64,95 @@ def clean_footprint(footprint, index, mask, radius, batch, prog=None):
     dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
 
-    mask = tf.convert_to_tensor(mask, tf.bool)
-    radius = tf.convert_to_tensor(radius, tf.float32)
+    mask_t = tf.convert_to_tensor(mask, tf.bool)
+    radius_t = tf.convert_to_tensor(radius, tf.float32)
 
-    footprint, f, r, y, x = _clean(dataset, mask, radius, prog=prog)
-    r = tf.gather(radius, r)
-    peaks = pd.DataFrame(
-        dict(firmness=f.numpy(), radius=r.numpy(), x=x.numpy(), y=y.numpy()),
-        index=index,
-    )
-    return footprint.numpy(), peaks
+    out = _clean(dataset, mask_t, radius_t, prog=prog)
+    footprint, f, r, y, x = (o.numpy() for o in out)
+    peaks = dict(x=x, y=y, radius=radius[r], firmness=f)
+    peaks = pd.DataFrame(peaks, index=index)
+    return footprint, peaks
+
+
+def check_accept(segment, peaks, radius, sim, area, overwrap):
+    peaks.insert(0, "segid", np.arange(segment.shape[0]))
+
+    binary = (segment > area).astype(np.float32)
+    peaks["area"] = area = binary.sum(axis=1)
+
+    peaks.insert(1, "kind", "-")
+    peaks["kind"] = "cell"
+    peaks.loc[peaks.radius == radius[-1], "kind"] = "local"
+    peaks.loc[peaks.radius == radius[0], "kind"] = "remove"
+
+    check_overwrap(binary, peaks, overwrap)
+    check_sim(segment, peaks, sim)
+
+    peaks.sort_values("firmness", ascending=False, inplace=True)
+    peaks.insert(2, "id", -1)
+    cell = peaks.query("kind == 'cell'")
+    peaks.loc[cell.index, "id"] = np.arange(cell.shape[0])
+    local = peaks.query("kind == 'local'")
+    peaks.loc[local.index, "id"] = np.arange(local.shape[0])
+    return segment[cell.segid.to_numpy()], segment[local.segid.to_numpy()], peaks
+
+
+def check_sim(segment, peaks, threshold):
+    peaks.sort_values("firmness", ascending=False, inplace=True)
+    select = peaks.query("kind == 'cell'")
+    segment = segment[select.segid.to_numpy()]
+    score = []
+    index = []
+    remove = []
+    segment = segment / np.sqrt((segment**2).sum(axis=1, keepdims=True))
+    cov = segment @ segment.T
+    for i in range(1, segment.shape[0]):
+        val = cov[i, :i]
+        j = np.argmax(val)
+        score.append(val[j])
+        index.append(j)
+        if score[-1] > threshold:
+            remove.append(True)
+            cov[:, i] = 0.0
+        else:
+            remove.append(False)
+    selectx = select.iloc[1:]
+    peaks.loc[selectx.index, "similarity"] = score
+    peaks["sim_with"] = -1
+    peaks.loc[selectx.index, "sim_with"] = select.segid.to_numpy()[index]
+    peaks.loc[selectx.loc[remove].index, "kind"] = "remove"
+
+
+def check_overwrap(binary, peaks, threshold):
+    peaks.sort_values("area", ascending=False, inplace=True)
+    select = peaks.query("kind == 'cell'")
+    binary = binary[select.segid.to_numpy()]
+    score = []
+    index = []
+    local = []
+    area = binary.sum(axis=1)
+    cov = (binary @ binary.T) / area
+    for i in range(binary.shape[0] - 1):
+        val = cov[i+1:, i]
+        j = np.argmax(val)
+        score.append(val[j])
+        index.append(i + 1 + j)
+        local.append(score[-1] > threshold)
+    selectx = select.iloc[:-1]
+    peaks.loc[selectx.index, "overwrap"] = score
+    peaks["wrap_with"] = -1
+    peaks.loc[selectx.index, "wrap_with"] = select.segid.to_numpy()[index]
+    peaks.loc[selectx.loc[local].index, "kind"] = "remove"
+
+
+def check_nearest(peaks):
+    ys = peaks.y.values
+    xs = peaks.x.values
+    index = [-1]
+    distance = [np.nan]
+    for i in range(1, xs.size):
+        dist = np.square(ys[i] - ys[:i]) + np.square(xs[i] - xs[:i])
+        j = np.argmin(dist)
+        index.append(j)
+        distance.append(np.sqrt(dist[j]))
+    return index, distance

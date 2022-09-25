@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from scipy.ndimage import label
 
 
 def remove_noise(val, scale=100):
@@ -9,11 +8,6 @@ def remove_noise(val, scale=100):
     hist_pos = tf.math.argmax(hist)
     thr = tf.cast(hist_pos, tf.float32) / tf.cast(num_bins, tf.float32)
     return tf.where(val >= thr, (val - thr) / (1 - thr), 0)
-
-
-def get_segment_simple_py(img, y, x, thr):
-    lbl, n = label(img > thr)
-    return lbl == lbl[y, x]
 
 
 def get_segment(gl, y, x, mask):

@@ -3,32 +3,6 @@ import multiprocessing as mp
 import numpy as np
 
 
-def label_out_of_range(peaks, radius_min, radius_max):
-    r = peaks["radius"].values
-    r = np.round(r, 3)
-    radius_min = np.round(radius_min, 3)
-    radius_max = np.round(radius_max, 3)
-
-    peaks["accept"] = "yes"
-    peaks.loc[r == radius_max, "accept"] = "localx"
-    peaks.loc[r == radius_min, "accept"] = "no"
-
-    peaks["reason"] = "-"
-    peaks.loc[r == radius_min, "reason"] = "small_r"
-    peaks.loc[r == radius_max, "reason"] = "large_r"
-    return peaks
-
-
-def reduce_peak_mask(peaks, thr_distance):
-    rs = peaks["radius"].values
-    ys = peaks["y"].values
-    xs = peaks["x"].values
-    idx = _reduce_peak_idx(ys, xs, rs, thr_distance)
-    out = np.zeros_like(rs)
-    out[idx] = True
-    return out
-
-
 def reduce_peak_idx_data(peaks, thr_distance, size):
     ind = peaks.index.values
     rs = peaks["radius"].values
@@ -59,6 +33,22 @@ def reduce_peak_idx_finish(data):
         imap = pool.imap_unordered(_reduce_peak_idx_local, data)
         ind = [x for x in imap]
     return np.unique(np.concatenate(ind, 0))
+
+
+def label_out_of_range(peaks, radius):
+    r = np.round(peaks.radius, 3).to_numpy()
+    cond_remove = r == np.round(radius[0], 3)
+    cond_local = r == np.round(radius[1], 3)
+    cond_cell = ~(cond_remove | cond_local)
+
+    peaks.insert(0, "kind", "small_r")
+    peaks.loc[cond_cell, "kind"] = "cell"
+    peaks.loc[cond_local, "kind"] = "local"
+
+    peaks.insert(1, "id", -1)
+    peaks.loc[cond_cell, "id"] = np.arange(cond_cell.sum())
+    peaks.loc[cond_local, "id"] = np.arange(cond_local.sum())
+    return peaks
 
 
 def _reduce_peak_idx_local(data):

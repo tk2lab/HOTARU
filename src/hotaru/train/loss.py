@@ -18,8 +18,8 @@ class LossLayer(tf.keras.layers.Layer):
         self._out = self.add_weight("out", (nk, nk), trainable=False)
 
     def set_background_penalty(self, b0, b1):
-        self._b0.assign(b0 / self._nm)
-        self._b1.assign(b1 / self._nm)
+        self._b0.assign(b0)
+        self._b1.assign(b1)
 
     def call(self, xdat):
         nk, nx = tf.shape(xdat)[0], tf.shape(xdat)[1]

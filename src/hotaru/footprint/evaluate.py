@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import scipy.ndimage as ndi
 
 from ..filter.laplace import gaussian_laplace_multi
 from ..util.dataset import unmasked
@@ -16,11 +17,10 @@ def normalize_footprint(footprint):
     second = footprint[i, j[:, 1]]
     footprint[i, j[:, 0]] = second
     no_seg = second == 0.0
-    footprint /= np.where(no_seg, 1.0, second)[:, None]
     return no_seg
 
 
-def clean_footprint(footprint, index, mask, radius, batch, prog=None):
+def evaluate_footprint(footprint, mask, radius, batch, prog=None):
     @distributed(
         ReduceOp.CONCAT,
         ReduceOp.CONCAT,
@@ -28,7 +28,7 @@ def clean_footprint(footprint, index, mask, radius, batch, prog=None):
         ReduceOp.CONCAT,
         ReduceOp.CONCAT,
     )
-    def _clean(imgs, mask, radius):
+    def _evaluate(imgs, mask, radius):
         logs = gaussian_laplace_multi(imgs, radius)
         nk, h, w = tf.shape(logs)[0], tf.shape(logs)[2], tf.shape(logs)[3]
         hw = h * w
@@ -37,28 +37,16 @@ def clean_footprint(footprint, index, mask, radius, batch, prog=None):
         rs = pos // hw
         ys = (pos % hw) // w
         xs = (pos % hw) % w
-        logs = tf.gather_nd(logs, tf.stack([tf.range(nk), rs], axis=1))
+        indices = tf.stack([tf.range(nk), rs], axis=1)
+        logs = tf.gather_nd(logs, indices)
 
         nx = tf.size(rs)
-        out = tf.TensorArray(tf.float32, size=nk)
-        firmness = tf.TensorArray(tf.float32, size=nk)
-        for k in tf.range(nx):
-            img, log, y, x = imgs[k], logs[k], ys[k], xs[k]
-            pos = get_segment_index(log, y, x, mask)
-            slog = tf.gather_nd(log, pos)
-            slogmin = tf.math.reduce_min(slog)
-            slogmax = tf.math.reduce_max(slog)
-            simg = tf.gather_nd(img, pos)
-            simgmin = tf.math.reduce_min(simg)
-            simgmax = tf.math.reduce_max(simg)
-            val = (simg - simgmin) / (simgmax - simgmin)
-            #val = remove_noise(val)
-            img = tf.scatter_nd(pos, val, [h, w])
-            out = out.write(k, tf.boolean_mask(img, mask))
-            firmness = firmness.write(
-                k, (slogmax - slogmin) / (simgmax - simgmin)
-            )
-        return out.stack(), firmness.stack(), rs, ys, xs
+        indices = tf.stack([tf.range(nx), ys, xs], axis=1) 
+        imgmin = tf.math.reduce_min(imgs, axis=(1, 2))
+        imgmax = tf.math.reduce_max(imgs, axis=(1, 2))
+        logpeak = tf.gather_nd(logs, indices)
+        firmness = logpeak / (imgmax - imgmin)
+        return firmness, rs, ys, xs
 
     nk = footprint.shape[0]
     dataset = tf.data.Dataset.from_tensor_slices(footprint)
@@ -68,11 +56,22 @@ def clean_footprint(footprint, index, mask, radius, batch, prog=None):
     mask_t = tf.convert_to_tensor(mask, tf.bool)
     radius_t = tf.convert_to_tensor(radius, tf.float32)
 
-    out = _clean(dataset, mask_t, radius_t, prog=prog)
-    footprint, f, r, y, x = (o.numpy() for o in out)
-    peaks = dict(x=x, y=y, radius=radius[r], firmness=f)
-    peaks = pd.DataFrame(peaks, index=index)
-    return footprint, peaks
+    out = _evaluate(dataset, mask_t, radius_t, prog=prog)
+    f, r, y, x = (o.numpy() for o in out)
+    return dict(x=x, y=y, radius=radius[r], firmness=f)
+
+
+def clean_footprint(xs, mask, threshold=0.01):
+    normalize = lambda x: (x - threshold) / (xmax - threshold)
+    tmp = np.zeros_like(mask, dtype=xs.dtype)
+    for xi in xs:
+        xmax = xi.max()
+        tmp[mask] = xi
+        y, x = np.where(tmp == xmax)
+        obj, n = ndi.label(tmp > threshold * xmax)
+        region = obj == obj[y[0], x[0]]
+        tmp[...] = np.where(region, normalize(tmp), 0.0)
+        xi[:] = tmp[mask]
 
 
 def check_accept(segment, peaks, radius, sim, area, overwrap):

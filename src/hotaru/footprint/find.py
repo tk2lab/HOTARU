@@ -8,7 +8,7 @@ from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 
 
-def find_peak(data, mask, radius, shard, batch, prog=None):
+def find_peak(data, mask, radius, shard, batch, threshod_region, prog=None):
     @distributed(ReduceOp.STACK, ReduceOp.STACK, ReduceOp.STACK)
     def _find(data, mask, radius):
         times, imgs = data

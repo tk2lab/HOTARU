@@ -13,9 +13,10 @@ from ..progress import Progress
 @radius_options
 @click.option("--shard", type=int)
 @click.option("--batch", type=int)
+@click.option("--threshold-region", type=float)
 @click.pass_obj
 @command_wrap
-def find(obj, tag, data_tag, radius, shard, batch):
+def find(obj, tag, data_tag, radius, shard, batch, threshold_region):
     """Find Initial Cell Candidate Peaks."""
 
     if data_tag is None:
@@ -28,7 +29,7 @@ def find(obj, tag, data_tag, radius, shard, batch):
     total = (nt + shard - 1) // shard
     with Progress(length=total, label="Find", unit="frame") as prog:
         with obj.strategy.scope():
-            peaks = find_peak(data, mask, radius, shard, batch, prog=prog)
+            peaks = find_peak(data, mask, radius, shard, batch, threshold_region, prog=prog)
     nk = peaks.shape[0]
     click.echo(f"num: {nk}")
     obj.save_csv(peaks, tag, 0, "2find", "info")

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ...evaluate.summary import write_spike_summary
-from ...footprint.evaluate import normalize_footprint
+from ...evaluate.utils import calc_denseness
 from ..base import command_wrap
 from ..base import configure
 from ..base import dynamics_options
@@ -18,7 +18,6 @@ from ..progress import Progress
 @click.option("--tag", type=str, callback=configure, is_eager=True)
 @click.option("--spatial-tag", type=str)
 @click.option("--spatial-stage", type=int)
-@click.option("--threshold-region", type=float)
 @click.option("--threshold-area", type=float)
 @dynamics_options
 @penalty_options
@@ -34,14 +33,13 @@ def temporal(
     tag,
     spatial_tag,
     spatial_stage,
-    threshold_region,
     threshold_area,
     dynamics,
     penalty,
     optimizer,
     early_stop,
-    epochs,
     batch,
+    epochs,
     storage_saving,
 ):
     """Update Spike from Segment."""
@@ -64,13 +62,16 @@ def temporal(
     curr = dict(tag=tag, stage=stage, kind="2temporal")
 
     data_tag = obj.data_tag(**prev)
+    mask = obj.mask(data_tag)
     nt = obj.nt(data_tag)
 
-    info = obj.info(**prev)
     footprint = obj.footprint(**prev)
     localx = obj.localx(**prev)
-    old_nk = footprint.shape[0]
-    old_nl = localx.shape[0]
+
+    info = obj.info(**prev)
+    info.query("(kind == 'cell') or (kind == 'local')", inplace=True)
+    info["old_kind"] = info.kind
+    info["old_id"] = info.id
 
     model = obj.model(data_tag, info.shape[0])
     model.set_double_exp(**dynamics)
@@ -78,38 +79,63 @@ def temporal(
     model.temporal.optimizer.set(**optimizer)
     model.set_early_stop(**early_stop)
 
-    no_seg = normalize_footprint(footprint)
-    area = np.count_nonzero(footprint > threshold_region, axis=1)
-    cell_to_local = area > threshold_area
+    cell = info.query("kind == 'cell'")
+    local = info.query("kind == 'local'")
+    nk, nl = cell.shape[0], local.shape[0]
+    click.echo(f"num: {nk}, {nl}")
+
+    cell_to_local = cell.area > threshold_area
     localx_new = footprint[cell_to_local]
-    localx = np.concatenate([localx_new, localx], axis=0)
-    footprint = footprint[~(no_seg | cell_to_local)]
-    nk = footprint.shape[0]
-    nl = localx.shape[0]
+    localx = np.concatenate([localx, localx_new], axis=0)
+    footprint = footprint[~cell_to_local]
+    info.loc[cell.index[cell_to_local], "kind"] = "local"
+    click.echo(f"large area: {np.count_nonzero(cell_to_local)}")
 
-    info["old_kind"] = info.kind
-    info["old_id"] = info.id
-    cell_info = info.query("kind == 'cell'").copy()
-    cell_info["area"] = area
-    cell_info.loc[cell_to_local, "kind"] = "local"
-    cell_info.loc[no_seg, "kind"] = "remove"
-    local_info = info.query("kind == 'local'").copy()
-    info = pd.concat([cell_info, local_info], axis=0)
-    info.loc[info.kind == "cell", "id"] = np.arange(nk)
-    info.loc[info.kind == "local", "id"] = np.arange(nl)
+    cell = info.query("kind == 'cell'")
+    local = info.query("kind == 'local'")
+    nk, nl = cell.shape[0], local.shape[0]
+    click.echo(f"num: {nk}, {nl}")
 
-    obj.save_csv(info, **curr, name="info")
-    click.echo(f"num: {old_nk}, {old_nl} -> {nk}, {nl}")
+    remove = cell.overwrap == 1.0
+    footprint = footprint[~remove]
+    info.loc[cell.index[remove], "kind"] = "overwrap"
+    click.echo(f"overwrap: {np.count_nonzero(remove)}")
 
-    with Progress(length=nt, label="InitT", unit="frame") as prog:
+    cell = info.query("kind == 'cell'")
+    local = info.query("kind == 'local'")
+    nk, nl = cell.shape[0], local.shape[0]
+    click.echo(f"num: {nk}, {nl}")
+
+    footprint /= footprint.max(axis=1, keepdims=True)
+    localx /= localx.max(axis=1, keepdims=True)
+
+    with Progress(length=nt, label="Temporal Init", unit="frame") as prog:
         model.footprint.set_val(footprint)
         model.localx.set_val(localx)
         model.prepare_temporal(batch, prog=prog)
 
-    summary_dir = obj.summary_path("temporal", tag, stage)
-    cb = obj.callbacks("TrainT", summary_dir)
+    summary_dir = obj.summary_path(**curr)
+    cb = obj.callbacks("Temporal Train", summary_dir)
     model_log = model.fit_temporal(callbacks=cb, epochs=epochs, verbose=0)
 
+    spike = model.spike.get_val()
+    localt = model.localt.get_val()
+
+    info["scale"] = np.nan
+    scale = spike.max(axis=1, keepdims=True)
+    info.loc[cell.index, "scale"] = scale
+    scale = localt.std(axis=1, keepdims=True)
+    info.loc[local.index, "scale"] = scale
+
+    info["denseness"] = np.nan
+    info.loc[cell.index, "denseness"] = calc_denseness(spike)
+    info.loc[local.index, "denseness"] = calc_denseness(localt)
+
+    info["id"] = -1
+    info.loc[cell.index, "id"] = np.arange(cell.shape[0])
+    info.loc[local.index, "id"] = np.arange(local.shape[0])
+
+    obj.save_csv(info, **curr, name="info")
     obj.save_numpy(footprint, **curr, name="footprint")
     obj.save_numpy(localx, **curr, name="localx")
     obj.save_numpy(model.spike.get_val(), **curr, name="spike") 

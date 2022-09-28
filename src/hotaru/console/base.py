@@ -88,7 +88,8 @@ def dynamics_options(command):
 def penalty_options(command):
     @click.option("--penalty-footprint", type=float)
     @click.option("--penalty-spike", type=float)
-    @click.option("--penalty-local", type=float)
+    @click.option("--penalty-localx", type=float)
+    @click.option("--penalty-localt", type=float)
     @click.option("--penalty-spatial", type=float)
     @click.option("--penalty-temporal", type=float)
     @functools.wraps(command)

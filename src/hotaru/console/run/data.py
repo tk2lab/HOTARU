@@ -42,10 +42,10 @@ def data(obj, tag, imgs_path, hz, mask_type, tausize, batch):
     normalized_data = normalized(data, sstd, avgt, avgx)
     masked_data = masked(normalized_data, mask)
     with Progress(masked_data, length=nt, label="Save", unit="frame") as prog:
-        obj.save_tfrecord(prog, "data", tag, "_data")
-    obj.save_numpy(mask, "data", tag, "_mask")
-    obj.save_numpy(avgx, "data", tag, "_avgx")
-    obj.save_numpy(avgt, "data", tag, "_avgt")
+        obj.save_tfrecord(prog, tag, 0, "1data", "data")
+    obj.save_numpy(mask, tag, 0, "1data", "mask")
+    obj.save_numpy(avgx, tag, 0, "1data", "avgx")
+    obj.save_numpy(avgt, tag, 0, "1data", "avgt")
 
     log = dict(
         nt=int(nt),
@@ -56,4 +56,4 @@ def data(obj, tag, imgs_path, hz, mask_type, tausize, batch):
         smax=float(smax),
         sstd=float(sstd),
     )
-    return log, "1data", tag, 0
+    return log, tag, 0, "1data"

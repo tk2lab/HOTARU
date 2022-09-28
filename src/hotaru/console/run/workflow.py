@@ -1,7 +1,6 @@
 import click
 
 from ..base import configure
-from .clean import clean
 from .data import data
 from .find import find
 from .make import make
@@ -9,8 +8,8 @@ from .spatial import spatial
 from .temporal import temporal
 
 
-_kind_choice = click.Choice(["spike", "footprint", "segment"])
-_next_kind = dict(segment="spike", spike="footprint", footprint="segment")
+_kind_choice = click.Choice(["temporal", "spatial"])
+_next_kind = dict(temporal="spatial", spatial="temporal")
 
 
 @click.command(context_settings=dict(show_default=True))
@@ -41,7 +40,7 @@ def workflow_local(get_config, invoke, tag, end_stage, end_kind, non_stop):
             prev_kind = "find"
         if prev_kind == "find":
             invoke(make, f"--tag={prev_tag}")
-            prev_kind = "segment"
+            prev_kind = "spatial"
             prev_stage = 1
         kind, stage = workflow_step(invoke, tag, prev_tag, prev_kind, prev_stage)
     else:
@@ -56,7 +55,9 @@ def workflow_local(get_config, invoke, tag, end_stage, end_kind, non_stop):
         if end_kind == "find":
             return
         invoke(make, f"--tag={prev_tag}")
-        kind, stage = "segment", 1
+        if end_kind == "make":
+            return
+        kind, stage = "spatial", 1
 
     while (stage < end_stage) or (kind != end_kind):
         kind, stage = workflow_step(invoke, tag, tag, kind, stage)
@@ -68,27 +69,20 @@ def workflow_step(invoke, tag, prev_tag, prev_kind, prev_stage):
         stage = 1
     else:
         stage = prev_stage
-        if kind == "footprint":
+        if kind == "spatial":
             stage += 1
-    if kind == "footprint":
+    if kind == "spatial":
         invoke(
             spatial,
             f"--tag={tag}",
-            f"--spike-tag={prev_tag}",
-            f"--spike-stage={prev_stage}",
+            f"--temporal-tag={prev_tag}",
+            f"--temporal-stage={prev_stage}",
         )
-    elif kind == "segment":
-        invoke(
-            clean,
-            f"--tag={tag}",
-            f"--footprint-tag={prev_tag}",
-            f"--footprint-stage={prev_stage}",
-        )
-    elif kind == "spike":
+    elif kind == "temporal":
         invoke(
             temporal,
             f"--tag={tag}",
-            f"--segment-tag={prev_tag}",
-            f"--segment-stage={prev_stage}",
+            f"--spatial-tag={prev_tag}",
+            f"--spatial-stage={prev_stage}",
         )
     return kind, stage

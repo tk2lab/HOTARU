@@ -18,6 +18,9 @@ from ..progress import Progress
 def find(obj, tag, data_tag, radius, shard, batch):
     """Find Initial Cell Candidate Peaks."""
 
+    if data_tag is None:
+        data_tag = tag
+
     data = obj.data(data_tag)
     mask = obj.mask(data_tag)
     nt = obj.nt(data_tag)
@@ -28,6 +31,6 @@ def find(obj, tag, data_tag, radius, shard, batch):
             peaks = find_peak(data, mask, radius, shard, batch, prog=prog)
     nk = peaks.shape[0]
     click.echo(f"num: {nk}")
-    obj.save_csv(peaks, "peak", tag, "-find")
+    obj.save_csv(peaks, tag, 0, "2find", "info")
 
-    return dict(nk=nk), "2find", tag, 0
+    return dict(data_tag=data_tag, nk=nk), tag, 0, "2find"

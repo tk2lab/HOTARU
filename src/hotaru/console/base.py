@@ -25,7 +25,7 @@ def command_wrap(command):
     def wrapped_command(obj, tag, **args):
         kind = command.__name__
 
-        if obj.can_skip(kind, tag, **args):
+        if obj.can_skip(tag, kind, **args):
             click.echo("    skip")
             return
 
@@ -38,10 +38,10 @@ def command_wrap(command):
         click.echo(f"time: {time[0]}")
 
         if log:
-            log, kind, tag, stage = log
+            log, tag, stage, kind = log
             args.update(log)
             args["time"] = time
-            obj.save_log(args, kind, tag, stage)
+            obj.save_log(args, tag, stage, kind)
     return wrapped_command
 
 
@@ -88,8 +88,7 @@ def dynamics_options(command):
 def penalty_options(command):
     @click.option("--penalty-footprint", type=float)
     @click.option("--penalty-spike", type=float)
-    @click.option("--penalty-localx", type=float)
-    @click.option("--penalty-localt", type=float)
+    @click.option("--penalty-local", type=float)
     @click.option("--penalty-spatial", type=float)
     @click.option("--penalty-temporal", type=float)
     @functools.wraps(command)

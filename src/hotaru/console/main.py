@@ -13,7 +13,6 @@ from .evaluate.sample import sample
 from .evaluate.stats import stats
 from .evaluate.tune import tune
 from .obj import Obj
-from .run.clean import clean
 from .run.data import data
 from .run.find import find
 from .run.make import make
@@ -84,7 +83,6 @@ run.add_command(find)
 run.add_command(make)
 run.add_command(temporal)
 run.add_command(spatial)
-run.add_command(clean)
 
 output.add_command(output)
 output.add_command(figure)

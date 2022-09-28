@@ -1,8 +1,8 @@
 import click
 import numpy as np
+import pandas as pd
 
 from ...footprint.make import make_segment
-from ...footprint.reduce import label_out_of_range
 from ...footprint.reduce import reduce_peak_idx_data
 from ...footprint.reduce import reduce_peak_idx_finish
 from ..base import command_wrap
@@ -22,34 +22,57 @@ from ..progress import Progress
 def make(obj, tag, find_tag, distance, window, batch, only_reduce):
     """Make Initial Segment."""
 
-    peaks = obj.peaks(find_tag)
-    idx_data = reduce_peak_idx_data(peaks, distance, window)
+    if find_tag is None:
+        find_tag = tag
+
+    info = obj.info(find_tag, 0, "2find")
+    radius = obj.used_radius(find_tag)
+
+    cond_remove = np.round(info.radius, 3) == np.round(radius[0], 3)
+    cond_local = np.round(info.radius, 3) == np.round(radius[-1], 3)
+    cell_info = info.loc[~(cond_remove | cond_local)]
+    local_info = info.loc[cond_local]
+
+    idx_data = reduce_peak_idx_data(cell_info, distance, window)
     with Progress(iterable=idx_data, label="Reduce", unit="block") as prog:
         idx = reduce_peak_idx_finish(prog)
+    cell_info = cell_info.loc[idx]
 
-    radius = obj.used_radius(find_tag)
-    peaks = label_out_of_range(peaks.loc[idx], radius)
-    obj.save_csv(peaks, "peak", tag, 1)
-    cell = peaks.kind == "cell"
-    local = peaks.kind == "local"
-    click.echo(f"num: {cell.sum()}, {local.sum()}")
+    idx_data = reduce_peak_idx_data(local_info, distance, window)
+    with Progress(iterable=idx_data, label="Reduce", unit="block") as prog:
+        idx = reduce_peak_idx_finish(prog)
+    local_info = local_info.loc[idx]
+
+    nk = cell_info.shape[0]
+    nl = local_info.shape[0]
+    cell_info.insert(0, "kind", "cell")
+    cell_info.insert(1, "id", np.arange(nk))
+    local_info.insert(0, "kind", "local")
+    local_info.insert(1, "id", np.arange(nl))
+    info = pd.concat([cell_info, local_info], axis=0)
+    info.insert(2, "old_kind", "-")
+    info.insert(3, "old_id", -1)
+    click.echo(f"num: {nk}, {nl}")
 
     if only_reduce:
-        return {}, "3segment", tag, "tune"
+        return {}, tag, 0, "3tune"
 
-    data_tag = obj.data_tag("2find", find_tag, 0)
+    data_tag = obj.data_tag(find_tag, 0, "2find")
     data = obj.data(data_tag)
     mask = obj.mask(data_tag)
     nt = obj.nt(data_tag)
 
     with Progress(length=nt, label="Make", unit="frame") as prog:
         with obj.strategy.scope():
-            peaks = peaks[cell | local]
-            segment = make_segment(data, mask, peaks, batch, prog=prog)
-    cell = peaks.kind == "cell"
-    local = peaks.kind == "local"
-    obj.save_numpy(segment[cell], "segment", tag, 1)
-    obj.save_numpy(segment[local], "localx", tag, 1)
+            segment = make_segment(data, mask, info, batch, prog=prog)
 
-    log = dict(data_tag=data_tag)
-    return log, "2segment", tag, 1
+    footprint = segment[info.kind == "cell"]
+    localx = segment[info.kind == "local"]
+    localx /= localx.std(axis=1, keepdims=True)
+
+    obj.save_csv(info, tag, 1, "1spatial", "info")
+    obj.save_numpy(footprint, tag, 1, "1spatial", "footprint")
+    obj.save_numpy(localx, tag, 1, "1spatial", "localx")
+
+    log = dict(data_tag=data_tag, find_tag=find_tag)
+    return log, tag, 1, "1spatial"

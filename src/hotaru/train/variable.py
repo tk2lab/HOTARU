@@ -38,11 +38,11 @@ class HotaruVariableMixin:
         self.spatial_loss = spatial_loss_layer
         self.temporal_loss = temporal_loss_layer
 
-    def set_penalty(self, footprint, spike, localx, localt, spatial, temporal):
+    def set_penalty(self, footprint, spike, local, spatial, temporal):
         self.footprint._val.regularizer.set_l(footprint / self.nm)
         self.spike._val.regularizer.set_l(spike / self.nm)
-        self.localx._val.regularizer.set_l(localx / self.nm)
-        self.localt._val.regularizer.set_l(localt / self.nm)
+        self.localx._val.regularizer.set_l(local / self.nm)
+        self.localt._val.regularizer.set_l(local / self.nm)
         self.spatial_loss.set_background_penalty(spatial, temporal)
         self.temporal_loss.set_background_penalty(temporal, spatial)
 

@@ -35,22 +35,6 @@ def reduce_peak_idx_finish(data):
     return np.unique(np.concatenate(ind, 0))
 
 
-def label_out_of_range(peaks, radius):
-    r = np.round(peaks.radius, 3).to_numpy()
-    cond_remove = r == np.round(radius[0], 3)
-    cond_local = r == np.round(radius[1], 3)
-    cond_cell = ~(cond_remove | cond_local)
-
-    peaks.insert(0, "kind", "small_r")
-    peaks.loc[cond_cell, "kind"] = "cell"
-    peaks.loc[cond_local, "kind"] = "local"
-
-    peaks.insert(1, "id", -1)
-    peaks.loc[cond_cell, "id"] = np.arange(cond_cell.sum())
-    peaks.loc[cond_local, "id"] = np.arange(cond_local.sum())
-    return peaks
-
-
 def _reduce_peak_idx_local(data):
     x, y, index, ytmp, xtmp, rtmp, size, thr_distance = data
     idx = _reduce_peak_idx(ytmp, xtmp, rtmp, thr_distance)

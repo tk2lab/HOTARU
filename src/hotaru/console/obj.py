@@ -51,7 +51,7 @@ class Obj:
 
     def model(self, data_tag, nk=1):
         if self._model_tag != data_tag:
-            prev_log = self.log("1data", data_tag, 0)
+            prev_log = self.log(data_tag, 0, "1data")
             data = self.data(data_tag)
             nx = prev_log["nx"]
             nt = prev_log["nt"]
@@ -76,82 +76,66 @@ class Obj:
             ProgressCallback(label),
         ]
 
-    # SAVE
-
-    def out_path(self, kind=None, tag=None, stage=None):
-        if stage is None:
-            stage = ""
-        elif isinstance(stage, int):
-            stage = f"_{stage:03}"
-        os.makedirs(f"{self.workdir}/{kind}", exist_ok=True)
-        return f"{self.workdir}/{kind}/{tag}{stage}"
-
-    def save_tfrecord(self, data, kind=None, tag=None, stage=None):
-        out_path = self.out_path(kind, tag, stage)
-        save_tfrecord(f"{out_path}.tfrecord", data)
-
-    def save_numpy(self, data, kind=None, tag=None, stage=None):
-        out_path = self.out_path(kind, tag, stage)
-        save_numpy(f"{out_path}.npy", data)
-
-    def save_csv(self, data, kind=None, tag=None, stage=None):
-        out_path = self.out_path(kind, tag, stage)
-        save_csv(f"{out_path}.csv", data)
-
-    def save_tiff(self, data, kind=None, tag=None, stage=None):
-        out_path = self.out_path(kind, tag, stage)
-        save_tiff(f"{out_path}.tif", data)
-
     # SUMMARY
 
-    def summary_path(self, kind=None, tag=None, stage=None):
-        if stage is None:
-            stage = ""
-        elif isinstance(stage, int):
-            stage = f"_{stage:03}"
-        return f"{self.workdir}/summary/{tag}/{kind}{stage}"
+    def summary_path(self, tag, stage, kind):
+        return f"{self.workdir}/summary/{tag}/{stage:03}_{kind}"
+
+    # SAVE
+
+    def out_path(self, tag, stage, kind, name):
+        path = f"{self.workdir}/{tag}/{stage:03}_{kind}"
+        os.makedirs(path, exist_ok=True)
+        return f"{path}/{name}"
+
+    def save_tfrecord(self, data, *args, **kwargs):
+        out_path = self.out_path(*args, **kwargs)
+        save_tfrecord(f"{out_path}.tfrecord", data)
+
+    def save_numpy(self, data, *args, **kwargs):
+        out_path = self.out_path(*args, **kwargs)
+        save_numpy(f"{out_path}.npy", data)
+
+    def save_csv(self, data, *args, **kwargs):
+        out_path = self.out_path(*args, **kwargs)
+        save_csv(f"{out_path}.csv", data)
+
+    def save_tiff(self, data, *args, **kwargs):
+        out_path = self.out_path(*args, **kwargs)
+        save_tiff(f"{out_path}.tif", data)
 
     # LOG
 
-    def save_log(self, log, kind, tag, stage):
-        os.makedirs(f"{self.workdir}/log", exist_ok=True)
-        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.pickle"
+    def save_log(self, log, *args, **kwargs):
+        path = self.out_path(*args, **kwargs, name="log.pickle")
         save_pickle(path, log)
         self._log[path] = log
 
-    def log(self, kind, tag, stage):
-        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.pickle"
+    def log(self, *args, **kwargs):
+        path = self.out_path(*args, **kwargs, name="log.pickle")
         if path not in self._log:
             self._log[path] = load_pickle(path)
         return self._log[path]
 
-    def can_skip(self, kind, tag, **args):
+    def can_skip(self, tag, kind, **args):
         if kind == "make":
             stage = 1
         elif kind == "spatial":
-            if args["spike_tag"] != tag:
+            if args["temporal_tag"] and args["temporal_tag"] != tag:
                 stage = 1
             else:
                 if args["storage_saving"]:
                     stage = 999
                 else:
-                    stage = args["spike_stage"] + 1
-        elif kind == "clean":
-            if args["footprint_tag"] != tag:
-                stage = 1
-            else:
-                if args["storage_saving"]:
-                    stage = 999
-                else:
-                    stage = args["footprint_stage"]
+                    stage = args["temporal_stage"] + 1
         elif kind == "temporal":
-            if args["segment_tag"] != tag:
+            if args["spatial_tag"] and args["spatial_tag"] != tag:
                 stage = 1
             else:
-                if args["storage_saving"] or (args["segment_stage"] == 999):
+                if args["storage_saving"] or (args["spatial_stage"] == 999):
                     stage = 999
                 else:
-                    stage = args["segment_stage"]
+                    stage = args["spatial_stage"]
         else:
             stage = 0
 
@@ -167,116 +151,70 @@ class Obj:
         kind = dict(
             data="1data",
             find="2find",
-            make="2segment",
-            temporal="3temporal",
+            make="1spatial",
+            temporal="2temporal",
             spatial="1spatial",
-            clean="2segment",
         )[kind]
-        path = f"{self.workdir}/log/{tag}_{stage:03}_{kind}.pickle"
+        path = self.out_path(tag, stage, kind, "log.pickle")
         return os.path.exists(path)
-
-    def data_tag(self, kind, tag, stage):
-        return self.log(kind, tag, stage)["data_tag"]
-
-    def used_radius(self, tag, stage=0):
-        if stage == 0:
-            log = self.log("2find", tag, stage)
-        else:
-            log = self.log("2segment", tag, stage)
-        return log["radius"]
-
-    def used_distance(self, tag, stage=0):
-        return self.log("2segment", tag, stage)["distance"]
-
-    def used_dynamics(self, tag, stage):
-        return self.log("3temporal", tag, stage)["dynamics"]
 
     # DATA
 
-    def data(self, tag):
-        path = self.out_path("data", tag, "_data")
-        return load_tfrecord(f"{path}.tfrecord")
-
-    def mask(self, tag):
-        path = self.out_path("data", tag, "_mask")
-        return load_numpy(f"{path}.npy")
+    def data_tag(self, *args, **kwargs):
+        return self.log(*args, **kwargs)["data_tag"]
 
     def nt(self, tag):
-        return self.log("1data", tag, 0)["nt"]
+        return self.log(tag, 0, "1data")["nt"]
+
+    def data(self, tag):
+        path = self.out_path(tag, 0, "1data", "data.tfrecord")
+        return load_tfrecord(path)
+
+    def mask(self, tag):
+        path = self.out_path(tag, 0, "1data", "mask.npy")
+        return load_numpy(path)
 
     def avgt(self, tag):
-        path = self.out_path("data", tag, "argt")
+        path = self.out_path(tag, 0, "1data", "avgt.npy")
         return load_numpy(f"{path}.npy")
 
     def avgx(self, tag):
-        path = self.out_path("data", tag, "argx")
+        path = self.out_path(tag, 0, "1data", "avgx.npy")
         return load_numpy(f"{path}.npy")
 
-    # FIND
+    # Used Params
 
-    def peaks(self, tag, stage="-find"):
-        path = self.out_path("peak", tag, stage)
-        return load_csv(f"{path}.csv")
+    def used_radius(self, tag):
+        return self.log(tag, 0, "2find")["radius"]
 
-    # MAKE
+    def used_distance(self, tag, stage, kind="1spatial"):
+        return self.log(tag, stage, kind)["distance"]
 
-    def segment(self, tag, stage):
-        path = self.out_path("segment", tag, stage)
-        if stage == "_curr":
-            if not os.path.exists(f"{path}.npy"):
-                path = self.out_path("segment", tag, "_000")
-        return load_numpy(f"{path}.npy")
+    def used_dynamics(self, tag, stage, kind="2temporal"):
+        return self.log(tag, stage, kind)["dynamics"]
 
-    def localx(self, tag, stage):
-        path = self.out_path("localx", tag, stage)
-        if stage == "_curr":
-            if not os.path.exists(f"{path}.npy"):
-                path = self.out_path("localx", tag, "_000")
-        return load_numpy(f"{path}.npy")
+    # Info
 
-    def index(self, kind, tag, stage):
-        tag = self.index_tag(kind, tag, stage)
-        stage = self.index_stage(kind, tag, stage)
-        return self._index(tag, stage)
-
-    def index_tag(self, kind, tag, stage):
-        return self.log(kind, tag, stage)["index_tag"]
-
-    def index_stage(self, kind, tag, stage):
-        return self.log(kind, tag, stage)["index_stage"]
-
-    def _index(self, tag, stage):
-        path = self.out_path("peak", tag, stage)
-        if stage == "_curr":
-            if not os.path.exists(f"{path}.csv"):
-                path = self.out_path("peak", tag, "_000")
-        peaks = load_csv(f"{path}.csv")
-        cell = peaks.query("kind == 'cell'")
-        local = peaks.query("kind == 'local'")
-        return cell.shape[0], local.shape[0], pd.concat([cell, local], axis=0)
-
-    # Temporal
-
-    def spike(self, tag, stage):
-        path = self.out_path("spike", tag, stage)
-        return load_numpy(f"{path}.npy")
-
-    def localt(self, tag, stage):
-        path = self.out_path("localt", tag, stage)
-        if stage == "_curr":
-            if not os.path.exists(f"{path}.npy"):
-                path = self.out_path("localt", tag, "_000")
-        return load_numpy(f"{path}.npy")
+    def info(self, tag, stage, kind):
+        path = self.out_path(tag, stage, kind, "info.csv")
+        return load_csv(path)
 
     # Spatial
 
-    def footprint(self, tag, stage):
-        path = self.out_path("footprint", tag, stage)
-        return load_numpy(f"{path}.npy")
+    def footprint(self, tag, stage, kind):
+        path = self.out_path(tag, stage, kind, "footprint.npy")
+        return load_numpy(path)
 
-    def localx0(self, tag, stage):
-        path = self.out_path("localx0", tag, stage)
-        if stage == "_curr":
-            if not os.path.exists(f"{path}.npy"):
-                path = self.out_path("localx0", tag, "_000")
-        return load_numpy(f"{path}.npy")
+    def localx(self, tag, stage, kind):
+        path = self.out_path(tag, stage, kind, "localx.npy")
+        return load_numpy(path)
+
+    # Temporal
+
+    def spike(self, tag, stage, kind):
+        path = self.out_path(tag, stage, kind, "spike.npy")
+        return load_numpy(path)
+
+    def localt(self, tag, stage, kind):
+        path = self.out_path(tag, stage, kind, "localt.npy")
+        return load_numpy(path)

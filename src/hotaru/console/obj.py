@@ -15,7 +15,6 @@ from ..io.tfrecord import load_tfrecord
 from ..io.tfrecord import save_tfrecord
 from ..io.tiff import save_tiff
 from ..train.model import HotaruModel as Model
-from ..util.distribute import MirroredStrategy
 from .progress import ProgressCallback
 
 
@@ -27,11 +26,12 @@ class Obj:
         self._model_tag = None
 
     def __enter__(self):
-        self.strategy = MirroredStrategy()
+        self.strategy = tf.distribute.MirroredStrategy()
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        self.strategy.close()
+        if int(tf.version.VERSION.split(".")[1]) <= 9:
+            self.strategy._extended._collective_ops._pool.close()
 
     def update(self, x):
         for k, v in x.items():

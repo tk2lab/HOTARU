@@ -3,12 +3,6 @@ from enum import Enum
 import tensorflow as tf
 
 
-class MirroredStrategy(tf.distribute.MirroredStrategy):
-    def close(self):
-        if int(tf.version.VERSION.split(".")[1]) <= 9:
-            self._extended._collective_ops._pool.close()
-
-
 class ReduceOp(Enum):
     CONCAT = 0
     STACK = 1

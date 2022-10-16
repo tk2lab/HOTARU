@@ -5,7 +5,6 @@ from tqdm import tqdm
 
 
 class Progress(tqdm):
-
     def __init__(self, *args, shard=None, batch=None, **kwargs):
         super().__init__(*args, **kwargs)
         if shard is not None:
@@ -68,7 +67,7 @@ class ProgressCallback(tf.keras.callbacks.Callback):
     def on_epoch_begin(self, epoch, logs=None):
         if self.params.get("verbose", 1) >= 2:
             self.progress_batch = Progress(
-                desc='local step',
+                desc="local step",
                 total=self.params.get("steps"),
                 unit="step",
                 leave=False,

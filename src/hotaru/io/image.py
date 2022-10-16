@@ -2,14 +2,12 @@ import numpy as np
 import tensorflow as tf
 import tifffile
 
-from .gs import ensure_local_file
-
 
 class ImageStack:
     """"""
 
     def __init__(self, path, in_type=None):
-        #path = ensure_local_file(path)
+        # path = ensure_local_file(path)
         if in_type is None:
             in_type = path.suffix[1:]
 

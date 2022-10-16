@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 import tensorflow_addons as tfa
 
@@ -92,6 +91,13 @@ def clean(data, mask, bins, radius, batch):
     imgs = tf.where(roi, imgs, 0)
     imin = tf.math.reduce_min(imgs, axis=(1, 2))
     imgs = (imgs - imin[:, None, None]) / (1 - imin[:, None, None])
-    scale *= (1 - imin)
+    scale *= 1 - imin
     data = tf.boolean_mask(imgs, mask, axis=1)
-    return data.numpy(), scale.numpy(), x.numpy(), y.numpy(), radius.numpy(), firmness.numpy()
+    return (
+        data.numpy(),
+        scale.numpy(),
+        x.numpy(),
+        y.numpy(),
+        radius.numpy(),
+        firmness.numpy(),
+    )

@@ -1,12 +1,10 @@
-import numpy as np
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.util import erosion
+from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
-from ..util.dataset import unmasked
 from ..util.progress import Progress
 from .segment import get_segment_mask
 
@@ -30,10 +28,12 @@ def _scale(data):
     ReduceOp.CONCAT,
     ReduceOp.CONCAT,
 )
-@tf.function(input_signature=[
-    tf.TensorSpec([None, None, None], tf.float32),
-    tf.TensorSpec([None], tf.float32),
-])
+@tf.function(
+    input_signature=[
+        tf.TensorSpec([None, None, None], tf.float32),
+        tf.TensorSpec([None], tf.float32),
+    ]
+)
 def _filter(imgs, radius_list):
     nr = tf.size(radius_list)
     nk, h, w = tf.unstack(tf.shape(imgs))
@@ -50,15 +50,17 @@ def _filter(imgs, radius_list):
 
 
 @distributed(ReduceOp.CONCAT, ReduceOp.CONCAT)
-@tf.function(input_signature=[
-    (
-        tf.TensorSpec([None], tf.float32),
-        tf.TensorSpec([None, None], tf.float32),
-        tf.TensorSpec([], tf.int32),
-        tf.TensorSpec([], tf.int32),
-    ),
-    tf.TensorSpec([None, None], tf.bool),
-])
+@tf.function(
+    input_signature=[
+        (
+            tf.TensorSpec([None], tf.float32),
+            tf.TensorSpec([None, None], tf.float32),
+            tf.TensorSpec([], tf.int32),
+            tf.TensorSpec([], tf.int32),
+        ),
+        tf.TensorSpec([None, None], tf.bool),
+    ]
+)
 def _segment(args, mask):
     dat, log, y, x = args
     seg = get_segment_mask(log, y, x, mask)

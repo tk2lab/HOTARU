@@ -1,16 +1,13 @@
-from collections import namedtuple
-import os
-
-import tensorflow as tf
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
-from ..footprint.find import find_peak
-from ..footprint.reduce import reduce_peak
-from ..footprint.make import make_segment
-from ..footprint.clean import clean_segment
 from ..evaluate.utils import calc_denseness
 from ..evaluate.utils import calc_overwrap
+from ..footprint.clean import clean_segment
+from ..footprint.find import find_peak
+from ..footprint.make import make_segment
+from ..footprint.reduce import reduce_peak
 from .model import HotaruModel
 
 
@@ -31,7 +28,7 @@ class ExtendHotaruModel(HotaruModel):
         cell = cell.loc[cell.radius > min_radius].copy()
         cell["kind"] = "cell"
         cell["id"] = np.arange(cell.shape[0])
-    
+
         local = info.loc[info.radius >= max_radius].copy()
         local = reduce_peak(local, min_distance, block_size).copy()
         local["kind"] = "local"
@@ -51,9 +48,13 @@ class ExtendHotaruModel(HotaruModel):
     def spatial_step(self, batch, **kwargs):
         self.build_and_compile()
         spike = self.spike.val_tensor()
-        self.spike.val = spike / tf.math.reduce_max(spike, axis=1, keepdims=True)
+        self.spike.val = spike / tf.math.reduce_max(
+            spike, axis=1, keepdims=True
+        )
         localt = self.localt.val_tensor()
-        self.localt.val = localt / tf.math.reduce_max(localt, axis=1, keepdims=True)
+        self.localt.val = localt / tf.math.reduce_max(
+            localt, axis=1, keepdims=True
+        )
         model = self.spatial_model
         model.prepare(batch=batch)
         model.fit(**kwargs)
@@ -70,13 +71,17 @@ class ExtendHotaruModel(HotaruModel):
         cell = info[info.kind == "cell"].copy()
         if cell.shape[0] > 0:
             footprint = self.footprint.val_tensor()
-            cell["nonzero"] = tf.math.count_nonzero(footprint > 0, axis=1).numpy()
+            cell["nonzero"] = tf.math.count_nonzero(
+                footprint > 0, axis=1
+            ).numpy()
             cell["overwrap"] = calc_overwrap(footprint > thr_area).numpy()
 
         local = info[info.kind == "local"].copy()
         if local.shape[0] > 0:
             localx = self.localx.val_tensor()
-            local["nonzero"] = tf.math.count_nonzero(localx > 0, axis=1).numpy()
+            local["nonzero"] = tf.math.count_nonzero(
+                localx > 0, axis=1
+            ).numpy()
             local["overwrap"] = calc_overwrap(localx > thr_area).numpy()
 
         self.info = pd.concat([cell, local], axis=0)
@@ -91,7 +96,9 @@ class ExtendHotaruModel(HotaruModel):
 
         cell = info[info.kind == "cell"].copy()
         if cell.shape[0] > 0:
-            footprint, scale, x, y, r, f = clean_segment(self.footprint.val_tensor(), self.mask, radius, batch)
+            footprint, scale, x, y, r, f = clean_segment(
+                self.footprint.val_tensor(), self.mask, radius, batch
+            )
             self.footprint.val = footprint
             self.spike.val = self.spike.val_tensor() * scale[:, None]
             cell["x"] = x
@@ -102,14 +109,18 @@ class ExtendHotaruModel(HotaruModel):
 
         local = info[info.kind == "local"].copy()
         if local.shape[0] > 0:
-            localx, scale, x, y, r, f = clean_segment(self.localx.val_tensor(), self.mask, radius, batch)
+            localx, scale, x, y, r, f = clean_segment(
+                self.localx.val_tensor(), self.mask, radius, batch
+            )
             self.localx.val = localx
             self.localt.val = self.localt.val_tensor() * scale[:, None]
             local["x"] = x
             local["y"] = y
             local["radius"] = r
             local["firmness"] = f
-            local["scale"] = tf.math.reduce_max(self.localt.val_tensor(), axis=1)
+            local["scale"] = tf.math.reduce_max(
+                self.localt.val_tensor(), axis=1
+            )
 
         self.info = pd.concat([cell, local], axis=0)
         self.post_initialize(thr_area)
@@ -129,7 +140,15 @@ class ExtendHotaruModel(HotaruModel):
 
         self.info = pd.concat([cell, local], axis=0)
 
-    def sort(self, min_radius, max_radius, min_firmness, max_nonzero, max_overwrap, max_denseness):
+    def sort(
+        self,
+        min_radius,
+        max_radius,
+        min_firmness,
+        max_nonzero,
+        max_overwrap,
+        max_denseness,
+    ):
         info = self.info
 
         if "old_kind" not in info:
@@ -148,14 +167,11 @@ class ExtendHotaruModel(HotaruModel):
         self.removed["kind"] = "removed"
         info = info.loc[select_cond].copy()
 
-        cell_cond = (
-            (info.radius < max_radius)
-            & (info.nonzero < max_nonzero)
-        )
+        cell_cond = (info.radius < max_radius) & (info.nonzero < max_nonzero)
         if "denseness" in info:
-            cell_cond &= (info.denseness < max_denseness)
+            cell_cond &= info.denseness < max_denseness
         if "firmness" in info:
-            cell_cond &= (info.firmness > min_firmness)
+            cell_cond &= info.firmness > min_firmness
 
         cell = info.loc[cell_cond].copy()
         if "firmness" in info:

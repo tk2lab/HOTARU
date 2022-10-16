@@ -5,9 +5,9 @@ from ..util.distribute import distributed_matmul
 from .input import dummy_inputs
 from .input import dummy_tensor
 from .loss import CacheLayer
-from .loss import OutputLayer
-from .loss import LossLayer
 from .loss import IdentityLoss
+from .loss import LossLayer
+from .loss import OutputLayer
 
 
 class CommonModel(ProxModel):

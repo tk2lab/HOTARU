@@ -1,23 +1,20 @@
 from collections import namedtuple
 
-import tensorflow as tf
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
-from ..util.dataset import masked
-from ..util.dataset import unmasked
-from ..util.dataset import normalized
-from ..util.dataset import normalized_masked_image
 from ..filter.stats import calc_stats
 from ..proxmodel.optimizer import ProxOptimizer
-from .input import DynamicMaxNormNonNegativeL1InputLayer as ML1
-from .input import DynamicNonNegativeL1InputLayer as L1
-from .input import DynamicL2InputLayer as L2
-from .dynamics import SpikeToCalcium
-from .dynamics import CalciumToSpike
+from ..util.dataset import masked
+from ..util.dataset import normalized
+from ..util.dataset import normalized_masked_image
 from .driver import SpatialModel
 from .driver import TemporalModel
-
+from .dynamics import CalciumToSpike
+from .dynamics import SpikeToCalcium
+from .input import DynamicL2InputLayer as L2
+from .input import DynamicMaxNormNonNegativeL1InputLayer as ML1
 
 Penalty = namedtuple("Penalty", ["la", "lu", "lx", "lt", "bx", "bt"])
 
@@ -41,10 +38,12 @@ class HotaruModel(tf.keras.layers.Layer):
         self.temporal_optimizer = ProxOptimizer()
         self.spatial_optimizer = ProxOptimizer()
 
-        self._penalty = Penalty(*[
-            self.add_weight(name, (), tf.float32, trainable=False)
-            for name in Penalty._fields
-        ])
+        self._penalty = Penalty(
+            *[
+                self.add_weight(name, (), tf.float32, trainable=False)
+                for name in Penalty._fields
+            ]
+        )
 
         self._built = False
         self._saved = None

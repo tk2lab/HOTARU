@@ -10,18 +10,19 @@ from .segment import get_segment_mask
 
 
 @distributed(ReduceOp.LIST, ReduceOp.CONCAT)
-@tf.function(input_signature=[
-    (
+@tf.function(
+    input_signature=[
+        (
+            tf.TensorSpec([None], tf.int64),
+            tf.TensorSpec([None, None, None], tf.float32),
+        ),
         tf.TensorSpec([None], tf.int64),
-        tf.TensorSpec([None, None, None], tf.float32),
-    ),
-    tf.TensorSpec([None], tf.int64),
-    tf.TensorSpec([None], tf.int64),
-    tf.TensorSpec([None], tf.int64),
-    tf.TensorSpec([None], tf.float32),
-])
+        tf.TensorSpec([None], tf.int64),
+        tf.TensorSpec([None], tf.int64),
+        tf.TensorSpec([None], tf.float32),
+    ]
+)
 def _filter(args, ts, ys, xs, rs):
-
     def _zero():
         return tf.zeros_like(imgs[:0])
 
@@ -45,14 +46,16 @@ def _filter(args, ts, ys, xs, rs):
 
 
 @distributed(ReduceOp.LIST)
-@tf.function(input_signature=[
-    (
-        tf.TensorSpec([None, None], tf.float32),
-        tf.TensorSpec([], tf.int64),
-        tf.TensorSpec([], tf.int64),
-    ),
-    tf.TensorSpec([None, None], tf.bool),
-])
+@tf.function(
+    input_signature=[
+        (
+            tf.TensorSpec([None, None], tf.float32),
+            tf.TensorSpec([], tf.int64),
+            tf.TensorSpec([], tf.int64),
+        ),
+        tf.TensorSpec([None, None], tf.bool),
+    ]
+)
 def _segment(args, mask):
     log, y, x = args
     seg = get_segment_mask(log, y, x, mask)
@@ -78,7 +81,7 @@ def make_segment(imgs, mask, info, batch):
     xs = tf.convert_to_tensor(info.x.to_numpy(), tf.int64)
     rs = tf.convert_to_tensor(info.radius.to_numpy(), tf.float32)
 
-    imgs = Progress(imgs.enumerate(), "filter", nt, unit="frame", batch=batch) 
+    imgs = Progress(imgs.enumerate(), "filter", nt, unit="frame", batch=batch)
     logs_unsort, ids = _filter(imgs, ts, ys, xs, rs)
 
     ids = ids.numpy()
@@ -94,6 +97,6 @@ def make_segment(imgs, mask, info, batch):
             tf.TensorSpec([], tf.int64),
         ),
     )
-    logs_ds = Progress(logs_ds, "segment", nk, unit="cell") 
+    logs_ds = Progress(logs_ds, "segment", nk, unit="cell")
     data = _segment(logs_ds, mask)
     return data

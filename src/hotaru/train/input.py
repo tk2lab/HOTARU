@@ -1,9 +1,8 @@
 import tensorflow as tf
 
 from ..proxmodel import L2
-from ..proxmodel import NonNegativeL1
 from ..proxmodel import MaxNormNonNegativeL1
-
+from ..proxmodel import NonNegativeL1
 
 dummy_tensor = tf.zeros((1,), tf.float32, name="dummy")
 dummy_inputs = tf.keras.Input(tensor=dummy_tensor)

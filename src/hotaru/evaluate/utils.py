@@ -33,8 +33,9 @@ def _calc_area(x, threshold):
 
 def _calc_denseness(x, scale=100):
     def sp(x):
-        n, b = np.histogram(x[x>0], bins=np.linspace(0, 1, scale + 1))
+        n, b = np.histogram(x[x > 0], bins=np.linspace(0, 1, scale + 1))
         return b[np.argmax(n)]
+
     xmin = x.min(axis=1, keepdims=True)
     xmax = x.max(axis=1, keepdims=True)
     x = (x - xmin) / (xmax - xmin)

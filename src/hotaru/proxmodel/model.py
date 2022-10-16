@@ -5,7 +5,6 @@ from .optimizer import ProxOptimizer
 
 
 class ProxModel(tf.keras.Model):
-
     def compile(self, *args, **kwargs):
         kwargs.setdefault("optimizer", ProxOptimizer())
         super().compile(*args, **kwargs)

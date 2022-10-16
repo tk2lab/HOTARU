@@ -1,14 +1,11 @@
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 import tensorflow_addons as tfa
 
 from ..filter.laplace import gaussian_laplace_multi
-from ..util.progress import Progress
-from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
-from .segment import get_segment_index
+from ..util.progress import Progress
 
 
 def unmask(data, mask):
@@ -31,6 +28,7 @@ def clean(imgs, bins=100):
         img = (img - thr) / (1 - thr)
         img = tf.where(label == label[y, x], img, 0)
         return img, thr
+
     nk, h, w = tf.unstack(tf.shape(imgs))
     flat = tf.reshape(imgs, (nk, h * w))
     top, index = tf.tok_k(flat, 2)
@@ -72,7 +70,7 @@ def evaluate_footprint(footprint, mask, radius, batch):
         logs = tf.gather_nd(logs, indices)
 
         nx = tf.size(rs)
-        indices = tf.stack([tf.range(nx), ys, xs], axis=1) 
+        indices = tf.stack([tf.range(nx), ys, xs], axis=1)
         imgmin = tf.math.reduce_min(imgs, axis=(1, 2))
         imgmax = tf.math.reduce_max(imgs, axis=(1, 2))
         logpeak = tf.gather_nd(logs, indices)

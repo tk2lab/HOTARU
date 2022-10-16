@@ -2,8 +2,6 @@ import multiprocessing as mp
 
 import numpy as np
 
-from ..util.progress import Progress
-
 
 def reduce_peak(info, thr_distance, block_size):
     ind = info.index.to_numpy()
@@ -26,9 +24,11 @@ def reduce_peak(info, thr_distance, block_size):
             xtmp = xs[cond]
             ytmp = ys[cond]
             rtmp = rs[cond]
-            data.append([x, y, index, ytmp, xtmp, rtmp, thr_distance, block_size])
+            data.append(
+                [x, y, index, ytmp, xtmp, rtmp, thr_distance, block_size]
+            )
 
-    #data = Progress(data, "reduce peak", unit="block")
+    # data = Progress(data, "reduce peak", unit="block")
     with mp.Pool() as pool:
         imap = pool.imap_unordered(_reduce_peak_idx_local, data)
         ind = [x for x in imap]
@@ -41,7 +41,12 @@ def _reduce_peak_idx_local(data):
     idx = _reduce_peak_idx(ytmp, xtmp, rtmp, thr_distance)
     xtmp = xtmp[idx]
     ytmp = ytmp[idx]
-    cond = (x <= xtmp) & (xtmp < x + block_size) & (y <= ytmp) & (ytmp < y + block_size)
+    cond = (
+        (x <= xtmp)
+        & (xtmp < x + block_size)
+        & (y <= ytmp)
+        & (ytmp < y + block_size)
+    )
     if np.any(cond):
         return index[np.array(idx)[cond]]
     else:

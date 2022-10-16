@@ -1,23 +1,23 @@
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from ..filter.laplace import gaussian_laplace_multi
-from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 from ..util.progress import Progress
 
 
 @distributed(ReduceOp.STACK, ReduceOp.STACK, ReduceOp.STACK)
-@tf.function(input_signature=[
-    (
-        tf.TensorSpec([None], tf.int64),
-        tf.TensorSpec([None, None, None], tf.float32),
-    ),
-    tf.TensorSpec([None, None], tf.bool),
-    tf.TensorSpec([None], tf.float32),
-])
+@tf.function(
+    input_signature=[
+        (
+            tf.TensorSpec([None], tf.int64),
+            tf.TensorSpec([None, None, None], tf.float32),
+        ),
+        tf.TensorSpec([None, None], tf.bool),
+        tf.TensorSpec([None], tf.float32),
+    ]
+)
 def _find(args, mask, radius):
     nr = tf.size(radius, out_type=tf.int64)
     h, w = tf.unstack(tf.shape(mask, out_type=tf.int64))
@@ -44,7 +44,14 @@ def find_peak(imgs, mask, radius, shard=1, batch=1):
     mask_t = tf.convert_to_tensor(mask, tf.bool)
     radius_t = tf.convert_to_tensor(radius, tf.float32)
 
-    imgs = Progress(imgs.enumerate(), "find peak", nt, unit="frame", shard=shard, batch=batch)
+    imgs = Progress(
+        imgs.enumerate(),
+        "find peak",
+        nt,
+        unit="frame",
+        shard=shard,
+        batch=batch,
+    )
     t, r, g = _find(imgs, mask, radius)
 
     idx = tf.math.argmax(g, axis=0, output_type=tf.int32)

@@ -1,5 +1,4 @@
 from enum import Enum
-import functools
 
 import tensorflow as tf
 
@@ -22,7 +21,6 @@ def distributed(*types):
         """"""
 
         def loop_run(data, *args, **kwargs):
-
             def make_init(t):
                 if t == ReduceOp.SUM:
                     return tf.constant(0, tf.float32)
@@ -41,7 +39,9 @@ def distributed(*types):
 
             def serialize(x, t):
                 if t == ReduceOp.SUM:
-                    return strategy.reduce(tf.distribute.ReduceOp.SUM, x, axis=None)
+                    return strategy.reduce(
+                        tf.distribute.ReduceOp.SUM, x, axis=None
+                    )
                 elif t == ReduceOp.MIN:
                     return strategy.experimental_local_results(x)
                 elif t == ReduceOp.MAX:
@@ -110,5 +110,7 @@ def distributed_matmul(val, dat, batch, trans=False):
         dat = Progress(dat, "mutmul", nt, unit="frame", batch=batch)
         return tf.transpose(_matmul_trans(dat, val))
     else:
-        dat = Progress(dat.enumerate(), "mutmul", nt, unit="frame", batch=batch)
+        dat = Progress(
+            dat.enumerate(), "mutmul", nt, unit="frame", batch=batch
+        )
         return _matmul(dat, val)

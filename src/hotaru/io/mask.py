@@ -13,9 +13,11 @@ def get_mask(masktype, h, w, job_dir="."):
         mask[pad : h - pad, pad : w - pad] = True
     else:
         if masktype[:2] == "r:":
-            maskfile = ensure_local_file(os.path.join(job_dir, masktype[2:]))
+            #maskfile = ensure_local_file(os.path.join(job_dir, masktype[2:]))
+            maskfile = os.path.join(job_dir, masktype[2:])
         else:
-            maskfile = ensure_local_file(os.path.join(job_dir, masktype))
+            #maskfile = ensure_local_file(os.path.join(job_dir, masktype))
+            maskfile = os.path.join(job_dir, masktype)
         if masktype[-4:] == ".tif":
             mask = tifffile.imread(maskfile)
         elif masktype[-4:] == ".npy":

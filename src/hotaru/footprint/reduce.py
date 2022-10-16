@@ -2,45 +2,46 @@ import multiprocessing as mp
 
 import numpy as np
 
+from ..util.progress import Progress
 
-def reduce_peak_idx_data(peaks, thr_distance, size):
-    ind = peaks.index.values
-    rs = peaks["radius"].values
-    ys = peaks["y"].values
-    xs = peaks["x"].values
+
+def reduce_peak(info, thr_distance, block_size):
+    ind = info.index.to_numpy()
+    rs = info.radius.to_numpy()
+    ys = info.y.to_numpy()
+    xs = info.x.to_numpy()
     xmax = xs.max()
     ymax = ys.max()
     margin = int(np.ceil(thr_distance * rs.max()))
 
     data = []
-    for x in range(0, xmax - margin, size):
+    for x in range(0, xmax - margin, block_size):
         x0 = max(x - margin, 0)
-        x1 = min(x + size + margin, xmax)
-        for y in range(0, ymax - margin, size):
+        x1 = min(x + block_size + margin, xmax)
+        for y in range(0, ymax - margin, block_size):
             y0 = max(y - margin, 0)
-            y1 = min(y + size + margin, ymax)
+            y1 = min(y + block_size + margin, ymax)
             cond = (x0 <= xs) & (xs <= x1) & (y0 <= ys) & (ys <= y1)
             index = ind[cond]
             xtmp = xs[cond]
             ytmp = ys[cond]
             rtmp = rs[cond]
-            data.append([x, y, index, ytmp, xtmp, rtmp, size, thr_distance])
-    return data
+            data.append([x, y, index, ytmp, xtmp, rtmp, thr_distance, block_size])
 
-
-def reduce_peak_idx_finish(data):
+    #data = Progress(data, "reduce peak", unit="block")
     with mp.Pool() as pool:
         imap = pool.imap_unordered(_reduce_peak_idx_local, data)
         ind = [x for x in imap]
-    return np.unique(np.concatenate(ind, 0))
+    index = np.sort(np.unique(np.concatenate(ind, axis=0)))
+    return info.loc[index].copy()
 
 
 def _reduce_peak_idx_local(data):
-    x, y, index, ytmp, xtmp, rtmp, size, thr_distance = data
+    x, y, index, ytmp, xtmp, rtmp, thr_distance, block_size = data
     idx = _reduce_peak_idx(ytmp, xtmp, rtmp, thr_distance)
     xtmp = xtmp[idx]
     ytmp = ytmp[idx]
-    cond = (x <= xtmp) & (xtmp < x + size) & (y <= ytmp) & (ytmp < y + size)
+    cond = (x <= xtmp) & (xtmp < x + block_size) & (y <= ytmp) & (ytmp < y + block_size)
     if np.any(cond):
         return index[np.array(idx)[cond]]
     else:

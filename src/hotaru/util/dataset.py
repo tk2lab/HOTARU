@@ -1,24 +1,47 @@
 import tensorflow as tf
+import numpy as np
 
 
-def normalized(data, std, avgt, avgx):
-    def normalize(img, avgt):
-        return (img - avgt - avgx) / std
+def clipped(data, y0, y1, x0, x1):
+    return data.map(lambda img: img[y0:y1, x0:x1])
 
-    avgt = tf.data.Dataset.from_tensor_slices(avgt)
+
+def normalized(data, avgx, avgt, std):
+    shape = data.shape
     avgx = tf.convert_to_tensor(avgx, tf.float32)
+    avgt = tf.convert_to_tensor(avgt, tf.float32)
     std = tf.convert_to_tensor(std, tf.float32)
-    zip_data = tf.data.Dataset.zip((data, avgt))
-    return zip_data.map(normalize)
+    data = data.enumerate().map(lambda t, dat: (dat - avgx - avgt[t]) / std)
+    data.shape = shape
+    return data
 
 
-def masked(data, mask):
+def normalized_masked_image(imgs, mask, avgx, avgt, std):
+    nt, h, w = imgs.shape
+    mask = tf.convert_to_tensor(mask / std, tf.float32)
+    avgx = tf.convert_to_tensor(avgx, tf.float32)
+    avgt = tf.convert_to_tensor(avgt, tf.float32)
+    index = tf.where(mask)
+    avgx = tf.scatter_nd(index, avgx, [h, w])
+    imgs = imgs.enumerate().map(lambda t, img: mask * (img - avgx - avgt[t]))
+    imgs.shape = nt, h, w
+    return imgs
+
+
+def masked(imgs, mask):
+    nt = imgs.shape[0]
+    nx = np.count_nonzero(mask)
     mask = tf.convert_to_tensor(mask, tf.bool)
-    return data.map(lambda x: tf.boolean_mask(x, mask))
+    data = imgs.map(lambda x: tf.boolean_mask(x, mask))
+    data.shape = nt, nx
+    return data
 
 
 def unmasked(data, mask):
+    nt = data.shape[0]
+    h, w = mask.shape
     mask = tf.convert_to_tensor(mask, tf.bool)
     rmap = tf.cast(tf.where(mask), tf.int32)
-    shape = tf.shape(mask)
-    return data.map(lambda x: tf.scatter_nd(rmap, x, shape))
+    imgs = data.map(lambda x: tf.scatter_nd(rmap, x, [h, w]))
+    imgs.shape = nt, h, w
+    return imgs

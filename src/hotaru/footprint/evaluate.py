@@ -1,34 +1,65 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import scipy.ndimage as ndi
+import tensorflow_addons as tfa
 
 from ..filter.laplace import gaussian_laplace_multi
+from ..util.progress import Progress
 from ..util.dataset import unmasked
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
 from .segment import get_segment_index
-#from .segment import remove_noise
 
 
-def normalize_footprint(footprint):
-    i = np.arange(footprint.shape[0])
-    j = np.argpartition(-footprint, 1)
-    second = footprint[i, j[:, 1]]
-    footprint[i, j[:, 0]] = second
-    no_seg = second == 0.0
-    return no_seg
+def unmask(data, mask):
+    nk = tf.shape(data)[0]
+    h, w = tf.shape(mask)
+    index = tf.where(mask)
+    data = tf.transpose(data)
+    imgs = tf.scatter_nd(index, data, (h, w, nk))
+    imgs = tf.transpose(imgs, (2, 0, 1))
+    return imgs
 
 
-def evaluate_footprint(footprint, mask, radius, batch, prog=None):
-    @distributed(
-        ReduceOp.CONCAT,
-        ReduceOp.CONCAT,
-        ReduceOp.CONCAT,
-        ReduceOp.CONCAT,
-        ReduceOp.CONCAT,
-    )
-    def _evaluate(imgs, mask, radius):
+def clean(imgs, bins=100):
+    def _clean(img, y, x):
+        flat = tf.reshape(img, (-1,))
+        n = tf.histogram_fixed_width(flat, (0.0, 1.0), bins + 2)
+        thr = tf.argmax(n[1:]) / bins
+        binary = img > thr
+        label = tfa.image.connected_component(binary)
+        img = (img - thr) / (1 - thr)
+        img = tf.where(label == label[y, x], img, 0)
+        return img, thr
+    nk, h, w = tf.unstack(tf.shape(imgs))
+    flat = tf.reshape(imgs, (nk, h * w))
+    top, index = tf.tok_k(flat, 2)
+    scale = top[:, 1]
+    index = index[:, 0]
+    ok = scale > 0
+    nk = tf.math.count_nonzer(ok)
+    imgs = tf.boolean_mask(imgs, ok)
+    scale = tf.boolean_mask(scale, ok)
+    index = tf.boolean_mask(index, ok)
+    k = tf.range(nk)
+    y = index // w
+    x = index % w
+    index = tf.stack([k, y, x], axis=1)
+    imgs = tf.tensor_scatter_nd_update(imgs, index, scale)
+    imgs /= scale[:, None, None]
+    imgs, thr = tf.vectorized_map(_clean, (imgs, y, x))
+    scale *= tf.math.reciprocal_no_nan(1 - thr)
+    return ok, imgs, scale
+
+
+def evaluate_footprint(footprint, mask, radius, batch):
+    """"""
+
+    @distributed(ReduceOp.CONCAT, ReduceOp.CONCAT)
+    def _evaluate(data, mask, radius):
+
+        imgs = unmask(data, imgss)
+
         logs = gaussian_laplace_multi(imgs, radius)
         nk, h, w = tf.shape(logs)[0], tf.shape(logs)[2], tf.shape(logs)[3]
         hw = h * w
@@ -50,109 +81,49 @@ def evaluate_footprint(footprint, mask, radius, batch, prog=None):
 
     nk = footprint.shape[0]
     dataset = tf.data.Dataset.from_tensor_slices(footprint)
-    dataset = unmasked(dataset, mask)
     dataset = dataset.batch(batch)
 
     mask_t = tf.convert_to_tensor(mask, tf.bool)
     radius_t = tf.convert_to_tensor(radius, tf.float32)
 
-    out = _evaluate(dataset, mask_t, radius_t, prog=prog)
+    with Progress(length=nk, label="Eval", unit="footprint") as prog:
+        out = _evaluate(dataset, mask_t, radius_t, prog=prog)
     f, r, y, x = (o.numpy() for o in out)
     return dict(x=x, y=y, radius=radius[r], firmness=f)
 
 
-def clean_footprint(xs, mask, threshold=0.01):
-    normalize = lambda x: (x - threshold) / (xmax - threshold)
+def clean_footprint(footprint, mask, bins=51):
+    """"""
+
+    def threshold(x):
+        n, b = np.histogram(x[x > 0], bins=np.linspace(0, 1, bins))
+        return b[np.argmax(n)]
+
+    denseness = []
+    scale = []
     tmp = np.zeros_like(mask, dtype=xs.dtype)
-    for xi in xs:
-        xmax = xi.max()
-        tmp[mask] = xi
-        y, x = np.where(tmp == xmax)
-        obj, n = ndi.label(tmp > threshold * xmax)
-        region = obj == obj[y[0], x[0]]
-        tmp[...] = np.where(region, normalize(tmp), 0.0)
-        xi[:] = tmp[mask]
+    for f, y, x in zip(footprint, info.y, inof.x):
+        thr = threshold(f)
+        fmax = f.max()
+        tmp[mask] = f
+        obj, n = ndi.label(tmp > thr)
+        region = obj == obj[y, x]
+        tmp[...] = (tmp - thr) / (fmax - thr)
+        tmp[...] = np.where(region, tmp, 0.0)
+        f[:] = tmp[mask]
+        denseness.append(thr / fmax)
+        scale.append(fmax - thr)
+    return dict(denseness=denseness, scale=scale)
 
 
-def check_accept(segment, peaks, radius, sim, area, overwrap):
-    peaks.insert(0, "segid", np.arange(segment.shape[0]))
-
-    binary = (segment > area).astype(np.float32)
-    peaks["area"] = area = binary.sum(axis=1)
-
-    peaks.insert(1, "kind", "-")
-    peaks["kind"] = "cell"
-    peaks.loc[peaks.radius == radius[-1], "kind"] = "local"
-    peaks.loc[peaks.radius == radius[0], "kind"] = "remove"
-
-    check_overwrap(binary, peaks, overwrap)
-    check_sim(segment, peaks, sim)
-
-    peaks.sort_values("firmness", ascending=False, inplace=True)
-    peaks.insert(2, "id", -1)
-    cell = peaks.query("kind == 'cell'")
-    peaks.loc[cell.index, "id"] = np.arange(cell.shape[0])
-    local = peaks.query("kind == 'local'")
-    peaks.loc[local.index, "id"] = np.arange(local.shape[0])
-    return segment[cell.segid.to_numpy()], segment[local.segid.to_numpy()], peaks
-
-
-def check_sim(segment, peaks, threshold):
-    peaks.sort_values("firmness", ascending=False, inplace=True)
-    select = peaks.query("kind == 'cell'")
-    segment = segment[select.segid.to_numpy()]
-    score = []
-    index = []
-    remove = []
-    segment = segment / np.sqrt((segment**2).sum(axis=1, keepdims=True))
-    cov = segment @ segment.T
-    for i in range(1, segment.shape[0]):
-        val = cov[i, :i]
-        j = np.argmax(val)
-        score.append(val[j])
-        index.append(j)
-        if score[-1] > threshold:
-            remove.append(True)
-            cov[:, i] = 0.0
-        else:
-            remove.append(False)
-    selectx = select.iloc[1:]
-    peaks.loc[selectx.index, "similarity"] = score
-    peaks["sim_with"] = -1
-    peaks.loc[selectx.index, "sim_with"] = select.segid.to_numpy()[index]
-    peaks.loc[selectx.loc[remove].index, "kind"] = "remove"
-
-
-def check_overwrap(binary, peaks, threshold):
-    peaks.sort_values("area", ascending=False, inplace=True)
-    select = peaks.query("kind == 'cell'")
-    binary = binary[select.segid.to_numpy()]
-    score = []
-    index = []
-    local = []
-    area = binary.sum(axis=1)
-    cov = (binary @ binary.T) / area
-    for i in range(binary.shape[0] - 1):
-        val = cov[i+1:, i]
-        j = np.argmax(val)
-        score.append(val[j])
-        index.append(i + 1 + j)
-        local.append(score[-1] > threshold)
-    selectx = select.iloc[:-1]
-    peaks.loc[selectx.index, "overwrap"] = score
-    peaks["wrap_with"] = -1
-    peaks.loc[selectx.index, "wrap_with"] = select.segid.to_numpy()[index]
-    peaks.loc[selectx.loc[local].index, "kind"] = "remove"
-
-
-def check_nearest(peaks):
-    ys = peaks.y.values
-    xs = peaks.x.values
-    index = [-1]
-    distance = [np.nan]
-    for i in range(1, xs.size):
-        dist = np.square(ys[i] - ys[:i]) + np.square(xs[i] - xs[:i])
-        j = np.argmin(dist)
-        index.append(j)
-        distance.append(np.sqrt(dist[j]))
-    return index, distance
+def calc_area(x, threshold):
+    xmin = x.min(axis=1, keepdims=True)
+    xmax = x.max(axis=1, keepdims=True)
+    x = (x - xmin) / (xmax - xmin)
+    b = x > threshold
+    area = np.count_nonzero(b, axis=1)
+    b = b.astype(np.float32)
+    c = (b @ b.T) / b.sum(axis=1)
+    np.fill_diagonal(c, 0.0)
+    overwrap = c.max(axis=1)
+    return area, overwrap

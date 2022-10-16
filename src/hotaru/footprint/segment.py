@@ -16,11 +16,11 @@ def get_segment(gl, y, x, mask):
     return tf.scatter_nd(pos, tf.ones((npos,), tf.bool), tf.shape(mask))
 
 
-def get_segment_index(gl, y, x, mask):
+def get_segment_mask(gl, y, x, mask):
     return tf.numpy_function(
-        get_segment_index_py,
+        get_segment_mask_py,
         [gl, y, x, mask],
-        tf.int32,
+        tf.bool,
     )
 
 
@@ -32,7 +32,7 @@ def get_segment_py(img, y0, x0, mask):
     return out
 
 
-def get_segment_index_py(img, y0, x0, mask):
+def get_segment_mask_py(img, y0, x0, mask):
     delta = [
         (dy, dx)
         for dy in [-1, 0, 1]
@@ -41,24 +41,26 @@ def get_segment_index_py(img, y0, x0, mask):
     ]
     mask = np.pad(mask, [[0, 1], [0, 1]])
     pos = np.zeros_like(mask, bool)
-    pos = np.pad(pos, [[0, 1], [0, 1]], constant_values=True)
 
-    pos[y0 + 1, x0 + 1] = True
+    pos[y0, x0] = True
     q = []
     for dy, dx in delta:
-        q.append((y0 + dy, x0 + dx, -dy, -dx))
+        y1, x1 = y0 + dy, x0 + dx
+        if mask[y1, x1]:
+            q.append((y1, x1, dy, dx))
 
     while len(q) > 0:
         yt, xt, dy, dx = q.pop()
-        yo, xo = yt + dy, xt + dx
-        if mask[yt + 1, xt + 1] and (0 < img[yt, xt] <= img[yo, xo]):
-            pos[yt + 1, xt + 1] = True
+        yo, xo = yt - dy, xt - dx
+        if 0 < img[yt, xt] <= img[yo, xo]:
+            pos[yt, xt] = True
             q = [(y, x, dy, dx) for y, x, dy, dx in q if (y, x) != (yt, xt)]
             for dy, dx in delta:
-                if not pos[yt + dy + 1, xt + dx + 1]:
-                    q.append([yt + dy, xt + dx, -dy, -dx])
+                yn, xn = yt + dy, xt + dx
+                if not pos[yn, xn] and mask[yn, xn]:
+                    q.append([yn, xn, dy, dx])
 
-    return np.stack(np.where(pos), axis=1).astype(np.int32)
+    return pos[:-1, :-1]
 
 
 def get_segment_index_tf(img, y0, x0, mask):

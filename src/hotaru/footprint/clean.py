@@ -1,158 +1,99 @@
 import numpy as np
-import pandas as pd
 import tensorflow as tf
+import tensorflow_addons as tfa
 
 from ..filter.laplace import gaussian_laplace_multi
-from ..util.dataset import unmasked
+from ..filter.util import erosion
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
-from .segment import get_segment_index
-#from .segment import remove_noise
+from ..util.dataset import unmasked
+from ..util.progress import Progress
+from .segment import get_segment_mask
 
 
-def modify_footprint(footprint):
-    i = np.arange(footprint.shape[0])
-    j = np.argpartition(-footprint, 1)
-    second = footprint[i, j[:, 1]]
-    footprint[i, j[:, 0]] = second
-    cond = second > 0.0
-    return cond
+@distributed(ReduceOp.CONCAT, ReduceOp.CONCAT)
+@tf.function(input_signature=[tf.TensorSpec((None, None), tf.float32)])
+def _scale(data):
+    top, index = tf.math.top_k(data, 2)
+    scale = top[:, 1]
+    index = index[:, 0]
+    index = tf.stack([tf.range(tf.size(index)), index], axis=1)
+    data = tf.tensor_scatter_nd_update(data, index, scale)
+    data /= tf.where(scale > 0, scale, 1.0)[:, None]
+    return data, scale
 
 
-def clean_footprint(footprint, index, mask, radius, batch, prog=None):
-    @distributed(
-        ReduceOp.CONCAT,
-        ReduceOp.CONCAT,
-        ReduceOp.CONCAT,
-        ReduceOp.CONCAT,
-        ReduceOp.CONCAT,
-    )
-    def _clean(imgs, mask, radius):
-        logs = gaussian_laplace_multi(imgs, radius)
-        nk, h, w = tf.shape(logs)[0], tf.shape(logs)[2], tf.shape(logs)[3]
-        hw = h * w
-        lsr = tf.reshape(logs, (nk, -1))
-        pos = tf.cast(tf.argmax(lsr, axis=1), tf.int32)
-        rs = pos // hw
-        ys = (pos % hw) // w
-        xs = (pos % hw) % w
-        logs = tf.gather_nd(logs, tf.stack([tf.range(nk), rs], axis=1))
-
-        nx = tf.size(rs)
-        out = tf.TensorArray(tf.float32, size=nk)
-        firmness = tf.TensorArray(tf.float32, size=nk)
-        for k in tf.range(nx):
-            img, log, y, x = imgs[k], logs[k], ys[k], xs[k]
-            pos = get_segment_index(log, y, x, mask)
-            slog = tf.gather_nd(log, pos)
-            slogmin = tf.math.reduce_min(slog)
-            slogmax = tf.math.reduce_max(slog)
-            simg = tf.gather_nd(img, pos)
-            simgmin = tf.math.reduce_min(simg)
-            simgmax = tf.math.reduce_max(simg)
-            val = (simg - simgmin) / (simgmax - simgmin)
-            #val = remove_noise(val)
-            img = tf.scatter_nd(pos, val, [h, w])
-            out = out.write(k, tf.boolean_mask(img, mask))
-            firmness = firmness.write(
-                k, (slogmax - slogmin) / (simgmax - simgmin)
-            )
-        return out.stack(), firmness.stack(), rs, ys, xs
-
-    nk = footprint.shape[0]
-    dataset = tf.data.Dataset.from_tensor_slices(footprint)
-    dataset = unmasked(dataset, mask)
-    dataset = dataset.batch(batch)
-
-    mask_t = tf.convert_to_tensor(mask, tf.bool)
-    radius_t = tf.convert_to_tensor(radius, tf.float32)
-
-    out = _clean(dataset, mask_t, radius_t, prog=prog)
-    footprint, f, r, y, x = (o.numpy() for o in out)
-    peaks = dict(x=x, y=y, radius=radius[r], firmness=f)
-    peaks = pd.DataFrame(peaks, index=index)
-    return footprint, peaks
+@distributed(
+    ReduceOp.CONCAT,
+    ReduceOp.CONCAT,
+    ReduceOp.CONCAT,
+    ReduceOp.CONCAT,
+    ReduceOp.CONCAT,
+)
+@tf.function(input_signature=[
+    tf.TensorSpec([None, None, None], tf.float32),
+    tf.TensorSpec([None], tf.float32),
+])
+def _filter(imgs, radius_list):
+    nr = tf.size(radius_list)
+    nk, h, w = tf.unstack(tf.shape(imgs))
+    logs = gaussian_laplace_multi(imgs, radius_list)
+    flat = tf.reshape(logs, (nk, nr * h * w))
+    peak = tf.math.argmax(flat, axis=1, output_type=tf.int32)
+    r = peak // (h * w)
+    y = peak % (h * w) // w
+    x = peak % w
+    logs = tf.gather(logs, r, batch_dims=1)
+    radius = tf.gather(radius_list, r)
+    firmness = tf.math.reduce_max(flat, axis=1)
+    return logs, y, x, radius, firmness
 
 
-def check_accept(segment, peaks, radius, sim, area, overwrap):
-    peaks.insert(0, "segid", np.arange(segment.shape[0]))
-
-    binary = (segment > area).astype(np.float32)
-    peaks["area"] = area = binary.sum(axis=1)
-
-    peaks.insert(1, "kind", "-")
-    peaks["kind"] = "cell"
-    peaks.loc[peaks.radius == radius[-1], "kind"] = "local"
-    peaks.loc[peaks.radius == radius[0], "kind"] = "remove"
-
-    check_overwrap(binary, peaks, overwrap)
-    check_sim(segment, peaks, sim)
-
-    peaks.sort_values("firmness", ascending=False, inplace=True)
-    peaks.insert(2, "id", -1)
-    cell = peaks.query("kind == 'cell'")
-    peaks.loc[cell.index, "id"] = np.arange(cell.shape[0])
-    local = peaks.query("kind == 'local'")
-    peaks.loc[local.index, "id"] = np.arange(local.shape[0])
-    return segment[cell.segid.to_numpy()], segment[local.segid.to_numpy()], peaks
-
-
-def check_sim(segment, peaks, threshold):
-    peaks.sort_values("firmness", ascending=False, inplace=True)
-    select = peaks.query("kind == 'cell'")
-    segment = segment[select.segid.to_numpy()]
-    score = []
-    index = []
-    remove = []
-    segment = segment / np.sqrt((segment**2).sum(axis=1, keepdims=True))
-    cov = segment @ segment.T
-    for i in range(1, segment.shape[0]):
-        val = cov[i, :i]
-        j = np.argmax(val)
-        score.append(val[j])
-        index.append(j)
-        if score[-1] > threshold:
-            remove.append(True)
-            cov[:, i] = 0.0
-        else:
-            remove.append(False)
-    selectx = select.iloc[1:]
-    peaks.loc[selectx.index, "similarity"] = score
-    peaks["sim_with"] = -1
-    peaks.loc[selectx.index, "sim_with"] = select.segid.to_numpy()[index]
-    peaks.loc[selectx.loc[remove].index, "kind"] = "remove"
+@distributed(ReduceOp.CONCAT, ReduceOp.CONCAT)
+@tf.function(input_signature=[
+    (
+        tf.TensorSpec([None], tf.float32),
+        tf.TensorSpec([None, None], tf.float32),
+        tf.TensorSpec([], tf.int32),
+        tf.TensorSpec([], tf.int32),
+    ),
+    tf.TensorSpec([None, None], tf.bool),
+])
+def _segment(args, mask):
+    dat, log, y, x = args
+    seg = get_segment_mask(log, y, x, mask)
+    seg = tf.ensure_shape(seg, mask.shape)
+    contour = tf.boolean_mask(~erosion(seg) & seg, mask)
+    seg = tf.boolean_mask(seg, mask)
+    dmin = tf.reduce_max(tf.boolean_mask(dat, contour))
+    dmax = tf.reduce_max(dat)
+    scale = dmax - dmin
+    dat = tf.where(seg & (dat > dmin), (dat - dmin) / scale, 0)
+    return dat[None, ...], scale[None, ...]
 
 
-def check_overwrap(binary, peaks, threshold):
-    peaks.sort_values("area", ascending=False, inplace=True)
-    select = peaks.query("kind == 'cell'")
-    binary = binary[select.segid.to_numpy()]
-    score = []
-    index = []
-    local = []
-    area = binary.sum(axis=1)
-    cov = (binary @ binary.T) / area
-    for i in range(binary.shape[0] - 1):
-        val = cov[i+1:, i]
-        j = np.argmax(val)
-        score.append(val[j])
-        index.append(i + 1 + j)
-        local.append(score[-1] > threshold)
-    selectx = select.iloc[:-1]
-    peaks.loc[selectx.index, "overwrap"] = score
-    peaks["wrap_with"] = -1
-    peaks.loc[selectx.index, "wrap_with"] = select.segid.to_numpy()[index]
-    peaks.loc[selectx.loc[local].index, "kind"] = "remove"
+def clean_segment(data, mask, radius, batch):
+    """"""
+    h, w = mask.shape
+    nr = radius.size
+    nk = data.shape[0]
 
+    mask = tf.convert_to_tensor(mask, tf.bool)
+    radius_list = tf.convert_to_tensor(radius, tf.float32)
 
-def check_nearest(peaks):
-    ys = peaks.y.values
-    xs = peaks.x.values
-    index = [-1]
-    distance = [np.nan]
-    for i in range(1, xs.size):
-        dist = np.square(ys[i] - ys[:i]) + np.square(xs[i] - xs[:i])
-        j = np.argmin(dist)
-        index.append(j)
-        distance.append(np.sqrt(dist[j]))
-    return index, distance
+    data_ds = tf.data.Dataset.from_tensor_slices(data)
+    data_ds = Progress(data_ds, "scale", nk, unit="cell", batch=batch)
+    data, scale1 = _scale(data_ds)
+
+    data_ds = tf.data.Dataset.from_tensor_slices(data)
+    data_ds.shape = nk, h, w
+    imgs_ds = unmasked(data_ds, mask)
+    imgs_ds = Progress(imgs_ds, "filter", nk, unit="cell", batch=batch)
+    logs, y, x, radius, firmness = _filter(imgs_ds, radius_list)
+
+    logs_ds = tf.data.Dataset.from_tensor_slices((data, logs, y, x))
+    logs_ds = Progress(logs_ds, "segment", nk, unit="cell")
+    data, scale2 = _segment(logs_ds, mask)
+
+    scale = scale1 * scale2
+    return data, scale, x.numpy(), y.numpy(), radius.numpy(), firmness.numpy()

@@ -7,7 +7,7 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
 
     def __init__(
         self,
-        learning_rate=1.0,
+        learning_rate=1000.0,
         nesterov_scale=20.0,
         reset_interval=100,
         **kwargs
@@ -23,10 +23,13 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
             or nesterov_scale > 0.0
         )
 
-    def set(self, learning_rate=0.01, nesterov_scale=20.0, reset_interval=100):
-        self.learning_rate = learning_rate
-        self.nesterov_scale = nesterov_scale
-        self.reset_interval = reset_interval
+    def set(self, learning_rate=None, nesterov_scale=None, reset_interval=None):
+        if learning_rate:
+            self.learning_rate = learning_rate
+        if nesterov_scale:
+            self.nesterov_scale = nesterov_scale
+        if reset_interval:
+            self.reset_interval = reset_interval
 
     def _create_slots(self, var_list):
         if self._nesterov:

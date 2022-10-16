@@ -1,64 +1,86 @@
+import math
+
 import tensorflow as tf
 
+from .input import DynamicInputLayer as Input
 
-class LossLayer(tf.keras.layers.Layer):
-    """Log Standard Deviation"""
 
-    def __init__(self, nk, n0, n1, **args):
-        super().__init__(**args)
+def calc_cov_out(xval):
+    nx = tf.cast(tf.shape(xval)[1], tf.float32)
+    xcov = tf.linalg.matmul(xval, xval, False, True)
+    xsum = tf.math.reduce_sum(xval, axis=1)
+    xout = xsum[:, None] * (xsum / nx)
+    return xval, xcov, xout
 
-        self._n1 = n1
-        self._nn = n0 * n1
-        self._nm = n0 * n1 + n0 + n1
 
-        self._b0 = self.add_weight("b0", (), trainable=False)
-        self._b1 = self.add_weight("b1", (), trainable=False)
-        self._dat = self.add_weight("dat", (nk, n0), trainable=False)
-        self._cov = self.add_weight("cov", (nk, nk), trainable=False)
-        self._out = self.add_weight("out", (nk, nk), trainable=False)
+def prepare(yval, cor, bx, by):
+    yval, ycov, yout = calc_cov_out(yval)
+    cx = 1 - tf.math.square(bx)
+    cy = 1 - tf.math.square(by)
+    dat = -2 * cor
+    cov = ycov - cx * yout
+    out = yout - cy * ycov
+    return dat, cov, out
 
-    def set_background_penalty(self, b0, b1):
-        self._b0.assign(b0)
-        self._b1.assign(b1)
 
-    def call(self, xdat):
-        nk, nx = tf.shape(xdat)[0], tf.shape(xdat)[1]
-        xcov = tf.linalg.matmul(xdat, xdat, False, True)
-        xsum = tf.math.reduce_sum(xdat, axis=1)
-        xout = xsum[:, None] * xsum / tf.cast(nx, tf.float32)
+class CacheLayer(tf.keras.layers.Layer):
+    """Dynamic Input Layer"""
 
-        ydat = self._dat[:nk]
-        ycov = self._cov[:nk, :nk]
-        yout = self._out[:nk, :nk]
+    def __init__(self, nk, nx, bx, by, **kwargs):
+        super().__init__(**kwargs)
+        self._nk = self.add_weight("nk", (), tf.int32, trainable=False)
+        self._dat = self.add_weight("dat", (nk, nx), tf.float32, trainable=False)
+        self._cov = self.add_weight("cov", (nk, nk), tf.float32, trainable=False)
+        self._out = self.add_weight("out", (nk, nk), tf.float32, trainable=False)
+        self._bx = bx
+        self._by = by
 
-        variance = (
-            tf.math.reduce_sum(ydat * xdat)
-            + tf.math.reduce_sum(ycov * xcov)
-            + tf.math.reduce_sum(yout * xout)
-        )
-        sigma = tf.math.sqrt((self._nn + variance) / self._nm)
-        self.add_metric(sigma, "sigma")
-        return tf.math.log(sigma)
-
-    @tf.function
-    def _cache(self, yval, dat):
-        ycov = tf.matmul(yval, yval, False, True)
-        ysum = tf.math.reduce_sum(yval, axis=1)
-        yout = ysum[:, None] * ysum / self._n1
-        cx = 1.0 - tf.math.square(self._b0)
-        cy = 1.0 - tf.math.square(self._b1)
-        dat = -2.0 * dat
-        cov = ycov - cx * yout
-        out = yout - cy * ycov
-
+    def prepare(self, val, cor):
+        dat, cov, out = prepare(val, cor, self._bx, self._by)
         nk = tf.shape(dat)[0]
-        self._dat[:nk].assign(dat)
+        self._nk.assign(nk)
+        self._dat[:nk, :].assign(dat)
         self._cov[:nk, :nk].assign(cov)
         self._out[:nk, :nk].assign(out)
 
+    def call(self, inputs):
+        nk = self._nk
+        dat = self._dat[:nk, :]
+        cov = self._cov[:nk, :nk]
+        out = self._out[:nk, :nk]
+        return dat, cov, out
 
-class HotaruLoss(tf.keras.losses.Loss):
-    """Loss"""
+
+class OutputLayer(tf.keras.layers.Layer):
+    """Output Statistics"""
+
+    def call(self, val):
+        return calc_cov_out(val)
+
+
+class LossLayer(tf.keras.layers.Layer):
+    """"""
+
+    def __init__(self, nx, nt, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._nn = nx * nt
+        self._nm = nx * nt + nx + nt
+
+    def call(self, inputs):
+        x, y = inputs 
+        xval, xcov, xout = x
+        yval, ycov, yout = y
+        variance = (
+            self._nn
+            + tf.math.reduce_sum(xval * yval)
+            + tf.math.reduce_sum(xcov * ycov)
+            + tf.math.reduce_sum(xout * yout)
+        ) / self._nm
+        return (tf.math.log(variance) + math.log(math.pi) + 1) / 2
+
+
+class IdentityLoss(tf.keras.losses.Loss):
+    """"""
 
     def call(self, y_true, y_pred):
         return y_pred

@@ -2,56 +2,98 @@ import numpy as np
 import tensorflow as tf
 
 from ..filter.laplace import gaussian_laplace_multi
-from ..util.dataset import unmasked
+from ..filter.util import erosion
 from ..util.distribute import ReduceOp
 from ..util.distribute import distributed
-from .segment import get_segment_index
-from .segment import remove_noise
+from ..util.progress import Progress
+from .segment import get_segment_mask
 
 
-def make_segment(dataset, mask, peaks, batch, prog=None):
-    @distributed(ReduceOp.CONCAT, ReduceOp.CONCAT)
-    def _make(data, mask, ts, rs, ys, xs, radius):
-        h, w = tf.shape(mask)[0], tf.shape(mask)[1]
-        idx, imgs = data
-        idx = tf.cast(idx, tf.int32)
-        cond = (idx[0] <= ts) & (ts <= idx[-1])
-        ids = tf.cast(tf.where(cond)[:, 0], tf.int32)
+@distributed(ReduceOp.LIST, ReduceOp.CONCAT)
+@tf.function(input_signature=[
+    (
+        tf.TensorSpec([None], tf.int64),
+        tf.TensorSpec([None, None, None], tf.float32),
+    ),
+    tf.TensorSpec([None], tf.int64),
+    tf.TensorSpec([None], tf.int64),
+    tf.TensorSpec([None], tf.int64),
+    tf.TensorSpec([None], tf.float32),
+])
+def _filter(args, ts, ys, xs, rs):
+
+    def _zero():
+        return tf.zeros_like(imgs[:0])
+
+    def _nonzero():
         tl = tf.gather(ts, ids) - idx[0]
-        rl = tf.gather(rs, ids)
         yl = tf.gather(ys, ids)
         xl = tf.gather(xs, ids)
-        gls = gaussian_laplace_multi(imgs, radius)
-        gl = tf.gather_nd(gls, tf.stack([tl, rl], 1))
+        rl = tf.gather(rs, ids)
+        tlist, tl = tf.unique(tl)
+        rlist, rl = tf.unique(rl)
+        select = tf.gather(imgs, tlist)
+        logs = gaussian_laplace_multi(select, rlist)
+        logs = tf.gather_nd(logs, tf.stack([tl, rl], axis=1))
+        return logs
 
-        out = tf.TensorArray(tf.float32, size=tf.size(ids), element_shape=[nx])
-        for k in tf.range(tf.size(ids)):
-            g, y, x = gl[k], yl[k], xl[k]
-            pos = get_segment_index(g, y, x, mask)
-            val = tf.gather_nd(g, pos)
-            gmin = tf.math.reduce_min(val)
-            gmax = tf.math.reduce_max(val)
-            val = (val - gmin) / (gmax - gmin)
-            val = remove_noise(val, scale=100)
-            img = tf.scatter_nd(pos, val, [h, w])
-            img = tf.boolean_mask(img, mask)
-            out = out.write(k, img)
-        return ids, out.stack()
+    idx, imgs = args
+    cond = (idx[0] <= ts) & (ts <= idx[-1])
+    ids = tf.cast(tf.where(cond)[:, 0], tf.int32)
+    logs = tf.cond(tf.size(ids) > 0, _nonzero, _zero)
+    return logs, ids
 
-    nk = peaks.shape[0]
-    nx = mask.sum()
-    ts = tf.convert_to_tensor(peaks["t"].values, tf.int32)
-    xs = tf.convert_to_tensor(peaks["x"].values, tf.int32)
-    ys = tf.convert_to_tensor(peaks["y"].values, tf.int32)
-    rs = tf.convert_to_tensor(peaks["radius"].values, tf.float32)
-    radius, rs = tf.unique(rs)
 
-    dataset = unmasked(dataset, mask)
-    dataset = dataset.enumerate().batch(batch)
-    ids, segment = _make(dataset, mask, ts, rs, ys, xs, radius, prog=prog)
+@distributed(ReduceOp.LIST)
+@tf.function(input_signature=[
+    (
+        tf.TensorSpec([None, None], tf.float32),
+        tf.TensorSpec([], tf.int64),
+        tf.TensorSpec([], tf.int64),
+    ),
+    tf.TensorSpec([None, None], tf.bool),
+])
+def _segment(args, mask):
+    log, y, x = args
+    seg = get_segment_mask(log, y, x, mask)
+    seg = tf.ensure_shape(seg, mask.shape)
+    dmax = tf.math.reduce_max(tf.boolean_mask(log, seg))
+    dmin = tf.math.reduce_max(tf.boolean_mask(log, ~erosion(seg) & seg))
+    log = tf.where(seg, log, 0)
+    dat = tf.boolean_mask(log, mask)
+    dat = tf.where(dat > dmin, (dat - dmin) / (dmax - dmin), 0)
+    return dat[None, :]
 
-    segment = segment.numpy()
-    out = np.empty_like(segment)
-    for i, j in enumerate(ids.numpy()):
-        out[j] = segment[i]
-    return out
+
+def make_segment(imgs, mask, info, batch):
+    """"""
+
+    nt, h, w = imgs.shape
+    nk = info.shape[0]
+    nx = np.count_nonzero(mask)
+
+    mask = tf.convert_to_tensor(mask, tf.bool)
+    ts = tf.convert_to_tensor(info.t.to_numpy(), tf.int64)
+    ys = tf.convert_to_tensor(info.y.to_numpy(), tf.int64)
+    xs = tf.convert_to_tensor(info.x.to_numpy(), tf.int64)
+    rs = tf.convert_to_tensor(info.radius.to_numpy(), tf.float32)
+
+    imgs = Progress(imgs.enumerate(), "filter", nt, unit="frame", batch=batch) 
+    logs_unsort, ids = _filter(imgs, ts, ys, xs, rs)
+
+    ids = ids.numpy()
+    logs = [None] * ids.size
+    for i, j in enumerate(ids):
+        logs[j] = logs_unsort[i]
+
+    logs_ds = tf.data.Dataset.from_generator(
+        lambda: zip(logs, ys, xs),
+        output_signature=(
+            tf.TensorSpec([h, w], tf.float32),
+            tf.TensorSpec([], tf.int64),
+            tf.TensorSpec([], tf.int64),
+        ),
+    )
+    logs_ds = Progress(logs_ds, "segment", nk, unit="cell") 
+    data = _segment(logs_ds, mask)
+    return data

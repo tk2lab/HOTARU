@@ -7,16 +7,24 @@ from .optimizer import ProxOptimizer
 class ProxModel(tf.keras.Model):
 
     def compile(self, *args, **kwargs):
-        super().compile(*args, optimizer=ProxOptimizer(), **kwargs)
+        kwargs.setdefault("optimizer", ProxOptimizer())
+        super().compile(*args, **kwargs)
 
-    def fit(self, data, epochs, **kwargs):
-        callbacks = kwargs.pop("callbacks", [])
-        callbacks.append(ProgressCallback(self.name, epochs))
-        callbacks = tf.keras.callbacks.CallbackList(callbacks, add_histroy=True)
+    def fit(self, data, epochs, verbose=1, **kwargs):
+        steps = self.optimizer.reset_interval.numpy()
+        callbacks = tf.keras.callbacks.CallbackList(
+            kwargs.pop("callbacks", []) + [ProgressCallback()],
+            add_histroy=True,
+            add_progbar=False,
+            model=self,
+            epochs=epochs,
+            steps=steps,
+            verbose=verbose,
+        )
         return super().fit(
             data,
             epochs=epochs,
-            steps_per_epoch=self.optimizer.reset_interval.numpy(),
+            steps_per_epoch=steps,
             callbacks=callbacks,
             **kwargs,
         )

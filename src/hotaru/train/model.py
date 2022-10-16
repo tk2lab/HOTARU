@@ -1,103 +1,134 @@
+from collections import namedtuple
+
 import tensorflow as tf
+import numpy as np
+import pandas as pd
 
-from ..util.distribute import ReduceOp
-from ..util.distribute import distributed
-from .config import HotaruConfigMixin as ConfigMixin
-from .dynamics import DoubleExpMixin
-from .loss import HotaruLoss as Loss
-from .optimizer import ProxOptimizer as Optimizer
-from .variable import HotaruVariableMixin as VariableMixin
+from ..util.dataset import masked
+from ..util.dataset import unmasked
+from ..util.dataset import normalized
+from ..util.dataset import normalized_masked_image
+from ..filter.stats import calc_stats
+from ..proxmodel.optimizer import ProxOptimizer
+from .input import DynamicMaxNormNonNegativeL1InputLayer as ML1
+from .input import DynamicNonNegativeL1InputLayer as L1
+from .input import DynamicL2InputLayer as L2
+from .dynamics import SpikeToCalcium
+from .dynamics import CalciumToSpike
+from .driver import SpatialModel
+from .driver import TemporalModel
 
 
-class HotaruModel(tf.Module, DoubleExpMixin, VariableMixin, ConfigMixin):
-    """Model"""
+Penalty = namedtuple("Penalty", ["la", "lu", "lx", "lt", "bx", "bt"])
 
-    @tf.Module.with_name_scope
-    def build(self, data, nk, nx, nt, hz, tausize, local_strategy=None):
-        dummy_input = tf.keras.Input(type_spec=tf.TensorSpec((), tf.float32))
-        concat_layer = tf.keras.layers.Concatenate(axis=0)
 
-        self.init_double_exp(hz, tausize)
-        self.init_variable(nk, nx, nt, tausize)
+class HotaruModel(tf.keras.layers.Layer):
+    """Variable"""
 
-        footprint = self.footprint(dummy_input)
-        spike = self.spike(dummy_input)
-        localx = self.localx(dummy_input)
-        localt = self.localt(dummy_input)
-        penalty = self.penalty(dummy_input)
+    def __init__(self, imgs, mask, hz, tausize, name="Hotaru"):
+        super().__init__(name=name)
 
-        xval = concat_layer([footprint, localx])
-        spatial_loss = self.spatial_loss(xval)
-        spatial_model = tf.keras.Model(
-            dummy_input, spatial_loss, name="spatial"
-        )
-        spatial_model.add_metric(penalty, "penalty")
-        spatial_model.add_metric(spatial_loss + penalty, "score")
+        self.mask = mask
+        self.hz = hz
 
-        calcium = self.spike_to_calcium(spike)
-        tval = concat_layer([calcium, localt])
-        temporal_loss = self.temporal_loss(tval)
-        temporal_model = tf.keras.Model(
-            dummy_input, temporal_loss, name="temporal"
-        )
-        temporal_model.add_metric(penalty, "penalty")
-        temporal_model.add_metric(temporal_loss + penalty, "score")
+        self.raw_imgs = imgs
+        self.raw_data = masked(imgs, mask)
 
-        self.local_strategy = local_strategy
-        self.data = data
-        self.spatial = spatial_model
-        self.temporal = temporal_model
+        self.spike_to_calcium = SpikeToCalcium(tausize, name="from_spike")
+        self.local_to_calcium = SpikeToCalcium(tausize, name="from_local")
+        self.calcium_to_spike = CalciumToSpike(tausize, 3, name="to_spike")
 
-    def compile_spatial(self, **kwargs):
-        self.spatial.compile(optimizer=Optimizer(), loss=Loss(), **kwargs)
+        self.temporal_optimizer = ProxOptimizer()
+        self.spatial_optimizer = ProxOptimizer()
 
-    def compile_temporal(self, **kwargs):
-        self.temporal.compile(optimizer=Optimizer(), loss=Loss(), **kwargs)
+        self._penalty = Penalty(*[
+            self.add_weight(name, (), tf.float32, trainable=False)
+            for name in Penalty._fields
+        ])
 
-    def prepare_spatial(self, batch, prog=None):
-        @distributed(ReduceOp.SUM, strategy=self.local_strategy)
-        def _matmul(tdat, val):
-            t, dat = tdat
-            val = tf.gather(val, t, axis=1)
-            return tf.linalg.matmul(val, dat)
+        self._built = False
+        self._saved = None
 
-        data = self.data.enumerate().batch(batch)
-        calcium = self.spike_to_calcium(self.spike.val)
-        localt = self.localt.val
-        val = tf.concat([calcium, localt], axis=0)
-        cor = _matmul(data, val, prog=prog)
-        self.spatial_loss._cache(val, cor)
+    def set_stats(self, path, batch, force=False):
+        if force or not path.exists():
+            stats = calc_stats(self.raw_data, batch)
+            np.savez(path, **stats._asdict())
+        else:
+            stats = np.load(path)
+            stats = stats["avgx"], stats["avgt"], stats["std"]
+        self.data = normalized(self.raw_data, *stats)
+        self.imgs = normalized_masked_image(self.raw_imgs, self.mask, *stats)
 
-    def prepare_temporal(self, batch, prog=None):
-        @distributed(ReduceOp.CONCAT, strategy=self.local_strategy)
-        def _matmul(dat, val):
-            return tf.matmul(dat, val, False, True)
+    def set_double_exp(self, tau1, tau2):
+        if tau1 > tau2:
+            tau1, tau2 = tau2, tau1
 
-        data = self.data.batch(batch)
-        footprint = self.footprint.val
-        localx = self.localx.val
-        val = tf.concat([footprint, localx], axis=0)
-        cor = tf.transpose(_matmul(data, val, prog=prog))
-        self.temporal_loss._cache(val, cor)
+        tau1 *= self.hz
+        tau2 *= self.hz
+        r = tau1 / tau2
+        d = tau1 - tau2
+        scale = np.power(r, -tau2 / d) - np.power(r, -tau1 / d)
+        t = np.arange(1, self.spike_to_calcium.kernel.size + 1)
+        e1 = np.exp(-t / tau1)
+        e2 = np.exp(-t / tau2)
 
-    def fit_spatial(self, **kwargs):
-        self.footprint.clear(self.spike.get_num())
-        self.localx.clear(self.localt.get_num())
-        return self._fit(self.spatial, **kwargs)
+        kernel = (e1 - e2) / scale
+        self.spike_to_calcium.kernel = kernel
 
-    def fit_temporal(self, **kwargs):
-        self.spike.clear(self.footprint.get_num())
-        self.localt.clear(self.localx.get_num())
-        return self._fit(self.temporal, **kwargs)
+        kernel = np.array([1.0, -e1[0] - e2[0], e1[0] * e2[0]]) / kernel[0]
+        self.calcium_to_spike.kernel = kernel
 
-    def _fit(self, model, epochs=100, **kwargs):
-        callbacks = kwargs.pop("callbacks", [])
-        callbacks += self.callbacks
-        dummy = tf.zeros((1, 1))
-        return model.fit(
-            tf.data.Dataset.from_tensors((dummy, dummy)).repeat(),
-            steps_per_epoch=model.optimizer.reset_interval,
-            epochs=epochs,
-            callbacks=callbacks,
-            **kwargs,
-        )
+    def set_penalty(self, **kwargs):
+        nx, nt = self.raw_data.shape
+        nm = nx * nt + nx + nt
+        for name, val in kwargs.items():
+            if name not in ["bx", "bt"]:
+                val /= nm
+            getattr(self._penalty, name).assign(val)
+
+    def build_and_compile(self, nk=None):
+        if self._built:
+            return
+        if nk is None:
+            nk = self.info.shape[0]
+        nt, nx = self.data.shape
+        nu = nt + self.spike_to_calcium.kernel.size - 1
+        self.max_nk = nk
+        self.footprint = ML1(nk, nx, self._penalty.la, name="footprint")
+        self.spike = ML1(nk, nu, self._penalty.lu, name="spike")
+        self.localx = ML1(nk, nx, self._penalty.lx, name="localx")
+        self.localt = L2(nk, nt, self._penalty.lt, name="localt")
+        self.spatial_model = SpatialModel(self)
+        self.temporal_model = TemporalModel(self)
+        self.temporal_model.compile(optimizer=self.temporal_optimizer)
+        self.spatial_model.compile(optimizer=self.spatial_optimizer)
+        self._built = True
+
+    @property
+    def penalty(self):
+        return Penalty(*[v.numpy() for v in self._penalty])
+
+    def exists(self, path):
+        return (path / "saved_model.pb").exists()
+
+    def save(self, path):
+        module = tf.Module()
+        module.footprint = tf.Variable(self.footprint.val_tensor())
+        module.spike = tf.Variable(self.spike.val_tensor())
+        module.localx = tf.Variable(self.localx.val_tensor())
+        module.localt = tf.Variable(self.localt.val_tensor())
+        tf.saved_model.save(module, path)
+        self.info.to_csv(path / "info.csv")
+        self._saved = path
+
+    def load(self, path):
+        if self._saved == path:
+            return
+        self.info = pd.read_csv(path / "info.csv", index_col=0)
+        self.build_and_compile(nk=self.info.shape[0])
+        module = tf.saved_model.load(path)
+        self.footprint.val = module.footprint
+        self.spike.val = module.spike
+        self.localx.val = module.localx
+        self.localt.val = module.localt
+        self._saved = path

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hotaru"
-version = "4.2.0"
+version = "5.0.0"
 description = "High performance Optimizer to extract spike Timing And cell location from calcium imaging data via lineaR impUlse"
 license = "GPL-3.0-only"
 authors = [
@@ -21,13 +21,13 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
-tensorflow = ">=2.7,<2.11"
+tifffile = ">=2022.8"
+tensorflow = ">=2.9,<2.10"
 
 click = "^8.1"
 tqdm = "^4.64"
-scipy = "^1.7"
 
-tifffile = ">=2022.8"
+scipy = "^1.7"
 seaborn = ">=0.12"
 ffmpeg-python = ">=0.2.0"
 

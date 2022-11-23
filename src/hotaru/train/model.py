@@ -1,10 +1,14 @@
 from collections import namedtuple
+from os import fspath
+from os import PathLike
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..filter.stats import calc_stats
+from ..filter.stats import calc_mean_std
+from ..io.image import ImageStack
+from ..io.mask import get_mask
 from ..proxmodel.optimizer import ProxOptimizer
 from ..util.dataset import masked
 from ..util.dataset import normalized
@@ -25,18 +29,18 @@ class HotaruModel(tf.keras.layers.Layer):
     def __init__(self, imgs, mask, hz, tausize, name="Hotaru"):
         super().__init__(name=name)
 
-        self.mask = mask
-        self.hz = hz
+        imgs = ImageStack(imgs).dataset()
+        mask = get_mask(mask, imgs)
+        data = masked(imgs, mask)
 
         self.raw_imgs = imgs
-        self.raw_data = masked(imgs, mask)
+        self.raw_data = data
+        self.mask = mask
+        self.hz = hz
 
         self.spike_to_calcium = SpikeToCalcium(tausize, name="from_spike")
         self.local_to_calcium = SpikeToCalcium(tausize, name="from_local")
         self.calcium_to_spike = CalciumToSpike(tausize, 3, name="to_spike")
-
-        self.temporal_optimizer = ProxOptimizer()
-        self.spatial_optimizer = ProxOptimizer()
 
         self._penalty = Penalty(
             *[
@@ -48,13 +52,14 @@ class HotaruModel(tf.keras.layers.Layer):
         self._built = False
         self._saved = None
 
-    def set_stats(self, path, batch, force=False):
+    def set_stats(self, path: PathLike, batch, force=False):
         if force or not path.exists():
-            stats = calc_stats(self.raw_data, batch)
+            stats = calc_mean_std(self.raw_data, batch)
             np.savez(path, **stats._asdict())
         else:
             stats = np.load(path)
             stats = stats["avgx"], stats["avgt"], stats["std"]
+        self.stats = stats
         self.data = normalized(self.raw_data, *stats)
         self.imgs = normalized_masked_image(self.raw_imgs, self.mask, *stats)
 
@@ -85,7 +90,7 @@ class HotaruModel(tf.keras.layers.Layer):
                 val /= nm
             getattr(self._penalty, name).assign(val)
 
-    def build_and_compile(self, nk=None):
+    def build(self, nk=None):
         if self._built:
             return
         if nk is None:
@@ -99,24 +104,30 @@ class HotaruModel(tf.keras.layers.Layer):
         self.localt = L2(nk, nt, self._penalty.lt, name="localt")
         self.spatial_model = SpatialModel(self)
         self.temporal_model = TemporalModel(self)
-        self.temporal_model.compile(optimizer=self.temporal_optimizer)
-        self.spatial_model.compile(optimizer=self.spatial_optimizer)
         self._built = True
+
+    def compile(self, temporal_args=None, spatial_args=None):
+        if temporal_args is None:
+            temporal_args = {}
+        if spatial_args is None:
+            spatial_args = {}
+        self.temporal_model.compile(**temporal_args)
+        self.spatial_model.compile(**spatial_args)
 
     @property
     def penalty(self):
         return Penalty(*[v.numpy() for v in self._penalty])
 
-    def exists(self, path):
+    def exists(self, path: PathLike):
         return (path / "saved_model.pb").exists()
 
-    def save(self, path):
+    def save(self, path: PathLike):
         module = tf.Module()
         module.footprint = tf.Variable(self.footprint.val_tensor())
         module.spike = tf.Variable(self.spike.val_tensor())
         module.localx = tf.Variable(self.localx.val_tensor())
         module.localt = tf.Variable(self.localt.val_tensor())
-        tf.saved_model.save(module, path)
+        tf.saved_model.save(module, fspath(path))
         self.info.to_csv(path / "info.csv")
         self._saved = path
 
@@ -125,7 +136,7 @@ class HotaruModel(tf.keras.layers.Layer):
             return
         self.info = pd.read_csv(path / "info.csv", index_col=0)
         self.build_and_compile(nk=self.info.shape[0])
-        module = tf.saved_model.load(path)
+        module = tf.saved_model.load(fspath(path))
         self.footprint.val = module.footprint
         self.spike.val = module.spike
         self.localx.val = module.localx

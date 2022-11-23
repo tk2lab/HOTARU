@@ -1,9 +1,16 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from ..evaluate.utils import calc_denseness
 from ..evaluate.utils import calc_overwrap
+from ..evaluate.peaks import plot_radius
+from ..evaluate.peaks import plot_circle
+from ..evaluate.footprint import plot_maximum
+from ..evaluate.footprint import plot_contour
+from ..evaluate.make_mpeg import make_mpeg
 from ..footprint.clean import clean_segment
 from ..footprint.find import find_peak
 from ..footprint.make import make_segment
@@ -15,13 +22,15 @@ class ExtendHotaruModel(HotaruModel):
     """Variable"""
 
     def find_peak(self, radius, shard, batch):
+        self.radius = radius
         self.info = find_peak(self.imgs, self.mask, radius, shard, batch)
 
     def reduce_peak(self, min_radius, max_radius, min_distance, block_size):
         info = self.info
 
-        info.insert(0, "kind", "-")
-        info.insert(1, "id", -1)
+        if "kind" not in info:
+            info.insert(0, "kind", "-")
+            info.insert(1, "id", -1)
 
         cell = info.loc[info.radius < max_radius].copy()
         cell = reduce_peak(cell, min_distance, block_size).copy()
@@ -37,7 +46,7 @@ class ExtendHotaruModel(HotaruModel):
         self.info = pd.concat([cell, local], axis=0)
 
     def initialize(self, batch):
-        self.build_and_compile()
+        self.build()
         segment = make_segment(self.imgs, self.mask, self.info, batch)
         nk = np.count_nonzero(self.info.kind == "cell")
         self.footprint.val = segment[:nk]
@@ -46,7 +55,6 @@ class ExtendHotaruModel(HotaruModel):
         self.localt.clear(0)
 
     def spatial_step(self, batch, **kwargs):
-        self.build_and_compile()
         spike = self.spike.val_tensor()
         self.spike.val = spike / tf.math.reduce_max(
             spike, axis=1, keepdims=True
@@ -60,7 +68,6 @@ class ExtendHotaruModel(HotaruModel):
         model.fit(**kwargs)
 
     def temporal_step(self, batch, **kwargs):
-        self.build_and_compile()
         model = self.temporal_model
         model.prepare(batch=batch)
         model.fit(**kwargs)
@@ -87,6 +94,7 @@ class ExtendHotaruModel(HotaruModel):
         self.info = pd.concat([cell, local], axis=0)
 
     def post_spatial(self, radius, thr_area, batch):
+        self.radius = radius
         info = self.info
 
         if "t" in info:
@@ -225,3 +233,35 @@ class ExtendHotaruModel(HotaruModel):
     def summary(self):
         for kind in ["cell", "local"]:
             print(self.info[self.info.kind == kind])
+
+    def plot_peak_props(self, *args, **kwargs):
+        plot_radius(self, *args, **kwargs)
+        plt.show()
+
+    def plot_circle(self, *args, **kwargs):
+        plot_circle(self, *args, **kwargs) 
+        plt.show()
+
+    def plot_contour(self, *args, **kwargs):
+        mask = self.mask
+        val = self.footprint.val
+        h, w = mask.shape
+        nk = val.shape[0]
+        a = np.zeros((nk, h, w))
+        a[:, mask] = val
+        plot_contour(a, *args, **kwargs) 
+        val = self.footprint.val
+        h, w = mask.shape
+        nk = val.shape[0]
+        a = np.zeros((nk, h, w))
+        a[:, mask] = val
+        plot_contour(a, *args, **kwargs) 
+        plt.show()
+
+    def plot_maximum(self, *args, **kwargs):
+        plot_maximum(self.footprint.val, self.localx.val, self.mask, *args, **kwargs) 
+        plt.show()
+
+    def make_mpeg(self, *args, **kwargs):
+        make_mpeg(self, *args, **kwargs)
+        plt.show()

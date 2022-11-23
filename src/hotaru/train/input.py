@@ -15,19 +15,10 @@ def is_split_variable(x):
 class DynamicInputLayer(tf.keras.layers.Layer):
     """Dynamic Input Layer"""
 
-    def __init__(self, nk, nx, regularizer=None, **kwargs):
+    def __init__(self, nk, nx, **kwargs):
         super().__init__(**kwargs)
         self._nk = self.add_weight("nk", (), tf.int32, trainable=False)
         self._val = self.add_weight("val", (nk, nx), tf.float32)
-        self._regularizer = regularizer
-        if regularizer:
-            prox = regularizer.prox
-            if is_split_variable(self._val):
-                for v in self._val:
-                    v.prox = prox
-            else:
-                self._val.prox = prox
-            self.add_loss(lambda: self.regularizer(self.val_tensor()))
 
     @property
     def val(self):
@@ -51,6 +42,17 @@ class DynamicInputLayer(tf.keras.layers.Layer):
     def regularizer(self):
         return self._regularizer
 
+    @regularizer.setter
+    def regularizer(self, regularizer):
+        self._regularizer = regularizer
+        prox = regularizer.prox
+        if is_split_variable(self._val):
+            for v in self._val:
+                v.prox = prox
+        else:
+            self._val.prox = prox
+        self._val.penalty = lambda: self.regularizer(self.val_tensor())
+
     def clear(self, nk):
         self._nk.assign(nk)
         self._val.assign(tf.zeros_like(self._val))
@@ -61,32 +63,55 @@ class DynamicInputLayer(tf.keras.layers.Layer):
     def call(self, inputs):
         return self.val_tensor()
 
+    def get_config(self):
+        config = super().get_config()
+        config.update(dict(
+            nk=self._val.shape[0],
+            nx=self._val.shape[1],
+        ))
+        return config
+
 
 class DynamicL2InputLayer(DynamicInputLayer):
     """"""
 
     def __init__(self, nk, nx, l, **kwargs):
-        Regularizer = L2
-        name = kwargs.get("name", "input")
-        regularizer = Regularizer(l)
-        super().__init__(nk, nx, regularizer, **kwargs)
+        super().__init__(nk, nx, **kwargs)
+        self.regularizer = L2(l)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(dict(
+            l=self._regularizer.l.numpy(),
+        ))
+        return config
 
 
 class DynamicNonNegativeL1InputLayer(DynamicInputLayer):
     """"""
 
     def __init__(self, nk, nx, l, **kwargs):
-        Regularizer = NonNegativeL1
-        name = kwargs.get("name", "input")
-        regularizer = Regularizer(l)
-        super().__init__(nk, nx, regularizer, **kwargs)
+        super().__init__(nk, nx, **kwargs)
+        self.regularizer = NonNegativeL1(l)
 
+    def get_config(self):
+        config = super().get_config()
+        config.update(dict(
+            l=self._regularizer.l.numpy(),
+        ))
+        return config
 
 class DynamicMaxNormNonNegativeL1InputLayer(DynamicInputLayer):
     """"""
 
     def __init__(self, nk, nx, l, axis=-1, **kwargs):
-        Regularizer = MaxNormNonNegativeL1
-        name = kwargs.get("name", "input")
-        regularizer = Regularizer(l, axis=axis)
-        super().__init__(nk, nx, regularizer, **kwargs)
+        super().__init__(nk, nx, **kwargs)
+        self.regularizer = MaxNormNonNegativeL1(l, axis=axis)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(dict(
+            l=self._regularizer.l.numpy(),
+            axis=self._regularizer.axis,
+        ))
+        return config

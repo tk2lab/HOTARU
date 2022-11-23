@@ -28,6 +28,11 @@ class SpikeToCalcium(tf.keras.layers.Layer):
             "NWC",
         )[..., 0]
 
+    def get_config(self):
+        config = super().get_config()
+        config.update(dict(size=self._kernel.shape[0]))
+        return config
+
 
 class CalciumToSpike(tf.keras.layers.Layer):
     """"""

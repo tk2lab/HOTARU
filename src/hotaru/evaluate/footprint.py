@@ -7,35 +7,26 @@ from scipy.ndimage import generate_binary_structure
 from scipy.ndimage import label
 
 
-def calc_sim_cos(segment):
-    nk = segment.shape[0]
-    segment = segment.reshape(nk, -1)
-    scale = np.sqrt((segment**2).sum(axis=1))
-    seg = segment / scale[:, None]
-    cor = seg @ seg.T
-    max_cor = np.zeros(nk)
-    for j in np.arange(1, nk)[::-1]:
-        max_cor[j] = cor[j, :j].max()
-    return max_cor
-
-
-def calc_sim_area(segment, mask=None):
-    nk = segment.shape[0]
-    segment = segment.reshape(nk, -1).astype(np.float32)
-    scale = segment.sum(axis=1)
-    cor = (segment @ segment.T) / scale
-    max_cor = np.zeros(nk)
-    for j in np.arange(1, nk)[::-1]:
-        if mask is None:
-            max_cor[j] = cor[j, :j].max()
-        elif np.any(mask[:j]):
-            max_cor[j] = cor[j, :j][mask[:j]].max()
-    return max_cor
-
-
-def plot_maximum(ax, a, vmin=0.0, vmax=1.0):
-    n, h, w = a.shape
-    ax.imshow(a.max(axis=0), cmap="Greens", vmin=vmin, vmax=vmax)
+def plot_maximum(a, b=None, mask=None, vmin=0.0, vmax=1.0, ax=None):
+    if ax is None:
+        plt.figure()
+        ax = plt.gca()
+    if mask is not None:
+        h, w = mask.shape
+        n = a.shape[0]
+        val = a
+        a = np.zeros((n, h, w))
+        a[:, mask] = val
+    else:
+        h, w = a.shape[1:]
+    ax.imshow(a.max(axis=0), cmap="Greens", vmin=vmin, vmax=vmax, alpha=0.7)
+    if b is not None:
+        if mask is not None:
+            n = b.shape[0]
+            val = b
+            b = np.zeros((n, h, w))
+            b[:, mask] = val
+        ax.imshow(b.max(axis=0), cmap="Reds", vmin=vmin, vmax=vmax, alpha=0.3)
     ax.set_xlim(0, w)
     ax.set_ylim(h, 0)
     ax.set_xticks([])
@@ -46,10 +37,15 @@ def plot_maximum(ax, a, vmin=0.0, vmax=1.0):
     ax.spines["left"].set_linewidth(0)
 
 
-def plot_contour(ax, a, gauss=2.0, thr_out=0.1):
+def plot_contour(a, gauss=2.0, thr_out=0.5, cmap=None, ax=None):
+    if ax is None:
+        plt.figure()
+        ax = plt.gca()
+    if cmap is None:
+        cmap = plt.get_cmap("Greens")
     n, h, w = a.shape
-    out, bound, _, _ = footprint_contour(a, gauss=2.0, thr_out=0.1)
-    out = plt.get_cmap("Greens")(out)
+    out, bound, _, _ = footprint_contour(a, gauss=gauss, thr_out=thr_out)
+    out = cmap(out)
     out[bound[0]] = (0, 0, 1, 1)
     ax.imshow(out, cmap="Greens")
     ax.set_xticks([])

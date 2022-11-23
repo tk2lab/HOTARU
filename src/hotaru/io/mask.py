@@ -1,29 +1,27 @@
-import os
+import pathlib
 
 import numpy as np
+import tensorflow as tf
 import tifffile
 
 
-def get_mask(masktype, h, w, job_dir="."):
-    if masktype[-4:] == ".pad":
-        pad = int(masktype.split(".")[-2])
+def get_mask(mask, imgs, reverse=False):
+    nt, h, w = imgs.shape
+    path = pathlib.Path(mask)
+    if path.suffix == ".pad":
+        pad = int(path.stem)
         mask = np.zeros([h, w], bool)
         mask[pad : h - pad, pad : w - pad] = True
     else:
-        if masktype[:2] == "r:":
-            # maskfile = ensure_local_file(os.path.join(job_dir, masktype[2:]))
-            maskfile = os.path.join(job_dir, masktype[2:])
-        else:
-            # maskfile = ensure_local_file(os.path.join(job_dir, masktype))
-            maskfile = os.path.join(job_dir, masktype)
-        if masktype[-4:] == ".tif":
-            mask = tifffile.imread(maskfile)
-        elif masktype[-4:] == ".npy":
-            mask = np.load(maskfile)
-        else:
-            raise RuntimeErorr("bad file type: {maskfile}")
+        with tf.io.gfile.GFile(path, "rb") as fp:
+            if path.suffix == ".tif":
+                mask = tifffile.imread(fp)
+            elif path.suffix == ".npy":
+                mask = np.load(fp)
+            else:
+                raise RuntimeErorr("bad file type: {maskfile}")
         mask = mask > 0
-        if masktype[:2] == "r:":
+        if reverse:
             mask = ~mask
     return mask
 

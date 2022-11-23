@@ -1,31 +1,27 @@
-import ffmpeg
+import av
 
 
 class MpegStream:
-    def __init__(self, w, h, hz, outfile, filters=None, crf=28):
-        self.args = w, h, str(int(hz)), outfile, crf
-        self.filters = filters or []
-
-    def write(self, data):
-        self.process.stdin.write(data.tobytes())
+    def __init__(self, w, h, hz, outfile):
+        self.args = w, h, hz, outfile
 
     def __enter__(self):
-        w, h, hz, outfile, crf = self.args
-        p = ffmpeg.input(
-            "pipe:", f="rawvideo", pix_fmt="rgba", s=f"{w}x{h}", r=hz
-        )
-        for a, b in self.filters:
-            if a == "drawtext":
-                p = p.drawtext(**b)
-        self.process = (
-            p.output(
-                outfile, vcodec="libx264", pix_fmt="yuv420p", r=hz, crf=crf
-            )
-            .overwrite_output()
-            .run_async(pipe_stdin=True)
-        )
+        w, h, hz, outfile = self.args
+        container = av.open(outfile, mode="w")
+        stream = container.add_stream("h264", rate=20.0)
+        stream.width = w
+        stream.height = h
+        stream.pix_fmt = "yuv420p"
+        self.container = container
+        self.stream = stream
         return self
 
+    def write(self, img):
+        frame = av.VideoFrame.from_ndarray(img, format="rgba")
+        for packet in self.stream.encode(frame):
+            self.container.mux(packet)
+
     def __exit__(self, exc_type, exc_value, traceback):
-        self.process.stdin.close()
-        self.process.wait()
+        for packet in self.stream.encode():
+            self.container.mux(packet)
+        self.container.close()

@@ -1,10 +1,12 @@
 import time
 
 import tensorflow as tf
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 class Progress(tqdm):
+    """Progress"""
+
     def __init__(self, *args, shard=None, batch=None, **kwargs):
         super().__init__(*args, **kwargs)
         if shard is not None:
@@ -52,8 +54,8 @@ class Progress(tqdm):
             self.close()
 
 
-class ProgressCallback(tf.keras.callbacks.Callback):
-    """Progress Callback"""
+class ProgbarLogger(tf.keras.callbacks.Callback):
+    """ProgbarLogger"""
 
     def on_train_begin(self, logs=None):
         if self.params.get("verbose", 1) >= 1:

@@ -1,4 +1,3 @@
-import pandas as pd
 import tensorflow as tf
 
 from ..filter.laplace import gaussian_laplace_multi
@@ -64,7 +63,4 @@ def find_peak(imgs, mask, radius, shard=1, batch=1):
     x = tf.reshape(x, -1).numpy()
     y = tf.reshape(y, -1).numpy()
 
-    info = pd.DataFrame(dict(t=t, x=x, y=y, radius=radius[r], intensity=g))
-    info.sort_values("intensity", ascending=False, inplace=True)
-    info.reset_index(drop=True, inplace=True)
-    return info
+    return dict(t=t, x=x, y=y, radius=radius[r], intensity=g)

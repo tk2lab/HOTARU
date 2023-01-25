@@ -6,10 +6,10 @@ from ...io.mask import get_mask
 from ...io.mask import get_mask_range
 from ...util.dataset import masked
 from ...util.dataset import normalized
+from ...util.progress import Progress
 from ..base import command_wrap
 from ..base import configure
 from ..base import readable_file
-from ..progress import Progress
 
 
 @click.command(context_settings=dict(show_default=True))

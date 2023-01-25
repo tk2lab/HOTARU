@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hotaru"
-version = "5.0.0"
+version = "5.0.0-rc0"
 description = "High performance Optimizer to extract spike Timing And cell location from calcium imaging data via lineaR impUlse"
 license = "GPL-3.0-only"
 authors = [
@@ -21,29 +21,35 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
-tifffile = ">=2022.8"
-tensorflow = ">=2.9,<2.10"
+tensorflow = ">=2.7,<2.10 | >=2.11,<2.12"
+
+tifffile = "^2022.8"
+pillow = "^9.3.0"
+av = "^10.0.0"
+
+pandas = "^1.5"
+seaborn = "^0.12.1"
 
 click = "^8.1"
 tqdm = "^4.64"
 
-scipy = "^1.7"
-seaborn = ">=0.12"
-ffmpeg-python = ">=0.2.0"
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.0.0"
+scipy = "^1.9.3"
 
 [tool.poetry.scripts]
 hotaru = "hotaru.__main__:app"
-
-[tool.pytest.ini_options]
-filterwarnings = [
-    "ignore:the imp module is deprecated:DeprecationWarning",
-]
 
 [tool.isort]
 profile = "black"
 
 [tool.black]
 line-length = 79
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:the imp module is deprecated:DeprecationWarning",
+]
 
 [build-system]
 requires = ["poetry>=0.12"]

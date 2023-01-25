@@ -1,16 +1,13 @@
 import click
-import tensorflow as tf
 import numpy as np
-import pandas as pd
 
-from ...evaluate.summary import write_spike_summary
 from ...evaluate.utils import calc_denseness
 from ..base import command_wrap
 from ..base import configure
 from ..base import dynamics_options
-from ..base import penalty_options
-from ..base import optimizer_options
 from ..base import early_stop_options
+from ..base import optimizer_options
+from ..base import penalty_options
 from ..progress import Progress
 
 
@@ -138,8 +135,8 @@ def temporal(
     obj.save_csv(info, **curr, name="info")
     obj.save_numpy(footprint, **curr, name="footprint")
     obj.save_numpy(localx, **curr, name="localx")
-    obj.save_numpy(model.spike.get_val(), **curr, name="spike") 
-    obj.save_numpy(model.localt.get_val(), **curr, name="localt")
+    obj.save_numpy(spike, **curr, name="spike")
+    obj.save_numpy(localt, **curr, name="localt")
 
     log = dict(
         data_tag=data_tag,

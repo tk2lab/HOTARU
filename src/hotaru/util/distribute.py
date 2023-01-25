@@ -2,8 +2,6 @@ from enum import Enum
 
 import tensorflow as tf
 
-from .progress import Progress
-
 
 class ReduceOp(Enum):
     CONCAT = 0
@@ -90,27 +88,3 @@ def distributed(*types):
         return loop_run
 
     return decorator
-
-
-def distributed_matmul(val, dat, batch, trans=False):
-    """"""
-
-    @distributed(ReduceOp.CONCAT)
-    def _matmul_trans(dat, val):
-        return tf.matmul(dat, val, False, True)
-
-    @distributed(ReduceOp.SUM)
-    def _matmul(tdat, val):
-        t, dat = tdat
-        val = tf.gather(val, t, axis=1)
-        return tf.linalg.matmul(val, dat)
-
-    nt = dat.shape[0]
-    if trans:
-        dat = Progress(dat, "mutmul", nt, unit="frame", batch=batch)
-        return tf.transpose(_matmul_trans(dat, val))
-    else:
-        dat = Progress(
-            dat.enumerate(), "mutmul", nt, unit="frame", batch=batch
-        )
-        return _matmul(dat, val)

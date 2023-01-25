@@ -3,7 +3,8 @@ import tensorflow as tf
 
 
 def clipped(data, y0, y1, x0, x1):
-    return data.map(lambda img: img[y0:y1, x0:x1])
+    data = data.map(lambda img: img[y0:y1, x0:x1])
+    data.shape = data.shape[0], y1 - y0, x1 - x0
 
 
 def normalized(data, avgx, avgt, std):

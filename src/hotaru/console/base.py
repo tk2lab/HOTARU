@@ -42,6 +42,7 @@ def command_wrap(command):
             args.update(log)
             args["time"] = time
             obj.save_log(args, tag, stage, kind)
+
     return wrapped_command
 
 
@@ -49,7 +50,7 @@ def wrap_option(prefix, **kwargs):
     wrap = kwargs.setdefault(prefix, {})
     for k in list(kwargs.keys()):
         if k.startswith(f"{prefix}_"):
-            wrap[k[len(prefix)+1:]] = kwargs.pop(k)
+            wrap[k[len(prefix) + 1 :]] = kwargs.pop(k)
     return kwargs
 
 
@@ -73,6 +74,7 @@ def radius_options(command):
         kwargs = wrap_option("radius", **kwargs)
         kwargs["radius"] = get_radius(**kwargs["radius"])
         return command(*args, **kwargs)
+
     return wrapped_command
 
 
@@ -82,6 +84,7 @@ def dynamics_options(command):
     @functools.wraps(command)
     def wrapped_command(*args, **kwargs):
         return command(*args, **wrap_option("dynamics", **kwargs))
+
     return wrapped_command
 
 
@@ -95,6 +98,7 @@ def penalty_options(command):
     @functools.wraps(command)
     def wrapped_command(*args, **kwargs):
         return command(*args, **wrap_option("penalty", **kwargs))
+
     return wrapped_command
 
 
@@ -105,6 +109,7 @@ def optimizer_options(command):
     @functools.wraps(command)
     def wrapped_command(*args, **kwargs):
         return command(*args, **wrap_option("optimizer", **kwargs))
+
     return wrapped_command
 
 
@@ -114,6 +119,7 @@ def early_stop_options(command):
     @functools.wraps(command)
     def wrapped_command(*args, **kwargs):
         return command(*args, **wrap_option("early_stop", **kwargs))
+
     return wrapped_command
 
 
@@ -124,4 +130,5 @@ def threshold_options(command):
     @functools.wraps(command)
     def wrapped_command(*args, **kwargs):
         return command(*args, **wrap_option("threshold", **kwargs))
+
     return wrapped_command

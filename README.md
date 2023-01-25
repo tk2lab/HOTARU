@@ -17,8 +17,8 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ## Install
 
 ### Require
-- python >= 3.7
-- tensorflow >= 2.7
+- python >=3.8,<3.11
+- tensorflow >=2.7,<2.10
 
 ### Install Procedure (using venv)
 - Create venv environment for hotaru

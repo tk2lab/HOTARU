@@ -7,7 +7,6 @@ from .make import make
 from .spatial import spatial
 from .temporal import temporal
 
-
 _kind_choice = click.Choice(["temporal", "spatial"])
 _next_kind = dict(temporal="spatial", spatial="temporal")
 
@@ -31,7 +30,9 @@ def workflow_local(get_config, invoke, tag, end_stage, end_kind, non_stop):
     if prev_tag and (prev_tag != tag):
         prev_kind = get_config("workflow", tag, "prev_kind")
         prev_stage = int(get_config("workflow", tag, "prev_stage"))
-        workflow_local(get_config, invoke, prev_tag, prev_stage, prev_kind, True)
+        workflow_local(
+            get_config, invoke, prev_tag, prev_stage, prev_kind, True
+        )
         click.echo(f"workflow {tag} {end_stage} {end_kind}")
         prev_tag = tag
         if prev_kind == "data":
@@ -42,7 +43,9 @@ def workflow_local(get_config, invoke, tag, end_stage, end_kind, non_stop):
             invoke(make, f"--tag={prev_tag}")
             prev_kind = "spatial"
             prev_stage = 1
-        kind, stage = workflow_step(invoke, tag, prev_tag, prev_kind, prev_stage)
+        kind, stage = workflow_step(
+            invoke, tag, prev_tag, prev_kind, prev_stage
+        )
     else:
         click.echo(f"workflow {tag} {end_stage} {end_kind}")
         prev_tag = tag

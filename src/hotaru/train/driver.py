@@ -19,15 +19,28 @@ class CommonModel(ProxModel):
         loss = LossLayer(*base.data.shape)([xout, cache])
         super().__init__(dummy_inputs, loss, **kwargs)
         self.data = base.data
-        self.spike_to_calcium = base.spike_to_calcium
+        self.spike_to_calcium = base._spike_to_calcium
         self.cache = cache_layer
 
     def compile(self, **kwargs):
         super().compile(loss=IdentityLoss(), **kwargs)
 
-    def fit(self, epochs, **kwargs):
+    def fit(self, **kwargs):
+        batch = kwargs.pop("batch", None)
+        self.prepare(batch)
         data = tf.data.Dataset.from_tensors((dummy_tensor, dummy_tensor))
-        return super().fit(data.repeat(), epochs=epochs, **kwargs)
+        callbacks = kwargs.setdefault("callbacks", [])
+        early_stopping = kwargs.pop("early_stopping", None)
+        if early_stopping is not None:
+            callbacks.append(
+                tf.keras.callbacks.EarlyStopping(**early_stopping)
+            )
+        tensorboard = kwargs.pop("tensorboard", None)
+        if tensorboard is not None:
+            callbacks.append(
+                tf.keras.callbacks.TensorBoard(**tensorboard)
+            )
+        return super().fit(data.repeat(), **kwargs)
 
 
 class SpatialModel(CommonModel):
@@ -51,12 +64,12 @@ class SpatialModel(CommonModel):
         self.footprint = base.footprint
         self.localx = base.localx
 
-    def prepare(self, batch):
+    def prepare(self, batch=None):
         spike = self.get_spike()
         localt = self.get_localt()
         calcium = self.spike_to_calcium(spike)
         val = tf.concat([calcium, localt], axis=0)
-        cor = distributed_matmul(val, self.data, batch, False)
+        cor = distributed_matmul(val, self.data, trans=False, batch=batch)
         self.cache.prepare(val, cor)
         self.footprint.clear(tf.shape(spike)[0])
         self.localx.clear(tf.shape(localt)[0])
@@ -73,7 +86,7 @@ class TemporalModel(CommonModel):
         cache_layer = CacheLayer(nk, nt, bt, bx, name="cache")
         spike = base.spike(dummy_inputs)
         localt = base.localt(dummy_inputs)
-        calcium = base.spike_to_calcium(spike)
+        calcium = base._spike_to_calcium(spike)
         tval = tf.keras.layers.concatenate([calcium, localt], axis=0)
         super().__init__(cache_layer, tval, base, **kwargs)
         self.add_loss(base.footprint._callable_losses)
@@ -84,11 +97,11 @@ class TemporalModel(CommonModel):
         self.spike = base.spike
         self.localt = base.localt
 
-    def prepare(self, batch):
+    def prepare(self, batch=None):
         footprint = self.get_footprint()
         localx = self.get_localx()
         val = tf.concat([footprint, localx], axis=0)
-        cor = distributed_matmul(val, self.data, batch, True)
+        cor = distributed_matmul(val, self.data, trans=True, batch=batch)
         self.cache.prepare(val, cor)
         self.spike.clear(tf.shape(footprint)[0])
         self.localt.clear(tf.shape(localx)[0])

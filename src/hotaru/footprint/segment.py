@@ -11,12 +11,7 @@ def get_segment_mask(gl, y, x, mask):
 
 
 def get_segment_mask_py(img, y0, x0, mask):
-    delta = [
-        (dy, dx)
-        for dy in [-1, 0, 1]
-        for dx in [-1, 0, 1]
-        if (dy, dx) != (0, 0)
-    ]
+    delta = [(dy, dx) for dy in [-1, 0, 1] for dx in [-1, 0, 1] if (dy, dx) != (0, 0)]
     mask = np.pad(mask, [[0, 1], [0, 1]])
     pos = np.zeros_like(mask, bool)
 

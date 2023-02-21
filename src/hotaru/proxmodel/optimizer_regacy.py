@@ -7,11 +7,7 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
     _HAS_AGGREGATE_GRAD = True
 
     def __init__(
-        self,
-        learning_rate=1000.0,
-        nesterov_scale=20.0,
-        reset_interval=100,
-        **kwargs
+        self, learning_rate=1000.0, nesterov_scale=20.0, reset_interval=100, **kwargs
     ):
         name = kwargs.setdefault("name", "Prox")
         super().__init__(**kwargs)
@@ -24,9 +20,7 @@ class ProxOptimizer(tf.keras.optimizers.Optimizer):
             or nesterov_scale > 0.0
         )
 
-    def set(
-        self, learning_rate=None, nesterov_scale=None, reset_interval=None
-    ):
+    def set(self, learning_rate=None, nesterov_scale=None, reset_interval=None):
         if learning_rate:
             self.learning_rate = learning_rate
         if nesterov_scale:

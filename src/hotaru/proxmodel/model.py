@@ -49,7 +49,7 @@ class ProxModel(tf.keras.Model):
         steps = self.optimizer.reset_interval
         callbacks = tf.keras.callbacks.CallbackList(
             kwargs.pop("callbacks", []) + [ProgbarLogger()],
-            #kwargs.pop("callbacks", []),
+            # kwargs.pop("callbacks", []),
             add_history=True,
             add_progbar=False,
             model=self,

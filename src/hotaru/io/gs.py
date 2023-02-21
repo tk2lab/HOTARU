@@ -1,7 +1,9 @@
 import os
 import tempfile
-from urllib.parse import urlparse
-from urllib.parse import urlunparse
+from urllib.parse import (
+    urlparse,
+    urlunparse,
+)
 
 import tensorflow as tf
 

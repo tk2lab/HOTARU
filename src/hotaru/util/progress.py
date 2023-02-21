@@ -19,7 +19,6 @@ class Progress(tqdm):
             self.counter_type = None
 
     def __iter__(self):
-
         if self.disable:
             for obj in self.iterable:
                 yield obj

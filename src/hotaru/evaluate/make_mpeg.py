@@ -1,18 +1,16 @@
 import numpy as np
 import tensorflow as tf
-from tqdm.auto import tqdm
 from matplotlib.font_manager import fontManager
 from matplotlib.pyplot import get_cmap
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
+from PIL import (
+    Image,
+    ImageDraw,
+    ImageFont,
+)
+from tqdm.auto import tqdm
 
 from ..io.mpeg import MpegStream
 from ..io.numpy import load_numpy
-from ..io.pickle import load_pickle
-from ..io.tfrecord import load_tfrecord
-from ..train.dynamics import SpikeToCalcium
-from ..util.dataset import unmasked
 
 
 def make_mpeg(model, outfile, has_truth=False):
@@ -56,7 +54,7 @@ def make_mpeg(model, outfile, has_truth=False):
             val = (val + 3.0) / 10.0
             img2 = np.clip(val, 0.0, 1.0)
             if has_truth:
-                val = (a0 * v0[:, t, None, None]).sum(axis=0),
+                val = ((a0 * v0[:, t, None, None]).sum(axis=0),)
                 img0 = np.clip(val, 0.0, 1.0)
                 img = np.concatenate([imgo, img0, img2], axis=1)
             else:

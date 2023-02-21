@@ -3,8 +3,10 @@ import tensorflow as tf
 
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.util import erosion
-from ..util.distribute import ReduceOp
-from ..util.distribute import distributed
+from ..util.distribute import (
+    ReduceOp,
+    distributed,
+)
 from ..util.progress import Progress
 from .segment import get_segment_mask
 

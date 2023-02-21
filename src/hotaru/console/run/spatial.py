@@ -1,11 +1,13 @@
 import click
 import numpy as np
 
-from ..base import command_wrap
-from ..base import configure
-from ..base import early_stop_options
-from ..base import optimizer_options
-from ..base import penalty_options
+from ..base import (
+    command_wrap,
+    configure,
+    early_stop_options,
+    optimizer_options,
+    penalty_options,
+)
 from ..progress import Progress
 
 

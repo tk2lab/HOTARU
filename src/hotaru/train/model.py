@@ -2,14 +2,15 @@ import numpy as np
 import tensorflow as tf
 
 from .base import HotaruModelBase
-from .driver import SpatialModel
-from .driver import TemporalModel
+from .driver import (
+    SpatialModel,
+    TemporalModel,
+)
 from .input import DynamicL2InputLayer as L2
 from .input import DynamicMaxNormNonNegativeL1InputLayer as ML1
 
 
 class HotaruModel(HotaruModelBase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._spatial_compile_args = {}
@@ -76,7 +77,7 @@ class HotaruModel(HotaruModelBase):
 
     def compile(self):
         if self._compiled:
-            return 
+            return
         self.temporal_model.compile(**self._temporal_compile_args)
         self.spatial_model.compile(**self._spatial_compile_args)
         self._compiled = True
@@ -84,13 +85,9 @@ class HotaruModel(HotaruModelBase):
     def fit_spatial(self):
         self.compile()
         spike = self.spike.val_tensor()
-        self.spike.val = spike / tf.math.reduce_max(
-            spike, axis=1, keepdims=True
-        )
+        self.spike.val = spike / tf.math.reduce_max(spike, axis=1, keepdims=True)
         localt = self.localt.val_tensor()
-        self.localt.val = localt / tf.math.reduce_max(
-            localt, axis=1, keepdims=True
-        )
+        self.localt.val = localt / tf.math.reduce_max(localt, axis=1, keepdims=True)
         self.spatial_model.fit(**self._spatial_fit_args)
 
     def fit_temporal(self):

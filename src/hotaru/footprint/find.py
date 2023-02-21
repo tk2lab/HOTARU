@@ -1,8 +1,10 @@
 import tensorflow as tf
 
 from ..filter.laplace import gaussian_laplace_multi
-from ..util.distribute import ReduceOp
-from ..util.distribute import distributed
+from ..util.distribute import (
+    ReduceOp,
+    distributed,
+)
 from ..util.progress import Progress
 
 

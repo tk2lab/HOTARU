@@ -2,8 +2,10 @@ from collections import namedtuple
 
 import tensorflow as tf
 
-from ..util.distribute import ReduceOp
-from ..util.distribute import distributed
+from ..util.distribute import (
+    ReduceOp,
+    distributed,
+)
 from ..util.progress import Progress
 from .neighbor import neighbor
 
@@ -12,9 +14,7 @@ def calc_mean_std(data, batch, verbose=1):
     disable = verbose < 1
     nt, nx = data.shape
 
-    data = Progress(
-        data, "mean std", nt, unit="frame", batch=batch, disable=disable
-    )
+    data = Progress(data, "mean std", nt, unit="frame", batch=batch, disable=disable)
     avgt, sumx, sq = _mean_std(data)
     avgx = sumx / nt
     avg0 = tf.math.reduce_mean(avgt)
@@ -31,9 +31,7 @@ def calc_max(data, batch, verbose=1):
     disable = verbose < 1
     nt = data.shape[0]
 
-    data = Progress(
-        data, "max", nt, unit="frame", batch=batch, disable=disable
-    )
+    data = Progress(data, "max", nt, unit="frame", batch=batch, disable=disable)
     imax = _max(data)
     return imax.numpy()
 
@@ -42,9 +40,7 @@ def calc_std(data, batch, verbose=1):
     disable = verbose < 1
     nt = data.shape[0]
 
-    data = Progress(
-        data, "std", nt, unit="frame", batch=batch, disable=disable
-    )
+    data = Progress(data, "std", nt, unit="frame", batch=batch, disable=disable)
     s, n = _std(data)
     std = tf.math.sqrt(s / n)
     return std.numpy()
@@ -54,9 +50,7 @@ def calc_cor(imgs, batch, verbose=1):
     disable = verbose < 1
     nt = data.shape[0]
 
-    data = Progress(
-        data, "cor", nt, unit="frame", batch=batch, disable=disable
-    )
+    data = Progress(data, "cor", nt, unit="frame", batch=batch, disable=disable)
     sx1, sy1, sx2, sxy, sy2, ntf = _cor(imgs)
     avg_x = sx1 / ntf
     avg_y = sy1 / ntf

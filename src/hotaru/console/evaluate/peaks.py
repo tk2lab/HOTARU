@@ -1,8 +1,10 @@
 import click
 import matplotlib.pyplot as plt
 
-from ...evaluate.peaks import plot_circle
-from ...evaluate.peaks import plot_radius
+from ...evaluate.peaks import (
+    plot_circle,
+    plot_radius,
+)
 from ..base import configure
 
 

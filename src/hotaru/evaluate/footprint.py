@@ -1,10 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.ndimage import binary_closing
-from scipy.ndimage import binary_dilation
+from scipy.ndimage import (
+    binary_closing,
+    binary_dilation,
+)
 from scipy.ndimage import gaussian_filter as gaussian
-from scipy.ndimage import generate_binary_structure
-from scipy.ndimage import label
+from scipy.ndimage import (
+    generate_binary_structure,
+    label,
+)
 
 
 def plot_maximum(a, b=None, mask=None, vmin=0.0, vmax=1.0, ax=None):

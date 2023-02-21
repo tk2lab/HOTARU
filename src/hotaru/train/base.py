@@ -1,17 +1,20 @@
-from collections import namedtuple
 import math
+from collections import namedtuple
 
-import numpy as np
 import tensorflow as tf
 
 from ..filter.stats import calc_mean_std
 from ..io.image import ImageStack
 from ..io.mask import get_mask
-from ..util.dataset import masked
-from ..util.dataset import normalized
-from ..util.dataset import normalized_masked_image
-from .dynamics import CalciumToSpike
-from .dynamics import SpikeToCalcium
+from ..util.dataset import (
+    masked,
+    normalized,
+    normalized_masked_image,
+)
+from .dynamics import (
+    CalciumToSpike,
+    SpikeToCalcium,
+)
 
 Penalty = namedtuple("Penalty", ["la", "lu", "lx", "lt", "bx", "bt"])
 
@@ -87,6 +90,8 @@ class HotaruModelBase(tf.keras.layers.Layer):
     def imgs(self):
         if not hasattr(self, "_imgs"):
             self._imgs = normalized_masked_image(
-                self.raw_imgs, self.mask, *self.stats,
+                self.raw_imgs,
+                self.mask,
+                *self.stats,
             )
         return self._imgs

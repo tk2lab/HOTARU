@@ -2,14 +2,20 @@ import click
 
 from ...filter.stats import calc_stats
 from ...io.image import load_data
-from ...io.mask import get_mask
-from ...io.mask import get_mask_range
-from ...util.dataset import masked
-from ...util.dataset import normalized
+from ...io.mask import (
+    get_mask,
+    get_mask_range,
+)
+from ...util.dataset import (
+    masked,
+    normalized,
+)
 from ...util.progress import Progress
-from ..base import command_wrap
-from ..base import configure
-from ..base import readable_file
+from ..base import (
+    command_wrap,
+    configure,
+    readable_file,
+)
 
 
 @click.command(context_settings=dict(show_default=True))

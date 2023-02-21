@@ -2,9 +2,11 @@ import click
 
 from ...footprint.find import find_peak
 from ...util.progress import Progress
-from ..base import command_wrap
-from ..base import configure
-from ..base import radius_options
+from ..base import (
+    command_wrap,
+    configure,
+    radius_options,
+)
 
 
 @click.command(context_settings=dict(show_default=True))

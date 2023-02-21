@@ -19,9 +19,13 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
 ]
 
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
-tensorflow = ">=2.7,<2.10 | >=2.11,<2.12"
+tensorflow = ">=2.7,<2.12"
 
 tifffile = "^2022.8"
 pillow = "^9.3.0"
@@ -32,25 +36,79 @@ seaborn = "^0.12.1"
 
 click = "^8.1"
 tqdm = "^4.64"
-
-[tool.poetry.group.dev.dependencies]
-jupyter = "^1.0.0"
-scipy = "^1.9.3"
+scipy = "^1.10.0"
+plotly = "^5.13.0"
+dash = "^2.8.1"
 
 [tool.poetry.scripts]
 hotaru = "hotaru.__main__:app"
 
 [tool.isort]
 profile = "black"
+multi_line_output = 3
+force_grid_wrap = 2
 
-[tool.black]
-line-length = 79
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "ignore:the imp module is deprecated:DeprecationWarning",
+    #"ignore:the imp module is deprecated:DeprecationWarning",
 ]
 
-[build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+min_version = 4.0
+envlist =
+    lint
+    py310-tf211
+isolated_build = True
+
+[gh-actions]
+python =
+    3.8: py38-tf27, py38-tf211
+    3.9: py39-tf27
+    3.10: py310-tf29, py310-tf211
+
+[testenv:lint]
+skip_install = True
+deps =
+    isort
+    black
+    flake8
+    pyproject-flake8
+commands =
+    isort src
+    black src
+    pflake8 src
+
+[testenv:app]
+basepython = python3.10
+commands =
+    {envpython} -m hotaru.webapp
+
+[testenv:notebook]
+basepython = python3.11
+deps =
+    jax[cuda]
+    jupyterlab
+    jupyterlab_nvdashboard
+install_command =
+    pip install --upgrade -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html {opts} {packages}
+commands =
+    jupyter lab --no-browser
+
+[testenv:py{38,39,310}-tf{27,28,29,210,211}]
+deps =
+    tf27: tensorflow >=2.7,<2.8
+    tf28: tensorflow >=2.8,<2.9
+    tf29: tensorflow >=2.9,<2.10
+    tf210: tensorflow >=2.10,<2.11
+    tf211: tensorflow >=2.11,<2.12
+changedir = sample
+commands =
+    python work.py
+    #{envpython} -m pytest tests/test_tensorflow.py {posargs}
+"""

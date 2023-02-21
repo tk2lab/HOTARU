@@ -3,8 +3,10 @@ import tensorflow as tf
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.util import erosion
 from ..util.dataset import unmasked
-from ..util.distribute import ReduceOp
-from ..util.distribute import distributed
+from ..util.distribute import (
+    ReduceOp,
+    distributed,
+)
 from ..util.progress import Progress
 from .segment import get_segment_mask
 
@@ -84,13 +86,13 @@ def clean_segment(data, mask, radius, batch):
     radius_list = tf.convert_to_tensor(radius, tf.float32)
 
     data_ds = tf.data.Dataset.from_tensor_slices(data)
-    #data_ds = Progress(data_ds, "scale", nk, unit="cell", batch=batch)
+    # data_ds = Progress(data_ds, "scale", nk, unit="cell", batch=batch)
     data, scale1 = _scale(data_ds)
 
     data_ds = tf.data.Dataset.from_tensor_slices(data)
     data_ds.shape = nk, h, w
     imgs_ds = unmasked(data_ds, mask)
-    #imgs_ds = Progress(imgs_ds, "filter", nk, unit="cell", batch=batch)
+    # imgs_ds = Progress(imgs_ds, "filter", nk, unit="cell", batch=batch)
     logs, y, x, radius, firmness = _filter(imgs_ds, radius_list)
 
     logs_ds = tf.data.Dataset.from_tensor_slices((data, logs, y, x))

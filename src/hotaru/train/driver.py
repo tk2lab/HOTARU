@@ -1,12 +1,16 @@
 import tensorflow as tf
 
 from ..proxmodel import ProxModel
-from .input import dummy_inputs
-from .input import dummy_tensor
-from .loss import CacheLayer
-from .loss import IdentityLoss
-from .loss import LossLayer
-from .loss import OutputLayer
+from .input import (
+    dummy_inputs,
+    dummy_tensor,
+)
+from .loss import (
+    CacheLayer,
+    IdentityLoss,
+    LossLayer,
+    OutputLayer,
+)
 from .matmul import distributed_matmul
 
 
@@ -32,14 +36,10 @@ class CommonModel(ProxModel):
         callbacks = kwargs.setdefault("callbacks", [])
         early_stopping = kwargs.pop("early_stopping", None)
         if early_stopping is not None:
-            callbacks.append(
-                tf.keras.callbacks.EarlyStopping(**early_stopping)
-            )
+            callbacks.append(tf.keras.callbacks.EarlyStopping(**early_stopping))
         tensorboard = kwargs.pop("tensorboard", None)
         if tensorboard is not None:
-            callbacks.append(
-                tf.keras.callbacks.TensorBoard(**tensorboard)
-            )
+            callbacks.append(tf.keras.callbacks.TensorBoard(**tensorboard))
         return super().fit(data.repeat(), **kwargs)
 
 

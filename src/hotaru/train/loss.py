@@ -27,15 +27,9 @@ class CacheLayer(tf.keras.layers.Layer):
     def __init__(self, nk, nx, bx, by, **kwargs):
         super().__init__(**kwargs)
         self._nk = self.add_weight("nk", (), tf.int32, trainable=False)
-        self._dat = self.add_weight(
-            "dat", (nk, nx), tf.float32, trainable=False
-        )
-        self._cov = self.add_weight(
-            "cov", (nk, nk), tf.float32, trainable=False
-        )
-        self._out = self.add_weight(
-            "out", (nk, nk), tf.float32, trainable=False
-        )
+        self._dat = self.add_weight("dat", (nk, nx), tf.float32, trainable=False)
+        self._cov = self.add_weight("cov", (nk, nk), tf.float32, trainable=False)
+        self._out = self.add_weight("out", (nk, nk), tf.float32, trainable=False)
         self._bx = bx
         self._by = by
 

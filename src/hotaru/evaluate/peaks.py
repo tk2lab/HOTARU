@@ -2,11 +2,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib import cm
-from matplotlib.ticker import NullFormatter
-from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import (
+    NullFormatter,
+    ScalarFormatter,
+)
 
 
-def plot_circle(model=None, df=None, h=None, w=None, scale=1.0, g=None, ax=None, figwidth=5.0, **args):
+def plot_circle(
+    model=None,
+    df=None,
+    h=None,
+    w=None,
+    scale=1.0,
+    g=None,
+    ax=None,
+    figwidth=5.0,
+    **args
+):
     if df is None:
         df = model.info
 
@@ -45,7 +57,9 @@ def plot_circle(model=None, df=None, h=None, w=None, scale=1.0, g=None, ax=None,
     ax.set_ylim(h, 0)
 
 
-def plot_radius(model=None, df=None, g=None, radius=None, xlabel=True, ylabel=True, ax=None, **args):
+def plot_radius(
+    model=None, df=None, g=None, radius=None, xlabel=True, ylabel=True, ax=None, **args
+):
     args.setdefault("s", 10)
     args.setdefault("edgecolor", "none")
     args.setdefault("rasterized", True)
@@ -71,13 +85,10 @@ def plot_radius(model=None, df=None, g=None, radius=None, xlabel=True, ylabel=Tr
     logr = np.log(radius)
     diff = logr[1] - logr[0]
     rlist = (
-        [rmin]
-        + list(2 ** np.arange(np.log2(rmin), 1.1 * np.log2(rmax), 1.0))
-        + [rmax]
+        [rmin] + list(2 ** np.arange(np.log2(rmin), 1.1 * np.log2(rmax), 1.0)) + [rmax]
     )
     df["rj"] = np.exp(
-        np.log(df.radius)
-        + 0.8 * diff * (np.random.random(df.radius.size) - 0.5)
+        np.log(df.radius) + 0.8 * diff * (np.random.random(df.radius.size) - 0.5)
     )
 
     if "kind" in df:

@@ -37,9 +37,7 @@ def distributed(*types):
 
             def serialize(x, t):
                 if t == ReduceOp.SUM:
-                    return strategy.reduce(
-                        tf.distribute.ReduceOp.SUM, x, axis=None
-                    )
+                    return strategy.reduce(tf.distribute.ReduceOp.SUM, x, axis=None)
                 elif t == ReduceOp.MIN:
                     return strategy.experimental_local_results(x)
                 elif t == ReduceOp.MAX:

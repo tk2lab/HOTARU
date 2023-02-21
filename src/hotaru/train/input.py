@@ -1,8 +1,10 @@
 import tensorflow as tf
 
-from ..proxmodel import L2
-from ..proxmodel import MaxNormNonNegativeL1
-from ..proxmodel import NonNegativeL1
+from ..proxmodel import (
+    L2,
+    MaxNormNonNegativeL1,
+    NonNegativeL1,
+)
 
 dummy_tensor = tf.zeros((1,), tf.float32, name="dummy")
 dummy_inputs = tf.keras.Input(tensor=dummy_tensor)
@@ -65,10 +67,12 @@ class DynamicInputLayer(tf.keras.layers.Layer):
 
     def get_config(self):
         config = super().get_config()
-        config.update(dict(
-            nk=self._val.shape[0],
-            nx=self._val.shape[1],
-        ))
+        config.update(
+            dict(
+                nk=self._val.shape[0],
+                nx=self._val.shape[1],
+            )
+        )
         return config
 
 
@@ -81,9 +85,11 @@ class DynamicL2InputLayer(DynamicInputLayer):
 
     def get_config(self):
         config = super().get_config()
-        config.update(dict(
-            l=self._regularizer.l.numpy(),
-        ))
+        config.update(
+            dict(
+                l=self._regularizer.l.numpy(),
+            )
+        )
         return config
 
 
@@ -96,10 +102,13 @@ class DynamicNonNegativeL1InputLayer(DynamicInputLayer):
 
     def get_config(self):
         config = super().get_config()
-        config.update(dict(
-            l=self._regularizer.l.numpy(),
-        ))
+        config.update(
+            dict(
+                l=self._regularizer.l.numpy(),
+            )
+        )
         return config
+
 
 class DynamicMaxNormNonNegativeL1InputLayer(DynamicInputLayer):
     """"""
@@ -110,8 +119,10 @@ class DynamicMaxNormNonNegativeL1InputLayer(DynamicInputLayer):
 
     def get_config(self):
         config = super().get_config()
-        config.update(dict(
-            l=self._regularizer.l.numpy(),
-            axis=self._regularizer.axis,
-        ))
+        config.update(
+            dict(
+                l=self._regularizer.l.numpy(),
+                axis=self._regularizer.axis,
+            )
+        )
         return config

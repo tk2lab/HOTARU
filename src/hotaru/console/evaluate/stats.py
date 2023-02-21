@@ -5,8 +5,10 @@ from ...filter.cor import calc_cor
 from ...filter.max import calc_max
 from ...filter.std import calc_std
 from ...io.image import load_data
-from ..base import configure
-from ..base import readable_file
+from ..base import (
+    configure,
+    readable_file,
+)
 
 
 @click.command(context_settings=dict(show_default=True))

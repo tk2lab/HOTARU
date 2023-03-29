@@ -18,12 +18,13 @@ def calc_mean_std(data, batch, verbose=1):
     avgt, sumx, sq = _mean_std(data)
     avgx = sumx / nt
     avg0 = tf.math.reduce_mean(avgt)
+    avgt -= avg0
     avgx -= avg0
     var = sq / nt / nx - tf.math.reduce_mean(tf.math.square(avgx))
     std = tf.math.sqrt(var)
 
-    Stats = namedtuple("Stats", ["avgx", "avgt", "std"])
-    stats = (o.numpy() for o in (avgx, avgt, std))
+    Stats = namedtuple("Stats", ["avg0", "avgx", "avgt", "std"])
+    stats = (o.numpy() for o in (avg0, avgx, avgt, std))
     return Stats(*stats)
 
 

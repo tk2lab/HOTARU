@@ -22,7 +22,7 @@ Penalty = namedtuple("Penalty", ["la", "lu", "lx", "lt", "bx", "bt"])
 class HotaruModelBase(tf.keras.layers.Layer):
     """Variable"""
 
-    def __init__(self, imgs, mask, hz, tauduration, taursize=3, name="Hotaru"):
+    def __init__(self, imgs, mask, hz, tauduration=1.0, taursize=3, name="Hotaru"):
         super().__init__(name=name)
 
         tausize = int(math.ceil(tauduration * hz))

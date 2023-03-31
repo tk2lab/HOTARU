@@ -1,10 +1,15 @@
+import jax.numpy as jnp
+
 from hotaru.jax.io.image import load_imgs
-from hotaru.jax.filter.stats import calc_stats
-from hotaru.jax.filter.laplace import gaussian_laplace_multi
+from hotaru.jax.filter.stats import calc_stats, Stats
+from hotaru.jax.filter.laplace import gen_gaussian_laplace
 
+radius = 3.0, 4.0, 5.0
 
-data = load_imgs("Data1/imgs.tif")
-avgt, avgx, std0, maxi, stdi, cori = (o.block_until_ready() for o in calc_stats(data))
+data = load_imgs("Data3/imgs.tif")
+stats, maxi, stdi, cori = calc_stats(data)
+stats.save("Data3/stats.npz")
+stats = Stats.load("Data3/stats.npz")
 
-out = gaussian_laplace_multi(data, [3.0, 4.0, 5.0], avgt, avgx)
-print(out)
+for out in gen_gaussian_laplace(data, radius, stats):
+    pass

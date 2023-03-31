@@ -1,3 +1,5 @@
+from functools import partial
+
 import tqdm
 import numpy as np
 import jax
@@ -11,10 +13,10 @@ from ..io.mask import mask_range
 global_buffer = 2 ** 30
 
 
+@partial(jax.jit, static_argnames=["nd"])
 def gaussian_laplace(imgs, r, nd):
     sqrt_2pi = jnp.sqrt(2 * jnp.pi)
-    mr = jnp.ceil(r).astype(jnp.int32)
-    d = jnp.square(jnp.arange(-nd, nd + 1, dtype=jnp.float32))
+    d = jnp.square(jnp.arange(-nd, nd + 1, 1))
     r2 = jnp.square(r)
     o0 = jnp.exp(-d / r2 / 2) / r / sqrt_2pi
     o2 = (1 - d / r2) * o0
@@ -25,43 +27,53 @@ def gaussian_laplace(imgs, r, nd):
     return (gl1 + gl2)[..., 0, :, :]
 
 
-def gaussian_laplace_multi(imgs, radius, avgt=None, avgx=None, mask=None, nd=None, buffer=None):
-    nt, h0, w0 = imgs.shape
+def gaussian_laplace_multi(imgs, rs):
+    return jnp.stack(
+        [gaussian_laplace(imgs, r, 4 * np.ceil(r)) for r in rs],
+        axis=-1,
+    )
+
+
+def gen_gaussian_laplace(imgs, radius, stats=None, opt_fn=None, buffer=None, num_devices=None):
+    if stats is None:
+        nt, h, w = imgs.shape
+        x0, y0 = 0, 0
+        mask = np.ones((h, w), bool)
+        avgx = jnp.zeros((h, w))
+        avgt = jnp.zeros(nt)
+        std0 = jnp.ones(())
+    else:
+        nt, x0, y0, mask, avgx, avgt, std0 = stats
+        h, w = mask.shape
+
+    imgs = imgs[:, y0:y0+h, x0:x0+w]
     nr = len(radius)
 
-    if mask is None:
-        mask = np.ones((h0, w0), bool)
-    x0, y0, w, h = mask_range(mask)
-    imgs = imgs[:, y0:y0+h, x0:x0+w]
-    mask = mask[y0:y0+h, x0:x0+w]
-
-    if avgt is None:
-        avgt = jnp.zeros(nt)
-    if avgx is None:
-        avgx = jnp.zeros((h, w))
-    jmask = jnp.asarray(mask, bool)
-
-    if nd is None:
-        nd = jax.local_device_count()
+    if num_devices is None:
+        num_devices = jax.local_device_count()
     if buffer is None:
         buffer = global_buffer
-    size = 4 * nd * h * w
+    size = 4 * 4 * nr * h * w
     batch = (buffer + size - 1) // size
 
-    calc = jax.pmap(gaussian_laplace, static_broadcasted_argnums=[1, 2])
+    def calc(imgs, avgt):
+        imgs = (imgs - avgx - avgt) / std0
+        return gaussian_laplace_multi(imgs, radius)
 
-    out = jnp.empty((nt, nr, h, w))
+    def pmap_calc(imgs, avgt):
+        imgs = imgs.reshape(num_devices, batch, h, w)
+        avgt = avgt.reshape(num_devices, batch, 1, 1)
+        out = jax.pmap(calc)(imgs, avgt)
+        return jnp.concatenate(out, axis=0)
+
     with tqdm.tqdm(total=nt) as pbar:
         while pbar.n < nt:
             start = pbar.n
-            end = min(nt, start + nd * batch)
+            end = min(nt, start + num_devices * batch)
+            batch = end - start
             if end == nt:
-                nd = 1
-                batch = end - start
+                num_devices = 1
             clip = jnp.asarray(imgs[start:end], jnp.float32)
-            clip = (clip - avgx - avgt[start:end, None, None]).reshape(nd, batch, h, w)
-            for i, r in enumerate(radius):
-                tmp = jnp.concatenate(calc(clip, r, 4 * np.ceil(r)), axis=0)
-                out = out.at[start:end, i, ...].set(tmp)
+            clipt = avgt[start:end]
+            yield start, pmap_calc(clip, clipt).at[:, mask, :].set(0)
             pbar.update(end - start)
-    return out

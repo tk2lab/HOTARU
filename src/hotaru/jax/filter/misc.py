@@ -1,10 +1,8 @@
 import jax.lax as lax
 import jax.numpy as jnp
-from flax.linen import max_pool
 
 
 __all__ = [
-    "max_pool",
     "neighbor",
 ]
 

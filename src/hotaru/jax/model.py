@@ -41,8 +41,7 @@ class Model:
 
     @property
     def shape(self):
-        nt, x0, y0, mask, avgx, avgt, std0, min0, max0 = self.stats
-        return nt, *mask.shape
+        return self.imgs.shape[0], *self.mask.shape
 
     @property
     def min(self):

@@ -57,9 +57,9 @@ def get_ui(cfg):
                 dbc.Progress(id="load-progress"),
             ], style=dict(width="1200px", display="grid", gridTemplateColumns="auto 1fr")),
             html.Div([
-                dcc.Graph(id="maxImage"),
                 dcc.Graph(id="stdImage"),
                 dcc.Graph(id="corImage"),
+                dcc.Graph(id="std-cor"),
             ], id="stats", style=dict(display="none")),
         ], id="stats-collapse"),
     ])

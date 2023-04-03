@@ -28,7 +28,6 @@ build-backend = "poetry.core.masonry.api"
 python = ">=3.8,<3.12"
 tensorflow = { version = ">=2.7,<2.13", optional = true }
 jax = { extras = ["cuda11-cudnn86"], version = "^0.4.7", optional = true }
-flax = { version = "^0.6.8", optional = true }
 
 tifffile = "^2022.8"
 pillow = "^9.3.0"
@@ -47,7 +46,7 @@ dash-bootstrap-components = "^1.4.1"
 
 [tool.poetry.extras]
 tensorflow = ["tensorflow"]
-jax = ["jax", "flax"]
+jax = ["jax"]
 
 [tool.poetry.scripts]
 hotaru = "hotaru.__main__:app"

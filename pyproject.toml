@@ -24,16 +24,11 @@ classifiers = [
 requires = ["poetry-core>=1.2.0"]
 build-backend = "poetry.core.masonry.api"
 
-[[tool.poetry.source]]
-name = "jax"
-url = "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
-default = false
-secondary = true
-
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"
 tensorflow = { version = ">=2.7,<2.13", optional = true }
 jax = { extras = ["cuda11-cudnn86"], version = "^0.4.7", optional = true }
+flax = { version = "^0.6.8", optional = true }
 
 tifffile = "^2022.8"
 pillow = "^9.3.0"
@@ -47,17 +42,25 @@ hydra-core = "^1.3"
 tqdm = "^4.64"
 plotly = "^5.13.0"
 dash = "^2.8.1"
+setuptools = "^67.6.1"
+dash-bootstrap-components = "^1.4.1"
+
+[tool.poetry.extras]
+tensorflow = ["tensorflow"]
+jax = ["jax", "flax"]
+
+[tool.poetry.scripts]
+hotaru = "hotaru.__main__:app"
 
 [tool.poetry.group.dev.dependencies]
 jupyterlab = "^3.6"
 jupyterlab_nvdashboard = "^0.7"
 
-[tool.poetry.extras]
-tensorflow = ["tensorflow"]
-jax = ["jax"]
-
-[tool.poetry.scripts]
-hotaru = "hotaru.__main__:app"
+[[tool.poetry.source]]
+name = "jax"
+url = "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
+default = false
+secondary = true
 
 [tool.isort]
 profile = "black"

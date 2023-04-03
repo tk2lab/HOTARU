@@ -1,6 +1,5 @@
 from collections import namedtuple
 
-import tqdm
 import numpy as np
 import jax
 import jax.lax as lax
@@ -8,29 +7,28 @@ import jax.numpy as jnp
 import jax.scipy as jsp
 
 from ..io.mask import mask_range
+from ..utils.saver import SaverMixin
+from .misc import neighbor
 
 
 global_buffer = 2 ** 30
 
 
-def neighbor(imgs):
-    kernel = jnp.array([[[[1, 1, 1], [1, 0, 1], [1, 1, 1]]]], jnp.float32) / 8
-    return lax.conv(imgs[..., None, :, :], kernel, (1, 1), "same")[..., 0, :, :]
+class Stats(
+    namedtuple("Stats", ["nt", "x0", "y0", "mask", "avgx", "avgt", "std", "min", "max"]),
+    SaverMixin,
+):
+    pass
 
 
-class Stats(namedtuple("Stats", ["nt", "x0", "y0", "mask", "avgx", "avgt", "std0"])):
-
-    def save(self, path):
-        jnp.savez(path, **self._asdict())
-
-    @classmethod
-    def load(cls, path):
-        with jnp.load(path) as npz:
-            stats = cls(*[npz[n] for n in cls._fields])
-        return stats
+class ImageStats(
+    namedtuple("ImageStats", ["max", "std", "cor"]),
+    SaverMixin,
+):
+    pass
 
 
-def calc_stats(imgs, mask=None, buffer=None, num_devices=None):
+def calc_stats(imgs, mask=None, buffer=None, num_devices=None, pbar=None):
     nt, h0, w0 = imgs.shape
     if mask is None:
         mask = np.ones((h0, w0), bool)
@@ -55,20 +53,22 @@ def calc_stats(imgs, mask=None, buffer=None, num_devices=None):
         sqi = jnp.square(diff).sum(axis=-3)
         sqn = jnp.square(neig).sum(axis=-3)
         cor = (diff * neig).sum(axis=-3)
+        mini = diff.min(axis=-3)
         maxi = diff.max(axis=-3)
-        return avgt, sumi, sumn, sqi, sqn, cor, maxi
+        return avgt, sumi, sumn, sqi, sqn, cor, mini, maxi
 
     def pmap_calc(imgs):
         imgs = imgs.reshape(num_devices, batch, h, w)
-        avgt, sumi, sumn, sqi, sqn, cor, maxi = jax.pmap(calc)(imgs)
+        avgt, sumi, sumn, sqi, sqn, cor, mini, maxi = jax.pmap(calc)(imgs)
         avgt = jnp.concatenate(avgt, axis=0)
         sumi = sumi.sum(axis=0)
         sumn = sumn.sum(axis=0)
         sqi = sqi.sum(axis=0)
         sqn = sqn.sum(axis=0)
         cor = cor.sum(axis=0)
+        mini = mini.min(axis=0)
         maxi = maxi.max(axis=0)
-        return avgt, sumi, sumn, sqi, sqn, cor, maxi
+        return avgt, sumi, sumn, sqi, sqn, cor, mini, maxi
 
     avgt = jnp.zeros((nt,))
     sumi = jnp.zeros((h, w))
@@ -76,24 +76,27 @@ def calc_stats(imgs, mask=None, buffer=None, num_devices=None):
     sqi = jnp.zeros((h, w))
     sqn = jnp.zeros((h, w))
     cor = jnp.zeros((h, w))
+    mini = jnp.full((h, w), np.inf)
     maxi = jnp.full((h, w), -np.inf)
 
-    with tqdm.tqdm(total=nt) as pbar:
-        while pbar.n < nt:
-            start = pbar.n
-            end = min(nt, start + num_devices * batch)
-            batch = end - start
-            if end == nt:
-                num_devices = 1
-            clip = jnp.asarray(imgs[start:end], jnp.float32)
-            _avgt, _sumi, _sumn, _sqi, _sqn, _cor, _maxi = pmap_calc(clip)
-            avgt = avgt.at[start:end].set(_avgt)
-            sumi += _sumi
-            sumn += _sumn
-            sqi += _sqi
-            sqn += _sqn
-            cor += _cor
-            maxi = jnp.maximum(maxi, _maxi)
+    end = 0
+    while end < nt:
+        start = end
+        end = min(nt, start + num_devices * batch)
+        batch = end - start
+        if end == nt:
+            num_devices = 1
+        clip = jnp.asarray(imgs[start:end], jnp.float32)
+        _avgt, _sumi, _sumn, _sqi, _sqn, _cor, _mini, _maxi = pmap_calc(clip)
+        avgt = avgt.at[start:end].set(_avgt)
+        sumi += _sumi
+        sumn += _sumn
+        sqi += _sqi
+        sqn += _sqn
+        cor += _cor
+        mini = jnp.minimum(mini, _mini)
+        maxi = jnp.maximum(maxi, _maxi)
+        if pbar is not None:
             pbar.update(end - start)
 
     avgx = sumi / nt
@@ -103,12 +106,16 @@ def calc_stats(imgs, mask=None, buffer=None, num_devices=None):
     stdn = jnp.sqrt(sqn / nt - jnp.square(avgn))
     std0 = jnp.sqrt(varx[mask].mean())
 
+    mini = (mini - avgx) / std0
     maxi = (maxi - avgx) / std0
     stdi = stdx / std0
     cori = (cor / nt - avgx * avgn) / (stdx * stdn)
 
+    mini.at[~mask].set(0)
     maxi.at[~mask].set(0)
     stdi.at[~mask].set(0)
     cori.at[~mask].set(0)
 
-    return Stats(nt, x0, y0, mask, avgx, avgt, std0), maxi, stdi, cori
+    stats = Stats(nt, x0, y0, mask, avgx, avgt, std0, mini.min(), maxi.max())
+    istats = ImageStats(maxi, stdi, cori)
+    return stats, istats

@@ -40,8 +40,12 @@ class Model:
         self.istats = istats
 
     @property
+    def nt(self):
+        return self.imgs.shape[0]
+
+    @property
     def shape(self):
-        return self.imgs.shape[0], *self.mask.shape
+        return self.mask.shape
 
     @property
     def min(self):

@@ -1,9 +1,9 @@
 from functools import partial
 
-import numpy as np
 import jax
 import jax.lax as lax
 import jax.numpy as jnp
+import numpy as np
 
 
 def gaussian(imgs, r):

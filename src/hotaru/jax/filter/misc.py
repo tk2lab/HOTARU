@@ -1,7 +1,6 @@
 import jax.lax as lax
 import jax.numpy as jnp
 
-
 __all__ = [
     "neighbor",
 ]

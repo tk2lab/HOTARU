@@ -1,15 +1,16 @@
-import tqdm
-import numpy as np
 import jax
 import jax.lax as lax
 import jax.numpy as jnp
 import jax.scipy as jsp
+import numpy as np
+import tqdm
+
+global_buffer = 2**30
 
 
-global_buffer = 2 ** 30
-
-
-def apply_to_normalized(apply, finish, imgs, stats=None, batch=100, num_devices=None, pbar=None):
+def apply_to_normalized(
+    apply, finish, imgs, stats=None, batch=100, num_devices=None, pbar=None
+):
     if num_devices is None:
         num_devices = jax.local_device_count()
 
@@ -24,7 +25,7 @@ def apply_to_normalized(apply, finish, imgs, stats=None, batch=100, num_devices=
         nt, x0, y0, mask, avgx, avgt, std0, min0, max0 = stats
         h, w = mask.shape
 
-    imgs = imgs[:, y0:y0+h, x0:x0+w]
+    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
 
     def calc(imgs, avgt):
         return apply((imgs - avgx - avgt) / std0, mask)

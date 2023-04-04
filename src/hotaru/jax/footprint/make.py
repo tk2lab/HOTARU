@@ -1,19 +1,20 @@
 from collections import namedtuple
 
-import numpy as np
 import jax
 import jax.numpy as jnp
+import numpy as np
 
-from ..filter.normalized import apply_to_normalized
 from ..filter.laplace import gaussian_laplace_multi
+from ..filter.normalized import apply_to_normalized
 from ..utils.saver import SaverMixin
 from .segment import get_segment_mask
 
+global_buffer = 2**30
 
-global_buffer = 2 ** 30
 
-
-def make_segment_batch(imgs, ts, rs, ys, xs, stats=None, buffer=None, num_devices=None, pbar=None):
+def make_segment_batch(
+    imgs, ts, rs, ys, xs, stats=None, buffer=None, num_devices=None, pbar=None
+):
     if num_devices is None:
         num_devices = jax.local_device_count()
     if buffer is None:

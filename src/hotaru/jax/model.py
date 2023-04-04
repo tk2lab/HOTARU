@@ -1,21 +1,34 @@
 import pathlib
 from functools import cached_property
 
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
-import jax.numpy as jnp
 
-from .filter.stats import calc_stats, Stats, ImageStats
-from .filter.laplace import gaussian_laplace, gaussian_laplace_multi
+from .filter.laplace import (
+    gaussian_laplace,
+    gaussian_laplace_multi,
+)
+from .filter.stats import (
+    ImageStats,
+    Stats,
+    calc_stats,
+)
+from .footprint.find import (
+    PeakVal,
+    find_peak,
+    find_peak_batch,
+)
+from .footprint.make import make_segment_batch
+from .footprint.reduce import (
+    reduce_peak,
+    reduce_peak_block,
+)
 from .io.image import load_imgs
 from .io.mask import get_mask
-from .footprint.find import find_peak, find_peak_batch, PeakVal
-from .footprint.reduce import reduce_peak, reduce_peak_block
-from .footprint.make import make_segment_batch
 
 
 class Model:
-
     def load_imgs(self, path, mask, hz):
         path = pathlib.Path(path)
         self.imgs = load_imgs(path)
@@ -66,7 +79,9 @@ class Model:
             self.radius = np.power(2, np.linspace(np.log2(rmin), np.log2(rmax), rnum))
         elif rtype == "lin":
             self.radius = np.linspace(rmin, rmax, rnum)
-        self.peakval_path = self.stats_path.with_stem(f"{self.stats_path.stem}_{rmin}_{rmax}_{rnum}_{rtype}").with_suffix(".npz")
+        self.peakval_path = self.stats_path.with_stem(
+            f"{self.stats_path.stem}_{rmin}_{rmax}_{rnum}_{rtype}"
+        ).with_suffix(".npz")
         if self.peakval_path.exists():
             self.peakval = PeakVal.load(self.peakval_path)
             return True
@@ -78,7 +93,9 @@ class Model:
         self.peakval.save(self.peakval_path)
 
     def calc_peaks(self, rmin, rmax, thr, block_size):
-        self.peak_path = self.peakval_path.with_stem(f"{self.peakval_path.stem}_{rmin}_{rmax}_{thr}").with_suffix(".csv")
+        self.peak_path = self.peakval_path.with_stem(
+            f"{self.peakval_path.stem}_{rmin}_{rmax}_{thr}"
+        ).with_suffix(".csv")
         self.peaks = reduce_peak_block(self.peakval, rmin, rmax, thr, block_size)
         self.peaks.to_csv(self.peak_path)
 
@@ -91,5 +108,7 @@ class Model:
 
     def make_footprints(self, pbar=None):
         t, r, y, x = (self.peaks[n].to_numpy() for n in "tryx")
-        self.footprints = make_segment_batch(self.imgs, t, r, y, x, self.stats, pbar=pbar)
+        self.footprints = make_segment_batch(
+            self.imgs, t, r, y, x, self.stats, pbar=pbar
+        )
         jnp.save(self.make_path, self.footprints)

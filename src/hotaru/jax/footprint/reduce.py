@@ -16,7 +16,9 @@ def reduce_peak(vs, ts, rs, rmin, rmax, thr_distance):
         y1, x1 = ys[j], xs[j]
         yo, xo = ys[out], xs[out]
         thr = thr_distance * rs[i]
-        if (rmin < rs[i] < rmax) and (not out or np.all(np.hypot(xo - x0, yo - y0) >= thr)):
+        if (rmin < rs[i] < rmax) and (
+            not out or np.all(np.hypot(xo - x0, yo - y0) >= thr)
+        ):
             cond = np.hypot(x1 - x0, y1 - y0) >= thr
             flg = j[cond]
             out.append(i)

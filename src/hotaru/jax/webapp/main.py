@@ -1,25 +1,25 @@
-from threading import Thread
 import pathlib
+from threading import Thread
 
 import hydra
 import numpy as np
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 from dash import (
     Input,
     Output,
     State,
     no_update,
 )
-import plotly.express as px
-import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from ..model import Model
 from ..filter.laplace import gaussian_laplace
+from ..model import Model
 from ..utils.progress import SimpleProgress
-from .ui import UI
 from .app import App
 from .graph import Graph
+from .ui import UI
 
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
@@ -67,7 +67,7 @@ def main(cfg):
         return nt - 1, marks, 0
 
     @app.callback(
-        Input("load-finished",  "data"),
+        Input("load-finished", "data"),
         Input("gaussian", "value"),
         Input("maxpool", "value"),
         Output("stats", "style"),
@@ -128,7 +128,7 @@ def main(cfg):
         if not hasattr(model, "stats"):
             return None
         rmin, rmax = radius
-        return model.load_peakval(2 ** rmin, 2 ** rmax, rnum)
+        return model.load_peakval(2**rmin, 2**rmax, rnum)
 
     def peak_target():
         pbar = SimpleProgress(model.nt)
@@ -216,7 +216,9 @@ def main(cfg):
         if finished != "finished":
             return no_update
         print("plot single cell")
-        single = go.Figure([graph.heatmap(model.footprints[select])], graph.image_layout)
-        return single,
+        single = go.Figure(
+            [graph.heatmap(model.footprints[select])], graph.image_layout
+        )
+        return (single,)
 
     app.run_server(debug=True, port=8888)

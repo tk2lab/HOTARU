@@ -1,21 +1,22 @@
 from collections import namedtuple
 
-import numpy as np
 import jax
 import jax.lax as lax
 import jax.numpy as jnp
 import jax.scipy as jsp
+import numpy as np
 
 from ..io.mask import mask_range
 from ..utils.saver import SaverMixin
 from .misc import neighbor
 
-
-global_buffer = 2 ** 30
+global_buffer = 2**30
 
 
 class Stats(
-    namedtuple("Stats", ["nt", "x0", "y0", "mask", "avgx", "avgt", "std", "min", "max"]),
+    namedtuple(
+        "Stats", ["nt", "x0", "y0", "mask", "avgx", "avgt", "std", "min", "max"]
+    ),
     SaverMixin,
 ):
     pass
@@ -33,8 +34,8 @@ def calc_stats(imgs, mask=None, buffer=None, num_devices=None, pbar=None):
     if mask is None:
         mask = np.ones((h0, w0), bool)
     x0, y0, w, h = mask_range(mask)
-    imgs = imgs[:, y0:y0+h, x0:x0+w]
-    mask = mask[y0:y0+h, x0:x0+w]
+    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
+    mask = mask[y0 : y0 + h, x0 : x0 + w]
     mask = jnp.asarray(mask, bool)
 
     if num_devices is None:

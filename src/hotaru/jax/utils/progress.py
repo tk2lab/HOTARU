@@ -4,7 +4,6 @@ from tqdm.auto import tqdm
 
 
 class SimpleProgress:
-
     def __init__(self, total):
         self.total = total
         self.n = 0
@@ -12,7 +11,7 @@ class SimpleProgress:
 
     def update(self, n):
         self.n += n
-    
+
     @property
     def value(self):
         return 100 * self.n / self.total

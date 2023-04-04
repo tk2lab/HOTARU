@@ -3,13 +3,12 @@ from dash import (
     Input,
     Output,
     State,
-    no_update,
     ctx,
+    no_update,
 )
 
 
 class App(Dash):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.job = {}
@@ -34,7 +33,7 @@ class App(Dash):
             Output(f"{name}-collapse", "is_open"),
         )
         def toggle_stats(n, is_open):
-            return not is_open,
+            return (not is_open,)
 
     def thread_callback(self, name, test_fn, target_fn, *args):
         @self.callback(
@@ -48,8 +47,8 @@ class App(Dash):
             if ctx.triggered_id == name:
                 ok = test_fn(*args)
                 if ok is None:
-                    return no_update,
-                if ok: 
+                    return (no_update,)
+                if ok:
                     uid = "saved"
                 else:
                     thread, pbar = target_fn()
@@ -59,7 +58,7 @@ class App(Dash):
             else:
                 uid = "reset"
             print(uid)
-            return dict(uid=uid),
+            return (dict(uid=uid),)
 
         @self.callback(
             Input(f"{name}-submitted", "data"),

@@ -9,7 +9,6 @@ from ..filter.pool import max_pool
 
 
 class Graph:
-
     def __init__(self, model, ui_width=490):
         self.model = model
         self.ui_width = ui_width
@@ -60,7 +59,9 @@ class Graph:
         stdv = stdi[y, x]
         corv = cori[y, x]
         style = dict(display="flex")
-        scatter = go.Scatter(x=x, y=y, mode="markers", marker=dict(opacity=0.3), showlegend=False)
+        scatter = go.Scatter(
+            x=x, y=y, mode="markers", marker=dict(opacity=0.3), showlegend=False
+        )
         stdfig = go.Figure([self.heatmap(stdi), scatter], self.image_layout)
         stdfig.update_layout(
             title=dict(x=0.01, y=0.99, text="std"),
@@ -69,7 +70,9 @@ class Graph:
         corfig.update_layout(
             title=dict(x=0.01, y=0.99, text="cor"),
         )
-        stdcor = go.Figure([go.Scatter(x=stdv, y=corv, mode="markers", showlegend=False)], self.layout)
+        stdcor = go.Figure(
+            [go.Scatter(x=stdv, y=corv, mode="markers", showlegend=False)], self.layout
+        )
         stdcor.update_layout(
             xaxis=dict(title="std"),
             yaxis=dict(title="cor"),
@@ -81,12 +84,15 @@ class Graph:
         vmin, vmax = minmax
         img = self.model.frame(t)
         log = gaussian_laplace(img[None, ...], radius)[0]
-        gcount, ghist = np.histogram(
-            log.ravel(), bins=np.linspace(-0.1, 1.0, 100)
-        )
+        gcount, ghist = np.histogram(log.ravel(), bins=np.linspace(-0.1, 1.0, 100))
         imgfig = go.Figure([self.heatmap(img, zmin=vmin, zmax=vmax)], self.image_layout)
-        logfig = go.Figure([self.heatmap(log, zmin=-0.4, zmax=0.4, colorscale="Picnic")], self.image_layout)
-        histfig = go.Figure(go.Bar(x=ghist, y=gcount, width=ghist[1] - ghist[0]), self.layout)
+        logfig = go.Figure(
+            [self.heatmap(log, zmin=-0.4, zmax=0.4, colorscale="Picnic")],
+            self.image_layout,
+        )
+        histfig = go.Figure(
+            go.Bar(x=ghist, y=gcount, width=ghist[1] - ghist[0]), self.layout
+        )
         histfig.update_layout(
             xaxis=dict(title="intensity"),
             yaxis=dict(title="count"),
@@ -122,7 +128,13 @@ class Graph:
             marker=dict(opacity=0.1),
             showlegend=False,
         )
-        select = go.Scatter(x=peaks.r, y=peaks.v, mode="markers", marker=dict(opacity=0.5), showlegend=False)
+        select = go.Scatter(
+            x=peaks.r,
+            y=peaks.v,
+            mode="markers",
+            marker=dict(opacity=0.5),
+            showlegend=False,
+        )
         scatter = go.Figure([allpeak, select], self.layout)
         scatter.update_layout(
             xaxis=dict(title="radius", type="log"),

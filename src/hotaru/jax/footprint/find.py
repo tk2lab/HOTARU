@@ -3,13 +3,12 @@ from collections import namedtuple
 import jax
 import jax.numpy as jnp
 
-from ..filter.normalized import apply_to_normalized
 from ..filter.laplace import gaussian_laplace_multi
+from ..filter.normalized import apply_to_normalized
 from ..filter.pool import max_pool
 from ..utils.saver import SaverMixin
 
-
-global_buffer = 2 ** 30
+global_buffer = 2**30
 
 
 class PeakVal(namedtuple("PeakVal", ["val", "t", "r"]), SaverMixin):
@@ -59,9 +58,9 @@ def find_peak_batch(imgs, radius, stats=None, buffer=None, num_devices=None, pba
         t, r = jnp.divmod(idx, nr)
         t += t0
         r = jnp.array(radius)[r]
-        cond = v > val 
+        cond = v > val
         val = jnp.where(cond, v, val)
         ts = jnp.where(cond, t, ts)
         rs = jnp.where(cond, r, rs)
-    
+
     return PeakVal(val, ts, rs)

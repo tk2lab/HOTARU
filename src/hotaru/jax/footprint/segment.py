@@ -9,9 +9,11 @@ def get_segment_mask(val, y0, x0, mask):
     old_seg = jnp.zeros_like(val, bool)
     seg = jnp.zeros_like(val, bool)
     seg = seg.at[y0, x0].set(True)
+
     def cond(args):
         seg, old_seg = args
         return jnp.any(seg != old_seg)
+
     def body(args):
         seg, old_seg = args
         old_seg = seg.copy()
@@ -29,5 +31,6 @@ def get_segment_mask(val, y0, x0, mask):
             nseg &= (0 < val) & (val <= nval)
             seg |= nseg & mask
         return seg, old_seg
+
     init = seg, old_seg
     return lax.while_loop(cond, body, init)[0]

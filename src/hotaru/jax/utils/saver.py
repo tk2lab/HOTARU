@@ -2,7 +2,6 @@ import jax.numpy as jnp
 
 
 class SaverMixin:
-
     def save(self, path):
         jnp.savez(path, **self._asdict())
 

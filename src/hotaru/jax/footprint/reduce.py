@@ -1,3 +1,5 @@
+import multiprocessing as mp
+
 import numpy as np
 import pandas as pd
 
@@ -26,12 +28,19 @@ def reduce_peak(vs, ts, rs, rmin, rmax, thr_distance):
             flg = j
     return ys[out], xs[out]
 
+def _reduce_peak(args):
+    y0, x0, ys, xs, ye, xe = args[0]
+    y, x = reduce_peak(*args[1])
+    y += y0
+    x += x0
+    cond = (ys <= y) & (y < ye) & (xs <= x) & (x < xe)
+    return y[cond], x[cond]
 
 def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
     vs, ts, rs = (np.array(o) for o in peakval)
     h, w = vs.shape
     margin = int(np.ceil(thr_distance * rs.max()))
-    yout, xout = [], []
+    args = []
     for xs in range(0, w - margin, block_size):
         x0 = max(xs - margin, 0)
         xe = xs + block_size
@@ -43,15 +52,17 @@ def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
             v = vs[y0:y1, x0:x1]
             t = ts[y0:y1, x0:x1]
             r = rs[y0:y1, x0:x1]
-            y, x = reduce_peak(v, t, r, rmin, rmax, thr_distance)
-            y += y0
-            x += x0
-            cond = (ys <= y) & (y < ye) & (xs <= x) & (x < xe)
-            yout.append(y[cond])
-            xout.append(x[cond])
-    yout = np.concatenate(yout, axis=0)
-    xout = np.concatenate(xout, axis=0)
-    tout = ts[yout, xout]
-    rout = rs[yout, xout]
-    vout = vs[yout, xout]
-    return pd.DataFrame(dict(t=tout, r=rout, y=yout, x=xout, v=vout))
+            args.append(((y0, x0, ys, xs, ye, xe), (v, t, r, rmin, rmax, thr_distance)))
+
+    y, x = [], []
+    with mp.Pool() as pool:
+        for yi, xi in pool.imap_unordered(_reduce_peak, args):
+            y.append(yi)
+            x.append(xi)
+
+    y = np.concatenate(y, axis=0)
+    x = np.concatenate(x, axis=0)
+    t = ts[y, x]
+    r = rs[y, x]
+    v = vs[y, x]
+    return pd.DataFrame(dict(t=t, r=r, y=y, x=x, v=v))

@@ -57,7 +57,7 @@ class Model:
         img[~mask] = 0
         return img
 
-    def load_peaks(self, rmin, rmax, rnum, rtype="log"):
+    def load_peakval(self, rmin, rmax, rnum, rtype="log"):
         if rtype == "log":
             self.radius = np.power(2, np.linspace(np.log2(rmin), np.log2(rmax), rnum))
         elif rtype == "lin":
@@ -68,21 +68,24 @@ class Model:
             return True
         return False
 
-    def calc_peaks(self, pbar=None):
+    def calc_peakval(self, pbar=None):
         print(self.radius)
         self.peakval = find_peak_batch(self.imgs, self.radius, self.stats, pbar=pbar)
         self.peakval.save(self.peakval_path)
 
-    def load_footprints(self, thr):
-        self.thr = thr
-        self.make_path = self.peakval_path.with_stem(f"{self.peakval_path.stem}_{thr}").with_suffix(".np")
-        if self.make_path.exists():
-            self.footprints = jnp.load(self.make_path)
-            return True
-        return False
+    def calc_peaks(self, rmin, rmax, thr, block_size):
+        self.peak_path = self.peakval_path.with_stem(f"{self.peakval_path.stem}_{rmin}_{rmax}_{thr}").with_suffix(".csv")
+        self.peaks = reduce_peak_block(self.peakval, rmin, rmax, thr, block_size)
+        self.peaks.to_csv(self.peak_path)
+
+    def load_footprints(self):
+        self.make_path = self.peak_path.with_suffix(".footprint").with_suffix(".npy")
+        if not self.make_path.exists():
+            return False
+        self.footprints = jnp.load(self.make_path)
+        return True
 
     def make_footprints(self, pbar=None):
-        peaks = reduce_peak_block(self.peakval, self.radius[0], self.radius[-1], self.thr, 100)
-        t, r, y, x = (peaks[n].to_numpy() for n in "tryx")
+        t, r, y, x = (self.peaks[n].to_numpy() for n in "tryx")
         self.footprints = make_segment_batch(self.imgs, t, r, y, x, self.stats, pbar=pbar)
         jnp.save(self.make_path, self.footprints)

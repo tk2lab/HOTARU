@@ -1,32 +1,9 @@
-import os
-import uuid
-import pathlib
-import threading
-from functools import cached_property
-
-import hydra
-import numpy as np
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from dash import (
-    Dash,
-    Input,
-    Output,
-    State,
     dcc,
     html,
-    no_update,
 )
 import dash_bootstrap_components as dbc
-from plotly.subplots import make_subplots
-
-from .filter.stats import calc_stats, Stats, ImageStats
-from .filter.laplace import gaussian_laplace, gaussian_laplace_multi
-from .io.image import load_imgs
-from .io.mask import get_mask
-from .footprint.find import find_peak, find_peak_batch, PeakVal
-from .footprint.reduce import reduce_peak, reduce_peak_block
+import numpy as np
 
 
 def get_ui(cfg):
@@ -37,7 +14,6 @@ def get_ui(cfg):
         dcc.Interval(id="load-interval", interval=500, disabled=True),
         dbc.Button("Open/Close stats", id="stats-collapse-button"),
         dbc.Collapse([
-            html.H2("Simple image stats"),
             html.Div([
                 html.Div([
                     dbc.Label("Image file path", html_for="imgs_path"),
@@ -55,7 +31,12 @@ def get_ui(cfg):
             html.Div([
                 dbc.Button("LOAD", id="load", n_clicks=0),
                 dbc.Progress(id="load-progress"),
+                dbc.Label("Gaussian", html_for="gaussian"),
+                dcc.Slider(id="gaussian", min=0, max=10, step=0.1, value=1, marks={i: str(i) for i in range(11)}),
+                dbc.Label("MaxPool", html_for="maxpool"),
+                dcc.Slider(id="maxpool", min=3, max=11, step=2, value=3),
             ], style=dict(width="1200px", display="grid", gridTemplateColumns="auto 1fr")),
+            html.H2("Conventional cell candidates detection"),
             html.Div([
                 dcc.Graph(id="stdImage"),
                 dcc.Graph(id="corImage"),
@@ -95,11 +76,13 @@ def get_ui(cfg):
                 dbc.Label("Radius range", html_for="radius-range"),
                 dcc.RangeSlider(id="radius-range", min=0, max=5, step=0.1, value=[1, 4], marks={i: str(2**i) for i in range(6)}),
                 dbc.Label("Num radius", html_for="nradius"),
-                dcc.Slider(id="nradius", min=1, max=30, step=1, value=11),
+                dcc.Slider(id="nradius", min=1, max=50, step=1, value=11),
                 dbc.Button("PEAK", id="peak", n_clicks=0),
                 dbc.Progress(id="peak-progress"),
+                dbc.Label("Radius cut range", html_for="radius-range2"),
+                dcc.RangeSlider(id="radius-range2", min=0, max=10, step=1, value=[1, 9], marks={i: f"{2 ** r:.2f}" for i, r in enumerate(np.linspace(1, 5, 11))}),
                 dbc.Label("Distance threshold", html_for="thr"),
-                dcc.Slider(id="thr", min=0.5, max=3, step=0.1, value=1.5),
+                dcc.Slider(id="thr", min=0.5, max=3, step=0.1, value=2.0),
             ], style=dict(width="1200px", display="grid", gridTemplateColumns="auto 1fr")),
             html.Div([
                 dcc.Graph(id="circle"),
@@ -112,17 +95,27 @@ def get_ui(cfg):
         dcc.Store(id="make-submitted"),
         dcc.Store(id="make-finished"),
         dcc.Interval(id="make-interval", interval=500, disabled=True),
-        html.H2("Make initial candidates"),
-        html.Div([
-            dbc.Button("MAKE", id="make", n_clicks=0),
-            dbc.Progress(id="make-progress"),
-            dbc.Label("Cell", html_for="cell-select"),
-            dcc.Slider(id="cell-select", updatemode="drag", min=0, max=0, step=1, value=0),
-        ], style=dict(width="1200px", display="grid", gridTemplateColumns="auto 1fr")),
-        html.Div([
-            dcc.Graph(id="cell-single"),
-            dcc.Graph(id="cell-all"),
-        ], id="makegraph", style=dict(display="none")),
+        dcc.Store(id="spike-submitted"),
+        dcc.Store(id="spike-finished"),
+        dcc.Interval(id="spike-interval", interval=500, disabled=True),
+        dbc.Button("Open/Close main", id="make-collapse-button"),
+        dbc.Collapse([
+            html.H2("Main loop"),
+            html.Div([
+                dbc.Button("INIT FOOTPRINTS", id="make", n_clicks=0),
+                dbc.Progress(id="make-progress"),
+                dbc.Button("UPDATE SPIKES", id="spike", n_clicks=0),
+                dbc.Progress(id="spike-progress"),
+                dbc.Button("UPDATE FOOTPRINTS", id="cell", n_clicks=0),
+                dbc.Progress(id="cell-progress"),
+                dbc.Label("Select", html_for="cell-select"),
+                dcc.Slider(id="cell-select", updatemode="drag", min=0, max=0, step=1, value=0),
+            ], style=dict(width="1200px", display="grid", gridTemplateColumns="auto 1fr")),
+            html.Div([
+                dcc.Graph(id="cell-all"),
+                dcc.Graph(id="cell-single"),
+            ], id="makegraph", style=dict(display="none")),
+        ], id="make-collapse"),
     ])
 
     return html.Div([stats, frame, peak, footprint])

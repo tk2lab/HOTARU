@@ -38,6 +38,7 @@ def main(cfg):
     app.collapse_callback("stats")
     app.collapse_callback("frame")
     app.collapse_callback("peak")
+    app.collapse_callback("make")
 
     def load_test(path, mask, hz):
         model.load_imgs(path, mask, hz)
@@ -74,6 +75,8 @@ def main(cfg):
 
     @app.callback(
         Input("load-finished",  "data"),
+        Input("gaussian", "value"),
+        Input("maxpool", "value"),
         Output("stats", "style"),
         Output("stdImage", "figure"),
         Output("corImage", "figure"),
@@ -83,35 +86,33 @@ def main(cfg):
         Output("imgs_minmax", "marks"),
         prevent_initial_call=True,
     )
-    def finish_load(finished):
+    def finish_load(finished, gauss, maxpool):
+        print("load", finished, gauss, maxpool)
         if finished != "finished":
             return (dict(display="none"),) + (no_update,) * 6
         style = dict(display="flex")
         maxi, stdi, cori = model.istats
-        #fil_cori = gaussian(cori[None, ...], 1)[0]
-        fil_cori = cori
-        max_cori = max_pool(fil_cori, (3, 3), (1, 1), "same")
+        if gauss > 0:
+            fil_cori = gaussian(cori[None, ...], gauss)[0]
+        else:
+            fil_cori = cori
+        max_cori = max_pool(fil_cori, (maxpool, maxpool), (1, 1), "same")
         y, x = np.where(fil_cori == max_cori)
         stdv = stdi[y, x]
         corv = cori[y, x]
         scatter = go.Scatter(x=x, y=y, mode="markers", marker=dict(opacity=0.3), showlegend=False)
-        stdfig = go.Figure([layout.heatmap(stdi), scatter])
+        stdfig = go.Figure([layout.heatmap(stdi), scatter], layout.image_layout)
         stdfig.update_layout(
             title=dict(x=0.01, y=0.99, text="std"),
-            **layout.layout,
-            **layout.image_layout,
         )
-        corfig = go.Figure([layout.heatmap(cori), scatter])
+        corfig = go.Figure([layout.heatmap(cori), scatter], layout.image_layout)
         corfig.update_layout(
             title=dict(x=0.01, y=0.99, text="cor"),
-            **layout.layout,
-            **layout.image_layout,
         )
-        stdcor = go.Figure([go.Scatter(x=stdv, y=corv, mode="markers", showlegend=False)])
+        stdcor = go.Figure([go.Scatter(x=stdv, y=corv, mode="markers", showlegend=False)], layout.layout)
         stdcor.update_layout(
             xaxis=dict(title="std"),
             yaxis=dict(title="cor"),
-            **layout.layout,
         )
         marks = {
             float(v): f"{v:.1f}"
@@ -131,33 +132,29 @@ def main(cfg):
         Input("frame", "value"),
         Input("radius", "value"),
         Input("imgs_minmax", "value"),
-        Input("stats", "style"),
         Output("imagegraph", "style"),
         Output("image", "figure"),
         Output("filtered", "figure"),
         Output("hist", "figure"),
         prevent_initial_call=True,
     )
-    def on_frame(t, radius, minmax, load):
+    def on_frame(t, radius, minmax):
         if not hasattr(model, "stats"):
-            return dist(display="none"), no_update, no_update, no_update
-        img = model.frame(t)
-        log = gaussian_laplace(img[None, ...], radius)[0]
+            return dict(display="none"), no_update, no_update, no_update
         radius = np.power(2, radius)
         vmin, vmax = minmax
+        img = model.frame(t)
+        log = gaussian_laplace(img[None, ...], radius)[0]
         gcount, ghist = np.histogram(
             log.ravel(), bins=np.linspace(-0.1, 1.0, 100)
         )
         style = dict(display="flex")
-        imgfig = go.Figure([layout.heatmap(img, zmin=vmin, zmax=vmax)], layout.layout)
-        logfig = go.Figure([layout.heatmap(log, zmin=-0.4, zmax=0.4, colorscale="Picnic")], layout.layout)
-        histfig = go.Figure(
-            go.Bar(x=ghist, y=gcount, width=ghist[1] - ghist[0]),
-            dict(
-                margin=dict(l=0, r=0, t=0, b=0),
-                width=layout.width,
-                height=layout.height,
-            ),
+        imgfig = go.Figure([layout.heatmap(img, zmin=vmin, zmax=vmax)], layout.image_layout)
+        logfig = go.Figure([layout.heatmap(log, zmin=-0.4, zmax=0.4, colorscale="Picnic")], layout.image_layout)
+        histfig = go.Figure(go.Bar(x=ghist, y=gcount, width=ghist[1] - ghist[0]), layout.layout)
+        histfig.update_layout(
+            xaxis=dict(title="intensity"),
+            yaxis=dict(title="count"),
         )
         return style, imgfig, logfig, histfig
 
@@ -165,12 +162,12 @@ def main(cfg):
         if not hasattr(model, "stats"):
             return None
         rmin, rmax = radius
-        return model.load_peaks(2 ** rmin, 2 ** rmax, rnum)
+        return model.load_peakval(2 ** rmin, 2 ** rmax, rnum)
 
     def peak_target():
         nt = model.shape[0]
         pbar = SimpleProgress(nt)
-        thread = Thread(target=model.calc_peaks, kwargs=dict(pbar=pbar))
+        thread = Thread(target=model.calc_peakval, kwargs=dict(pbar=pbar))
         return thread, pbar
 
     app.thread_callback(
@@ -182,34 +179,75 @@ def main(cfg):
     )
 
     @app.callback(
+        Input("radius-range", "value"),
+        Input("nradius", "value"),
+        Input("peak", "n_clicks"),
+        Output("radius-range2", "max"),
+        Output("radius-range2", "marks"),
+    )
+    def update_radius(radius, rnum, button):
+        rmin, rmax = radius
+        radius = np.power(2, np.linspace(rmin, rmax, rnum))
+        marks = {i: f"{r:.2f}" for i, r in enumerate(radius)}
+        return rnum - 1, marks
+
+    @app.callback(
         Input("peak-finished", "data"),
+        Input("radius-range2", "value"),
         Input("thr", "value"),
         Output("peakgraph", "style"),
         Output("circle", "figure"),
         Output("radius-intensity", "figure"),
         prevent_initial_call=True,
     )
-    def finish_peak(finished, thr):
+    def finish_peak(finished, radius, thr):
         if finished != "finished":
             return dict(display="none"), no_update, no_update
-        peaks = reduce_peak_block(model.peakval, model.radius[0], model.radius[-1], thr, 100)
-        print(peaks)
+        rmin, rmax = radius
+        rmin = model.radius[rmin] - 1e-6
+        rmax = model.radius[rmax] + 1e-6
+        model.calc_peaks(rmin, rmax, thr, 100)
+        dr = model.radius[1] / model.radius[0] - 1
         nt, h, w = model.shape
-        circle = go.Figure(layout=layout.layout)
-        circle.add_trace(go.Scatter(x=peaks.x, y=peaks.y, mode="markers", marker=dict(size=2 * (layout.width / w) * peaks.r, opacity=peaks.v / peaks.v.max()), showlegend=False))
-        scatter = go.Figure()
-        scatter.add_trace(go.Scatter(x=(1 + 0.05 * np.random.randn(h * w)) * model.peakval.r.ravel(), y=model.peakval.val.ravel(), mode="markers", marker=dict(opacity=0.05), showlegend=False))
-        scatter.add_trace(go.Scatter(x=peaks.r, y=peaks.v, mode="markers", marker=dict(opacity=0.5), showlegend=False))
+        peaks = model.peaks.copy()
+        nc = peaks.shape[0]
+        r = 2 * (layout.width / w) * peaks.r
+        v = peaks.v / peaks.v.max()
+        peaks["id"] = peaks.index
+        cells = go.Scatter(
+            x=peaks.x,
+            y=peaks.y,
+            mode="markers",
+            marker=dict(size=r, opacity=v),
+            showlegend=False,
+            customdata=peaks[["id", "r", "v"]],
+            hovertemplate="id:%{customdata[0]}, x:%{x}, y:%{y}, r:%{customdata[1]:.3f}, v:%{customdata[2]:.3f}",
+        )
+        v0 = model.peakval.val.ravel()
+        m = (v0.size + 9999) // 10000
+        v0 = v0[::m]
+        r0 = model.peakval.r.ravel()[::m]
+        circle = go.Figure([cells], layout.image_layout)
+        allpeak = go.Scatter(
+            x=(1 + 0.3 * dr * np.random.randn(r0.size)) * r0,
+            y=v0,
+            mode="markers",
+            marker=dict(opacity=0.1),
+            showlegend=False,
+        )
+        select = go.Scatter(x=peaks.r, y=peaks.v, mode="markers", marker=dict(opacity=0.5), showlegend=False)
+        scatter = go.Figure([allpeak, select], layout.layout)
         scatter.update_layout(
             xaxis=dict(title="radius", type="log"),
             yaxis=dict(title="intensity", rangemode="tozero"),
         )
+        print("peak done")
         return dict(display="flex"), circle, scatter
 
-    def make_test(thr):
+    def make_test():
         if not hasattr(model, "stats"):
             return None
-        return model.load_footprints(thr)
+        return model.load_footprints()
 
     def make_target():
         nt, h, w = model.shape
@@ -221,24 +259,49 @@ def main(cfg):
         "make",
         make_test,
         make_target,
-        State("thr", "value"),
     )
 
     @app.callback(
         Input("make-finished", "data"),
-        Input("cell-select", "value"),
         Output("makegraph", "style"),
-        Output("cell-single", "figure"),
         Output("cell-all", "figure"),
         Output("cell-select", "max"),
+        Output("cell-select", "marks"),
         prevent_initial_call=True,
     )
-    def finish_make(finished, select):
+    def finish_make(finished):
         if finished != "finished":
             return dict(display="none"), no_update, no_update, no_update
-        single = layout.heatmap(model.footprints[select])
-        cells = layout.heatmap(model.footprints.max(axis=0))
-        return dict(display="flex"), single, cells, model.footprints.shape[0]
+        peaks = model.peaks
+        peaks["id"] = peaks.index
+        data = model.footprints
+        nc = data.shape[0]
+        bg = layout.heatmap(data.max(axis=0))
+        circle = go.Scatter(
+            x=peaks.x,
+            y=peaks.y,
+            mode="markers",
+            showlegend=False,
+            customdata=peaks[["id", "r", "v"]],
+            hovertemplate="id:%{customdata[0]}, x:%{x}, y:%{y}, r:%{customdata[1]:.3f}, v:%{customdata[2]:.3f}",
+        )
+        cells = go.Figure([bg, circle], layout.image_layout)
+        marks = {i: f"{i}" for i in range(0, nc + 1, nc // 10)}
+        print("plot all cells")
+        return dict(display="flex"), cells, model.footprints.shape[0], marks
+
+    @app.callback(
+        Input("cell-all", "figure"),
+        Input("cell-select", "value"),
+        State("make-finished", "data"),
+        Output("cell-single", "figure"),
+    )
+    def select_make(cells, select, finished):
+        if finished != "finished":
+            return no_update
+        print("plot single cell")
+        single = go.Figure([layout.heatmap(model.footprints[select])], layout.image_layout)
+        return single,
 
     app.run_server(debug=True, port=8888)
 

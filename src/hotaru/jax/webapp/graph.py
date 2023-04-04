@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from ..filter.gaussian import gaussian
+from ..filter.laplace import gaussian_laplace
 from ..filter.pool import max_pool
 
 
@@ -71,7 +72,16 @@ class Graph:
             title=dict(x=0.01, y=0.99, text="cor"),
         )
         stdcor = go.Figure(
-            [go.Scatter(x=stdv, y=corv, mode="markers", showlegend=False)], self.layout
+            [
+                go.Scatter(
+                    x=stdv,
+                    y=corv,
+                    mode="markers",
+                    marker=dict(color="red", opacity=0.5),
+                    showlegend=False,
+                )
+            ],
+            self.layout,
         )
         stdcor.update_layout(
             xaxis=dict(title="std"),
@@ -104,41 +114,48 @@ class Graph:
         h, w = self.model.shape
         peaks = self.model.peaks.copy()
         nc = peaks.shape[0]
-        r = 2 * (self.width / w) * peaks.r
-        v = peaks.v / peaks.v.max()
         peaks["id"] = peaks.index
-        cells = go.Scatter(
-            x=peaks.x,
-            y=peaks.y,
-            mode="markers",
-            marker=dict(size=r, opacity=v),
-            showlegend=False,
-            customdata=peaks[["id", "r", "v"]],
-            hovertemplate="id:%{customdata[0]}, x:%{x}, y:%{y}, r:%{customdata[1]:.3f}, v:%{customdata[2]:.3f}",
+        peaks["r"] = (1 + 0.2 * dr * np.random.randn(nc)) * peaks.r
+        peaks["size"] = 2 * (self.width / w) * peaks.r
+        peaks["opacity"] = peaks.v / peaks.v.max()
+        m = (h * w + 9999) // 10000
+        v0 = self.model.peakval.val.ravel()[::m]
+        r0 = (1 + 0.2 * dr * np.random.randn(v0.size)) * self.model.peakval.r.ravel()[::m]
+        circle = px.scatter(
+            peaks,
+            x="x",
+            y="y",
+            size="size",
+            color_discrete_sequence=["green"],
+            opacity=peaks.opacity,
+            hover_name="id",
+            hover_data=dict(size=False, x=True, y=True, r=":.2f", v=":.2f"),
         )
-        v0 = self.model.peakval.val.ravel()
-        m = (v0.size + 9999) // 10000
-        v0 = v0[::m]
-        r0 = self.model.peakval.r.ravel()[::m]
-        circle = go.Figure([cells], self.image_layout)
-        allpeak = go.Scatter(
-            x=(1 + 0.3 * dr * np.random.randn(r0.size)) * r0,
-            y=v0,
-            mode="markers",
-            marker=dict(opacity=0.1),
-            showlegend=False,
+        circle.update_layout(**self.image_layout)
+        scatter = px.scatter(
+            peaks,
+            x="r",
+            y="v",
+            symbol_sequence=["diamond"],
+            color_discrete_sequence=["green"],
+            size_max=20,
+            opacity=0.5,
+            hover_name="id",
+            hover_data=dict(size=False, x=True, y=True, r=":.2f", v=":.2f"),
         )
-        select = go.Scatter(
-            x=peaks.r,
-            y=peaks.v,
-            mode="markers",
-            marker=dict(opacity=0.5),
-            showlegend=False,
+        scatter.add_trace(
+            go.Scatter(
+                x=r0,
+                y=v0,
+                mode="markers",
+                marker=dict(color="red", opacity=0.2),
+                showlegend=False,
+            )
         )
-        scatter = go.Figure([allpeak, select], self.layout)
         scatter.update_layout(
             xaxis=dict(title="radius", type="log"),
             yaxis=dict(title="intensity", rangemode="tozero"),
+            **self.layout,
         )
         print("peak done")
         return circle, scatter

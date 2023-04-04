@@ -9,8 +9,12 @@ from dash import (
 
 
 class App(Dash):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, ui, *args, **kwargs):
+        kwargs.setdefault("external_stylesheets", [ui.stylesheet])
+        super().__init__(name, *args, **kwargs)
+        self.layout = ui.layout
+        for name in ui.collapses:
+            self.collapse_callback(name)
         self.job = {}
 
     def callback(self, *args, **kwargs):

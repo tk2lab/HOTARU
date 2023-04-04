@@ -14,7 +14,6 @@ from dash import (
 )
 from plotly.subplots import make_subplots
 
-from ..filter.laplace import gaussian_laplace
 from ..model import Model
 from ..utils.progress import SimpleProgress
 from .app import App
@@ -22,17 +21,13 @@ from .graph import Graph
 from .ui import UI
 
 
-@hydra.main(version_base=None, config_path="../conf", config_name="config")
+@hydra.main(version_base=None, config_path="../../config", config_name="config")
 def main(cfg):
-    model = Model()
-    ui = UI(cfg)
+    model = Model(cfg)
+
+    ui = UI(model.cfg)
     graph = Graph(model)
-
-    app = App(__name__, external_stylesheets=[ui.stylesheet])
-    app.layout = ui.layout
-
-    for name in ui.collapses:
-        app.collapse_callback(name)
+    app = App(__name__, ui)
 
     def load_test(path, mask, hz):
         model.load_imgs(path, mask, hz)
@@ -79,7 +74,7 @@ def main(cfg):
     def plot_stats(finished, gauss, maxpool):
         print("load", finished, gauss, maxpool)
         if finished != "finished":
-            return (dict(display="none"),) + (no_update,) * 6
+            return (dict(display="none"),) + (no_update,) * 3
         return dict(display="flex"), *graph.plot_stats(gauss, maxpool)
 
     @app.callback(
@@ -158,7 +153,7 @@ def main(cfg):
         rmin, rmax = radius
         rmin = model.radius[rmin] - 1e-6
         rmax = model.radius[rmax] + 1e-6
-        self.model.calc_peaks(rmin, rmax, thr, 100)
+        model.calc_peaks(rmin, rmax, thr, 100)
         return dict(display="flex"), *graph.plot_peak()
 
     def make_test():

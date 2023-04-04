@@ -1,14 +1,9 @@
 import pathlib
-from functools import cached_property
 
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 
-from .filter.laplace import (
-    gaussian_laplace,
-    gaussian_laplace_multi,
-)
 from .filter.stats import (
     ImageStats,
     Stats,
@@ -16,19 +11,18 @@ from .filter.stats import (
 )
 from .footprint.find import (
     PeakVal,
-    find_peak,
     find_peak_batch,
 )
 from .footprint.make import make_segment_batch
-from .footprint.reduce import (
-    reduce_peak,
-    reduce_peak_block,
-)
+from .footprint.reduce import reduce_peak_block
 from .io.image import load_imgs
 from .io.mask import get_mask
 
 
 class Model:
+    def __init__(self, cfg):
+        self.cfg = cfg
+
     def load_imgs(self, path, mask, hz):
         path = pathlib.Path(path)
         self.imgs = load_imgs(path)
@@ -37,12 +31,20 @@ class Model:
         self.stats_path = path.with_stem(f"{path.stem}_{mask}").with_suffix(".npz")
         self.istats_path = path.with_stem(f"{path.stem}_{mask}_i").with_suffix(".npz")
 
+    @property
+    def nt(self):
+        return self.imgs.shape[0]
+
+    @property
+    def shape(self):
+        return self.mask.shape
+
     def load_stats(self):
-        if self.stats_path.exists():
-            self.stats = Stats.load(self.stats_path)
-            self.istats = ImageStats.load(self.istats_path)
-            return True
-        return False
+        if not self.stats_path.exists():
+            return False
+        self.stats = Stats.load(self.stats_path)
+        self.istats = ImageStats.load(self.istats_path)
+        return True
 
     def calc_stats(self, pbar=None):
         nt, h, w = self.imgs.shape
@@ -51,14 +53,6 @@ class Model:
         istats.save(self.istats_path)
         self.stats = stats
         self.istats = istats
-
-    @property
-    def nt(self):
-        return self.imgs.shape[0]
-
-    @property
-    def shape(self):
-        return self.mask.shape
 
     @property
     def min(self):

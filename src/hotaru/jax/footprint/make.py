@@ -5,8 +5,8 @@ import jax.numpy as jnp
 import numpy as np
 
 from ..filter.laplace import gaussian_laplace_multi
-from ..filter.normalized import apply_to_normalized
 from ..utils.saver import SaverMixin
+from .normalized import apply_to_normalized
 from .segment import get_segment_mask
 
 global_buffer = 2**30

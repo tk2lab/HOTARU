@@ -4,9 +4,9 @@ import jax
 import jax.numpy as jnp
 
 from ..filter.laplace import gaussian_laplace_multi
-from ..filter.normalized import apply_to_normalized
 from ..filter.pool import max_pool
 from ..utils.saver import SaverMixin
+from .normalized import apply_to_normalized
 
 global_buffer = 2**30
 

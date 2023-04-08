@@ -5,8 +5,8 @@ import tifffile
 
 
 def get_mask(mask_path, imgs, reverse=False):
-    nt, h, w = imgs.shape
     path = pathlib.Path(mask_path)
+    nt, h, w = imgs.shape
     if path.suffix == ".pad":
         pad = int(path.stem)
         mask = np.zeros([h, w], bool)

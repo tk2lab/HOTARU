@@ -4,21 +4,28 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from ...io import default_buffer
 from ..filter.laplace import gaussian_laplace_multi
+from ..utils.normalized import apply_to_normalized
 from ..utils.saver import SaverMixin
-from .normalized import apply_to_normalized
 from .segment import get_segment_mask
-
-global_buffer = 2**30
 
 
 def make_segment_batch(
-    imgs, ts, rs, ys, xs, stats=None, buffer=None, num_devices=None, pbar=None
+    imgs,
+    ts,
+    rs,
+    ys,
+    xs,
+    stats=None,
+    buffer=None,
+    num_devices=None,
+    pbar=None,
 ):
     if num_devices is None:
         num_devices = jax.local_device_count()
     if buffer is None:
-        buffer = global_buffer
+        buffer = default_buffer
     nt, h, w = imgs.shape
     radius, rs = np.unique(np.array(rs), return_inverse=True)
     idx = np.argsort(radius)
@@ -31,7 +38,7 @@ def make_segment_batch(
     size = 4 * 4 * nr * h * w
     batch = (buffer + size - 1) // size
 
-    def apply(imgs, mask):
+    def apply(imgs, mask, start, end):
         return gaussian_laplace_multi(imgs, radius, -3)
 
     def finish(glp):

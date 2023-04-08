@@ -5,10 +5,8 @@ import jax.numpy as jnp
 
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.pool import max_pool
+from ..filter.map import mapped_imgs
 from ..utils.saver import SaverMixin
-from .normalized import apply_to_normalized
-
-global_buffer = 2**30
 
 
 class PeakVal(namedtuple("PeakVal", ["val", "t", "r"]), SaverMixin):
@@ -34,13 +32,13 @@ def find_peak_batch(imgs, radius, stats=None, buffer=None, num_devices=None, pba
     if num_devices is None:
         num_devices = jax.local_device_count()
     if buffer is None:
-        buffer = global_buffer
+        buffer = default_buffer
     nt, h, w = imgs.shape
     nr = len(radius)
     size = 4 * 4 * nr * h * w
     batch = (buffer + size - 1) // size
 
-    def apply(imgs, mask):
+    def apply(imgs, mask, start, end):
         gl = gaussian_laplace_multi(imgs, radius, -3)
         max_gl = max_pool(gl, (3, 3, 3), (1, 1, 1), "same")
         return jnp.where((gl == max_gl) & mask, gl, -jnp.inf)

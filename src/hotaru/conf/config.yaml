@@ -1,0 +1,12 @@
+data:
+  imgs: sample/imgs.tif
+  mask: 0.pad
+  hz: 20.0
+
+env:
+  buffer:
+  num_devices:
+
+app:
+  debug: True
+  port: 8888

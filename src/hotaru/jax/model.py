@@ -4,24 +4,34 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 
+from ..io.image import load_imgs
+from ..io.mask import get_mask
+from ..io.saver import (
+    save,
+    load,
+)
 from .filter.stats import (
     ImageStats,
     Stats,
     calc_stats,
 )
+"""
 from .footprint.find import (
     PeakVal,
     find_peak_batch,
 )
 from .footprint.make import make_segment_batch
 from .footprint.reduce import reduce_peak_block
-from .io.image import load_imgs
-from .io.mask import get_mask
+from .train.prepare import prepare
+"""
 
 
 class Model:
     def __init__(self, cfg):
         self.cfg = cfg
+        self.buffer = cfg.env.buffer
+        self.num_devices = cfg.env.num_devices
+        self.block_size = cfg.env.block_size
 
     def load_imgs(self, path, mask, hz):
         path = pathlib.Path(path)
@@ -48,11 +58,9 @@ class Model:
 
     def calc_stats(self, pbar=None):
         nt, h, w = self.imgs.shape
-        stats, istats = calc_stats(self.imgs, self.mask, pbar=pbar)
-        stats.save(self.stats_path)
-        istats.save(self.istats_path)
-        self.stats = stats
-        self.istats = istats
+        self.stats, self.istats = calc_stats(self.imgs, self.mask, pbar)
+        save(self.stats_path, self.stats)
+        save(self.istats_path, self.istats)
 
     @property
     def min(self):
@@ -76,33 +84,80 @@ class Model:
         self.peakval_path = self.stats_path.with_stem(
             f"{self.stats_path.stem}_{rmin}_{rmax}_{rnum}_{rtype}"
         ).with_suffix(".npz")
-        if self.peakval_path.exists():
-            self.peakval = PeakVal.load(self.peakval_path)
-            return True
-        return False
+        if not self.peakval_path.exists():
+            return False
+        self.peakval = PeakVal.load(self.peakval_path)
+        return True
 
     def calc_peakval(self, pbar=None):
-        print(self.radius)
-        self.peakval = find_peak_batch(self.imgs, self.radius, self.stats, pbar=pbar)
+        self.peakval = find_peak_batch(
+            self.imgs, self.radius, self.stats, self.num_devices, pbar
+        )
         self.peakval.save(self.peakval_path)
 
-    def calc_peaks(self, rmin, rmax, thr, block_size):
+    def load_peaks(self, rmin, rmax, thr):
+        self.rmin = self.radius[rmin]
+        self.rmax = self.radius[rmax]
+        self.thr = thr
         self.peak_path = self.peakval_path.with_stem(
             f"{self.peakval_path.stem}_{rmin}_{rmax}_{thr}"
         ).with_suffix(".csv")
-        self.peaks = reduce_peak_block(self.peakval, rmin, rmax, thr, block_size)
+        if not self.peak_path.exists():
+            return False
+        self.peaks = pd.read_csv(self.peak_path)
+        return True
+
+    def calc_peaks(self):
+        self.peaks = reduce_peak_block(
+            self.peakval, self.rmin, self.rmax, self.thr, self.block_size
+        )
         self.peaks.to_csv(self.peak_path)
 
-    def load_footprints(self):
-        self.make_path = self.peak_path.with_suffix(".footprint").with_suffix(".npy")
-        if not self.make_path.exists():
+    def load_footprints(self, path):
+        self.footprints_path = pathlib.Path(path)
+        if not self.footprints_path.exists():
             return False
-        self.footprints = jnp.load(self.make_path)
+        self.footprints = jnp.load(self.footprints_path)
         return True
 
     def make_footprints(self, pbar=None):
         t, r, y, x = (self.peaks[n].to_numpy() for n in "tryx")
         self.footprints = make_segment_batch(
-            self.imgs, t, r, y, x, self.stats, pbar=pbar
+            self.imgs,
+            t,
+            r,
+            y,
+            x,
+            self.stats,
+            self.buffer,
+            self.num_devices,
+            pbar,
         )
-        jnp.save(self.make_path, self.footprints)
+        jnp.save(self.footprints_path, self.footprints)
+
+    def load_spikes(self, path):
+        self.spikes_path = pathlib.Path(path)
+        if not self.spikes_path.exists():
+            return False
+        self.spikes = jnp.load(self.spikes_path)
+        return True
+
+    def update_spikes(self, pbar=None):
+        pass
+
+    def prepare(self, pbar=None):
+        nc, h, w = self.footprints.shape
+        val = self.footprints.reshape(nc, h * w)
+        bx, by = 0.0, 0.0
+        trans = True
+        return prepare(
+            val,
+            self.imgs,
+            self.stats,
+            bx,
+            by,
+            trans,
+            self.buffer,
+            self.num_devices,
+            pbar,
+        )

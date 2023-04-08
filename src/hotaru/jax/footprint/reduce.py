@@ -28,6 +28,7 @@ def reduce_peak(vs, ts, rs, rmin, rmax, thr_distance):
             flg = j
     return ys[out], xs[out]
 
+
 def _reduce_peak(args):
     y0, x0, ys, xs, ye, xe = args[0]
     y, x = reduce_peak(*args[1])
@@ -35,6 +36,7 @@ def _reduce_peak(args):
     x += x0
     cond = (ys <= y) & (y < ye) & (xs <= x) & (x < xe)
     return y[cond], x[cond]
+
 
 def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
     vs, ts, rs = (np.array(o) for o in peakval)
@@ -65,4 +67,8 @@ def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
     t = ts[y, x]
     r = rs[y, x]
     v = vs[y, x]
-    return pd.DataFrame(dict(t=t, r=r, y=y, x=x, v=v))
+    return (
+        pd.DataFrame(dict(t=t, r=r, y=y, x=x, v=v))
+        .sort_values("v", ascending=False)
+        .reset_index(drop=True)
+    )

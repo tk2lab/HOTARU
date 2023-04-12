@@ -4,9 +4,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from ..filter.gaussian import gaussian
-from ..filter.laplace import gaussian_laplace
-from ..filter.pool import max_pool
+from ..jax.filter.gaussian import gaussian
+from ..jax.filter.laplace import gaussian_laplace
+from ..jax.filter.pool import max_pool
 
 
 class Graph:
@@ -50,7 +50,7 @@ class Graph:
         return dict(orientation="h", yanchor="bottom", y=0, thickness=10)
 
     def plot_stats(self, gauss, maxpool):
-        maxi, stdi, cori = self.model.istats
+        mini, maxi, stdi, cori = self.model.istats
         if gauss > 0:
             fil_cori = gaussian(cori[None, ...], gauss)[0]
         else:
@@ -60,16 +60,22 @@ class Graph:
         stdv = stdi[y, x]
         corv = cori[y, x]
         style = dict(display="flex")
-        scatter = go.Scatter(
-            x=x, y=y, mode="markers", marker=dict(opacity=0.3), showlegend=False
+        df = pd.DataFrame(dict(x=x, y=y))
+        stdfig = px.scatter(
+            df, x="x", y="y", opacity=0.3, color_discrete_sequence=["red"]
         )
-        stdfig = go.Figure([self.heatmap(stdi), scatter], self.image_layout)
+        stdfig.add_trace(self.heatmap(stdi))
         stdfig.update_layout(
             title=dict(x=0.01, y=0.99, text="std"),
+            **self.image_layout,
         )
-        corfig = go.Figure([self.heatmap(cori), scatter], self.image_layout)
+        corfig = px.scatter(
+            df, x="x", y="y", opacity=0.3, color_discrete_sequence=["red"]
+        )
+        corfig.add_trace(self.heatmap(cori))
         corfig.update_layout(
             title=dict(x=0.01, y=0.99, text="cor"),
+            **self.image_layout,
         )
         stdcor = go.Figure(
             [
@@ -120,7 +126,9 @@ class Graph:
         peaks["opacity"] = peaks.v / peaks.v.max()
         m = (h * w + 9999) // 10000
         v0 = self.model.peakval.val.ravel()[::m]
-        r0 = (1 + 0.2 * dr * np.random.randn(v0.size)) * self.model.peakval.r.ravel()[::m]
+        r0 = (1 + 0.2 * dr * np.random.randn(v0.size)) * self.model.peakval.r.ravel()[
+            ::m
+        ]
         circle = px.scatter(
             peaks,
             x="x",
@@ -159,3 +167,25 @@ class Graph:
         )
         print("peak done")
         return circle, scatter
+
+    def plot_all(self):
+        data = self.model.footprints
+        nc = data.shape[0]
+        peaks = self.model.peaks.copy()
+        peaks["id"] = peaks.index
+        bg = self.heatmap(data.max(axis=0))
+        circle = go.Scatter(
+            x=peaks.x,
+            y=peaks.y,
+            mode="markers",
+            showlegend=False,
+            customdata=peaks[["id", "r", "v"]],
+            hovertemplate="id:%{customdata[0]}, x:%{x}, y:%{y}, r:%{customdata[1]:.3f}, v:%{customdata[2]:.3f}",
+        )
+        return go.Figure([bg, circle], self.image_layout)
+
+    def plot_single(self, select):
+        single = go.Figure(
+            [self.heatmap(self.model.footprints[select])], self.image_layout
+        )
+        return single

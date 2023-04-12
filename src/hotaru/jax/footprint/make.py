@@ -1,70 +1,53 @@
-from collections import namedtuple
-
 import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ...io import default_buffer
+from ...io.saver import (
+    save,
+    load,
+)
 from ..filter.laplace import gaussian_laplace_multi
-from ..utils.normalized import apply_to_normalized
-from ..utils.saver import SaverMixin
+from ..filter.map import mapped_imgs
 from .segment import get_segment_mask
 
 
-def make_segment_batch(
-    imgs,
-    ts,
-    rs,
-    ys,
-    xs,
-    stats=None,
-    buffer=None,
-    num_devices=None,
-    pbar=None,
-):
-    if num_devices is None:
-        num_devices = jax.local_device_count()
-    if buffer is None:
-        buffer = default_buffer
-    nt, h, w = imgs.shape
+def make_segment_batch(imgs, stats, ts, rs, ys, xs, pbar=None):
+    print(rs)
     radius, rs = np.unique(np.array(rs), return_inverse=True)
+    print(radius)
+    print(rs)
     idx = np.argsort(radius)
+    radius = radius[idx]
     rmap = np.zeros_like(rs)
     for i, j in enumerate(idx):
         rmap[j] = i
-    radius = radius[idx]
     rs = rmap[rs]
     nr = len(radius)
-    size = 4 * 4 * nr * h * w
-    batch = (buffer + size - 1) // size
 
-    def apply(imgs, mask, start, end):
-        return gaussian_laplace_multi(imgs, radius, -3)
+    nt, x0, y0, mask, avgx, avgt, std0 = stats
+    h, w = mask.shape
+    imgs = imgs[:, y0:y0+h, x0:x0+w]
+    print(nr, y0, x0, h, w)
+    
+    scale = 20 * nr
 
-    def finish(glp):
-        return jnp.concatenate(glp, axis=0)
+    def apply(t0, imgs):
+        avgt = imgs.mean(axis=0, keepdims=True)
+        imgs = (imgs - avgx - avgt) / std0
+        return t0, gaussian_laplace_multi(imgs, radius, -3)
 
-    @jax.pmap
-    @jax.vmap
-    def make(g, y, x):
-        seg = get_segment_mask(g, y, x, mask)
-        dmin = jnp.where(seg, g, jnp.inf).min()
-        dmax = jnp.where(seg, g, -jnp.inf).max()
-        return jnp.where(seg, (g - dmin) / (dmax - dmin), 0)
-
-    nt, y0, x0, mask, avgx, avgt, std0, min0, max0 = stats
-    gen = apply_to_normalized(apply, finish, imgs, stats, batch, num_devices, pbar)
-    ids = []
-    out = []
-    for t0, gl in gen:
+    def aggregate(t0, gl):
+        num_devices = t0.size
+        gl = jnp.concatenate(gl, axis=0)
+        t0 = t0[0]
         t1 = t0 + gl.shape[0]
-        idx = jnp.where((t0 <= ts) & (ts < t1))[0]
+        cond = (t0 <= ts) & (ts < t1)
+        idx = jnp.where(cond)[0]
         t = ts[idx] - t0
         r = rs[idx]
         y = ys[idx]
         x = xs[idx]
         g = gl[t, r]
-        ids.append(idx)
         num = y.size
         mod = num % num_devices
         if mod != 0:
@@ -78,5 +61,22 @@ def make_segment_batch(
         seg = jnp.concatenate(make(g, y, x), axis=0)
         if mod != 0:
             seg = seg[:-mod]
-        out.append(seg)
-    return jnp.concatenate(out, axis=0)[jnp.concatenate(ids, axis=0)]
+        return idx, seg
+
+    def finish(idx, seg):
+        seg = jnp.concatenate(seg, axis=0)
+        idx = jnp.concatenate(idx, axis=0)
+        rmap = jnp.empty(idx.size, jnp.int32)
+        for i, j in enumerate(idx):
+            rmap[j] = i
+        return seg[rmap]
+
+    @jax.pmap
+    @jax.vmap
+    def make(g, y, x):
+        seg = get_segment_mask(g, y, x, mask)
+        dmin = jnp.where(seg, g, jnp.inf).min()
+        dmax = jnp.where(seg, g, -jnp.inf).max()
+        return jnp.where(seg, (g - dmin) / (dmax - dmin), 0)
+
+    return mapped_imgs(imgs, apply, aggregate, finish, scale, pbar)

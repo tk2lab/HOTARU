@@ -6,6 +6,7 @@ data:
 env:
   buffer:
   num_devices:
+  block_size: 100
 
 app:
   debug: True

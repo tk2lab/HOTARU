@@ -4,24 +4,27 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 
-from ..io.image import load_imgs
-from ..io.mask import get_mask
 from ..io.saver import (
     save,
     load,
 )
+from ..io.image import load_imgs
+from ..io.mask import get_mask
+from ..jax.filter.gaussian import gaussian
+from ..jax.filter.laplace import gaussian_laplace
+from ..jax.filter.pool import max_pool
 from .filter.stats import (
     ImageStats,
     Stats,
     calc_stats,
 )
-"""
 from .footprint.find import (
     PeakVal,
     find_peak_batch,
 )
 from .footprint.make import make_segment_batch
 from .footprint.reduce import reduce_peak_block
+"""
 from .train.prepare import prepare
 """
 
@@ -34,12 +37,14 @@ class Model:
         self.block_size = cfg.env.block_size
 
     def load_imgs(self, path, mask, hz):
+        print(path)
         path = pathlib.Path(path)
         self.imgs = load_imgs(path)
         self.mask = get_mask(mask, self.imgs)
         self.hz = hz
         self.stats_path = path.with_stem(f"{path.stem}_{mask}").with_suffix(".npz")
         self.istats_path = path.with_stem(f"{path.stem}_{mask}_i").with_suffix(".npz")
+        print(self.mask)
 
     @property
     def nt(self):
@@ -47,13 +52,14 @@ class Model:
 
     @property
     def shape(self):
+        print(dir(self))
         return self.mask.shape
 
     def load_stats(self):
         if not self.stats_path.exists():
             return False
-        self.stats = Stats.load(self.stats_path)
-        self.istats = ImageStats.load(self.istats_path)
+        self.stats = load(self.stats_path)
+        self.istats = load(self.istats_path)
         return True
 
     def calc_stats(self, pbar=None):
@@ -64,14 +70,23 @@ class Model:
 
     @property
     def min(self):
-        return self.stats.min
+        return self.istats.imin.min()
 
     @property
     def max(self):
-        return self.stats.max
+        return self.istats.imax.max()
+
+    def simple_peaks(self, gauss, maxpool):
+        imin, imax, istd, icor = self.istats
+        if gauss > 0:
+            fil_cori = gaussian(icor[None, ...], gauss)[0]
+        else:
+            fil_cori = cori
+        max_cori = max_pool(fil_cori, (maxpool, maxpool), (1, 1), "same")
+        return np.where(fil_cori == max_cori)
 
     def frame(self, t):
-        nt, x0, y0, mask, avgx, avgt, std0, min0, max0 = self.stats
+        nt, x0, y0, mask, avgx, avgt, std0 = self.stats
         img = np.array((self.imgs[t] - avgx - avgt[t]) / std0)
         img[~mask] = 0
         return img
@@ -86,14 +101,12 @@ class Model:
         ).with_suffix(".npz")
         if not self.peakval_path.exists():
             return False
-        self.peakval = PeakVal.load(self.peakval_path)
+        self.peakval = load(self.peakval_path)
         return True
 
     def calc_peakval(self, pbar=None):
-        self.peakval = find_peak_batch(
-            self.imgs, self.radius, self.stats, self.num_devices, pbar
-        )
-        self.peakval.save(self.peakval_path)
+        self.peakval = find_peak_batch(self.imgs, self.stats, self.radius, pbar)
+        save(self.peakval_path, self.peakval)
 
     def load_peaks(self, rmin, rmax, thr):
         self.rmin = self.radius[rmin]
@@ -109,7 +122,7 @@ class Model:
 
     def calc_peaks(self):
         self.peaks = reduce_peak_block(
-            self.peakval, self.rmin, self.rmax, self.thr, self.block_size
+            self.peakval, self.rmin, self.rmax, self.thr, self.cfg.env.block_size
         )
         self.peaks.to_csv(self.peak_path)
 
@@ -123,15 +136,7 @@ class Model:
     def make_footprints(self, pbar=None):
         t, r, y, x = (self.peaks[n].to_numpy() for n in "tryx")
         self.footprints = make_segment_batch(
-            self.imgs,
-            t,
-            r,
-            y,
-            x,
-            self.stats,
-            self.buffer,
-            self.num_devices,
-            pbar,
+            self.imgs, self.stats, t, r, y, x, pbar,
         )
         jnp.save(self.footprints_path, self.footprints)
 

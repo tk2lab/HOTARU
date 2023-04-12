@@ -37,19 +37,25 @@ def calc_stats(imgs, mask=None, pbar=None):
         imax = diff.max(axis=-3)
         return avgt, sumi, sumn, sqi, sqn, cor, imin, imax
 
-    def finish(avgt, sumi, sumn, sqi, sqn, cor, imin, imax):
-        avgt = jnp.concatenate(avgt, axis=0)
-        sumi = jnp.sum(sumi, axis=0)
-        sumn = jnp.sum(sumn, axis=0)
-        sqi = jnp.sum(sqi, axis=0)
-        sqn = jnp.sum(sqn, axis=0)
-        cor = jnp.sum(cor, axis=0)
-        imin = jnp.min(imin, axis=0)
-        imax = jnp.max(imax, axis=0)
+    def aggregate(avgt, sumi, sumn, sqi, sqn, cor, imin, imax):
+        avgt = avgt.ravel()
+        sumi = sumi.sum(axis=0)
+        sumn = sumn.sum(axis=0)
+        sqi = sqi.sum(axis=0)
+        sqn = sqn.sum(axis=0)
+        cor = cor.sum(axis=0)
+        imin = imin.min(axis=0)
+        imax = imax.max(axis=0)
         return avgt, sumi, sumn, sqi, sqn, cor, imin, imax
+    
+    def finish(avgt, *args):
+        avgt = jnp.concatenate(avgt, axis=0)
+        iout = (jnp.stack(o) for o in args)
+        return aggregate(avgt, *iout)
 
-    scale = 2
-    avgt, sumi, sumn, sqi, sqn, cor, imin, imax = mapped_imgs(imgs, calc, finish, scale, pbar)
+    scale = 100
+    out = mapped_imgs(imgs, calc, aggregate, finish, scale, pbar)
+    avgt, sumi, sumn, sqi, sqn, cor, imin, imax = out
 
     avgx = sumi / nt
     avgn = sumn / nt

@@ -6,11 +6,11 @@ import jax.numpy as jnp
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.pool import max_pool
 from ..filter.map import mapped_imgs
-from ..utils.saver import SaverMixin
 
 
-class PeakVal(namedtuple("PeakVal", ["val", "t", "r"]), SaverMixin):
-    pass
+jnp.set_printoptions(precision=3, suppress=True)
+
+PeakVal = namedtuple("PeakVal", ["t", "r", "v"])
 
 
 def find_peak(imgs, mask, radius=None, size=3):
@@ -28,37 +28,41 @@ def find_peak(imgs, mask, radius=None, size=3):
     return t, r, y, x, v
 
 
-def find_peak_batch(imgs, radius, stats=None, buffer=None, num_devices=None, pbar=None):
-    if num_devices is None:
-        num_devices = jax.local_device_count()
-    if buffer is None:
-        buffer = default_buffer
-    nt, h, w = imgs.shape
-    nr = len(radius)
-    size = 4 * 4 * nr * h * w
-    batch = (buffer + size - 1) // size
+def find_peak_batch(imgs, stats, radius, pbar=None):
+    nt, x0, y0, mask, avgx, avgt, std0 = stats
+    h, w = mask.shape
+    imgs = imgs[:, y0:y0+h, x0:x0+w]
 
-    def apply(imgs, mask, start, end):
+    nr = len(radius)
+
+    def calc(t0, imgs):
+        #avgt = imgs[:, mask].mean(axis=-1)
+        #imgs = (imgs - avgx - avgt[:, None, None]) / std0
+        imgs = (imgs - avgx) / std0
         gl = gaussian_laplace_multi(imgs, radius, -3)
         max_gl = max_pool(gl, (3, 3, 3), (1, 1, 1), "same")
-        return jnp.where((gl == max_gl) & mask, gl, -jnp.inf)
-
-    def finish(glp):
-        return jnp.concatenate(glp, axis=0)
-
-    gen = apply_to_normalized(apply, finish, imgs, stats, batch, num_devices, pbar)
-    val = jnp.full((h, w), -jnp.inf)
-    ts = jnp.full((h, w), -1)
-    rs = jnp.zeros((h, w))
-    for t0, glp in gen:
+        glp = jnp.where((gl == max_gl) & mask, gl, -jnp.inf)
         v = glp.max(axis=(0, 1))
         idx = jnp.argmax(glp.reshape(-1, h, w), axis=0)
         t, r = jnp.divmod(idx, nr)
-        t += t0
-        r = jnp.array(radius)[r]
-        cond = v > val
-        val = jnp.where(cond, v, val)
-        ts = jnp.where(cond, t, ts)
-        rs = jnp.where(cond, r, rs)
+        t += t0[0]
+        return t, r, v, gl, glp
 
-    return PeakVal(val, ts, rs)
+    def aggregate(t, r, v, gl, glp):
+        print(jnp.transpose(gl[0], [2, 3, 0, 1])[100:103, 100:103])
+        print(jnp.transpose(glp[0], [2, 3, 0, 1])[100:103, 100:103])
+        print(t[0, 100:103, 100:103], r[0, 100:103, 100:103], v[0, 100:103, 100:103])
+        idx = jnp.argmax(v, axis=0)
+        x, y = jnp.meshgrid(jnp.arange(w), jnp.arange(h))
+        t = t[idx, y, x]
+        r = r[idx, y, x]
+        v = v[idx, y, x]
+        return t, r, v
+
+    def finish(*args):
+        return aggregate(*(jnp.stack(o) for o in args))
+
+    scale = 1000 * nr
+    t, r, v = mapped_imgs(imgs, calc, aggregate, finish, scale, pbar)
+    r = jnp.array(radius)[r]
+    return PeakVal(t, r, v)

@@ -9,4 +9,4 @@ def save(path, obj):
 
 def load(path):
     with np.load(path) as npz:
-        return napedtuple("LoadedData", npz.files)(**dict(npz.items()))
+        return namedtuple("LoadedData", npz.files)(**dict(npz.items()))

@@ -1,50 +1,60 @@
-import pathlib
-from threading import Thread
-
-import hydra
 import numpy as np
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from dash import (
     Input,
     Output,
     State,
     no_update,
 )
-from plotly.subplots import make_subplots
 
-from ..model import Model
-from ..utils.progress import SimpleProgress
+from ..jax.model import Model
 from .app import App
 from .graph import Graph
 from .ui import UI
 
 
-@hydra.main(version_base=None, config_path="../../config", config_name="config")
-def main(cfg):
-    model = Model(cfg)
-
-    ui = UI(model.cfg)
-    graph = Graph(model)
+def MainApp(cfg):
+    ui = UI(cfg)
     app = App(__name__, ui)
+
+    model = Model(cfg)
+    graph = Graph(model)
 
     def load_test(path, mask, hz):
         model.load_imgs(path, mask, hz)
         return model.load_stats()
 
-    def load_target():
-        pbar = SimpleProgress(model.dt)
-        thread = Thread(target=model.calc_stats, kwargs=dict(pbar=pbar))
-        return thread, pbar
-
     app.thread_callback(
         "load",
         load_test,
-        load_target,
+        model.calc_stats,
         Input("imgs_path", "value"),
         Input("imgs_mask", "value"),
         State("imgs_hz", "value"),
+    )
+
+    def peak_test(radius, rnum):
+        if not hasattr(model, "stats"):
+            return None
+        rmin, rmax = radius
+        return model.load_peakval(2**rmin, 2**rmax, rnum)
+
+    app.thread_callback(
+        "peak",
+        peak_test,
+        model.calc_peakval,
+        Input("radius-range", "value"),
+        Input("nradius", "value"),
+    )
+
+    def make_test():
+        if not hasattr(model, "peaks"):
+            return None
+        return model.load_footprints()
+
+    app.thread_callback(
+        "make",
+        make_test,
+        model.make_footprints,
     )
 
     @app.callback(
@@ -52,10 +62,9 @@ def main(cfg):
         Output("frame", "max"),
         Output("frame", "marks"),
         Output("frame", "value"),
-        prevent_initial_call=True,
     )
     def update_frame(data):
-        if not hasattr(model, "imgs"):
+        if not hasattr(model, "stats"):
             return no_update, no_update, no_update
         nt = model.nt
         marks = {i: f"{i}" for i in range(0, nt + 1, nt // 10)}
@@ -69,10 +78,8 @@ def main(cfg):
         Output("stdImage", "figure"),
         Output("corImage", "figure"),
         Output("std-cor", "figure"),
-        prevent_initial_call=True,
     )
     def plot_stats(finished, gauss, maxpool):
-        print("load", finished, gauss, maxpool)
         if finished != "finished":
             return (dict(display="none"),) + (no_update,) * 3
         return dict(display="flex"), *graph.plot_stats(gauss, maxpool)
@@ -82,7 +89,6 @@ def main(cfg):
         Output("imgs_minmax", "min"),
         Output("imgs_minmax", "max"),
         Output("imgs_minmax", "marks"),
-        prevent_initial_call=True,
     )
     def update_minmax(update):
         marks = {
@@ -99,7 +105,6 @@ def main(cfg):
         Output("image", "figure"),
         Output("filtered", "figure"),
         Output("hist", "figure"),
-        prevent_initial_call=True,
     )
     def plot_frame(t, radius, minmax):
         if not hasattr(model, "stats"):
@@ -119,25 +124,6 @@ def main(cfg):
         marks = {i: f"{r:.2f}" for i, r in enumerate(radius)}
         return rnum - 1, marks
 
-    def peak_test(radius, rnum):
-        if not hasattr(model, "stats"):
-            return None
-        rmin, rmax = radius
-        return model.load_peakval(2**rmin, 2**rmax, rnum)
-
-    def peak_target():
-        pbar = SimpleProgress(model.nt)
-        thread = Thread(target=model.calc_peakval, kwargs=dict(pbar=pbar))
-        return thread, pbar
-
-    app.thread_callback(
-        "peak",
-        peak_test,
-        peak_target,
-        Input("radius-range", "value"),
-        Input("nradius", "value"),
-    )
-
     @app.callback(
         Input("peak-finished", "data"),
         Input("radius-range2", "value"),
@@ -145,75 +131,45 @@ def main(cfg):
         Output("peakgraph", "style"),
         Output("circle", "figure"),
         Output("radius-intensity", "figure"),
-        prevent_initial_call=True,
     )
     def plot_peak(finished, radius, thr):
         if finished != "finished":
             return dict(display="none"), no_update, no_update
         rmin, rmax = radius
-        rmin = model.radius[rmin] - 1e-6
-        rmax = model.radius[rmax] + 1e-6
-        model.calc_peaks(rmin, rmax, thr, 100)
+        if not model.load_peaks(rmin, rmax, thr):
+            model.calc_peaks()
         return dict(display="flex"), *graph.plot_peak()
 
-    def make_test():
-        if not hasattr(model, "stats"):
-            return None
-        return model.load_footprints()
-
-    def make_target():
-        pbar = SimpleProgress(model.nt)
-        thread = Thread(target=model.make_footprints, kwargs=dict(pbar=pbar))
-        return thread, pbar
-
-    app.thread_callback(
-        "make",
-        make_test,
-        make_target,
+    @app.callback(
+        Input("make-finished", "data"),
+        Output("cell-select", "max"),
+        Output("cell-select", "marks"),
     )
+    def update_select(finished):
+        if finished != "finished":
+            return no_update, no_update
+        nc = model.footprints.shape[0]
+        marks = {i: f"{i}" for i in range(0, nc + 1, nc // 10)}
+        return nc, marks
 
     @app.callback(
         Input("make-finished", "data"),
         Output("makegraph", "style"),
         Output("cell-all", "figure"),
-        Output("cell-select", "max"),
-        Output("cell-select", "marks"),
-        prevent_initial_call=True,
     )
     def finish_make(finished):
         if finished != "finished":
-            return dict(display="none"), no_update, no_update, no_update
-        peaks = model.peaks
-        peaks["id"] = peaks.index
-        data = model.footprints
-        nc = data.shape[0]
-        bg = graph.heatmap(data.max(axis=0))
-        circle = go.Scatter(
-            x=peaks.x,
-            y=peaks.y,
-            mode="markers",
-            showlegend=False,
-            customdata=peaks[["id", "r", "v"]],
-            hovertemplate="id:%{customdata[0]}, x:%{x}, y:%{y}, r:%{customdata[1]:.3f}, v:%{customdata[2]:.3f}",
-        )
-        cells = go.Figure([bg, circle], graph.image_layout)
-        marks = {i: f"{i}" for i in range(0, nc + 1, nc // 10)}
-        print("plot all cells")
-        return dict(display="flex"), cells, model.footprints.shape[0], marks
+            return dict(display="none"), no_update
+        return dict(display="flex"), graph.plot_all()
 
     @app.callback(
-        Input("cell-all", "figure"),
+        Input("make-finished", "data"),
         Input("cell-select", "value"),
-        State("make-finished", "data"),
         Output("cell-single", "figure"),
     )
-    def select_make(cells, select, finished):
+    def select_make(finished, select):
         if finished != "finished":
-            return no_update
-        print("plot single cell")
-        single = go.Figure(
-            [graph.heatmap(model.footprints[select])], graph.image_layout
-        )
-        return (single,)
+            return (no_update,)
+        return (graph.plot_single(select),)
 
-    app.run_server(debug=True, port=8888)
+    return app

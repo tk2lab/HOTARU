@@ -1,3 +1,5 @@
+from threading import Thread
+
 from dash import (
     Dash,
     Input,
@@ -7,10 +9,13 @@ from dash import (
     no_update,
 )
 
+from ..utils.progress import SimpleProgress
+
 
 class App(Dash):
     def __init__(self, name, ui, *args, **kwargs):
         kwargs.setdefault("external_stylesheets", [ui.stylesheet])
+        kwargs.setdefault("title", ui.title)
         super().__init__(name, *args, **kwargs)
         self.layout = ui.layout
         for name in ui.collapses:
@@ -18,6 +23,7 @@ class App(Dash):
         self.job = {}
 
     def callback(self, *args, **kwargs):
+        kwargs.setdefault("prevent_initial_call", True)
         outputs = []
         inputs = []
         states = []
@@ -55,7 +61,8 @@ class App(Dash):
                 if ok:
                     uid = "saved"
                 else:
-                    thread, pbar = target_fn()
+                    pbar = SimpleProgress()
+                    thread = Thread(target=target_fn, kwargs=dict(pbar=pbar))
                     thread.start()
                     self.job[thread.native_id] = thread, pbar
                     uid = thread.native_id

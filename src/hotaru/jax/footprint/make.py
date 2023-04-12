@@ -3,8 +3,8 @@ import jax.numpy as jnp
 import numpy as np
 
 from ...io.saver import (
-    save,
     load,
+    save,
 )
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.map import mapped_imgs
@@ -26,9 +26,9 @@ def make_segment_batch(imgs, stats, ts, rs, ys, xs, pbar=None):
 
     nt, x0, y0, mask, avgx, avgt, std0 = stats
     h, w = mask.shape
-    imgs = imgs[:, y0:y0+h, x0:x0+w]
+    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
     print(nr, y0, x0, h, w)
-    
+
     scale = 20 * nr
 
     def apply(t0, imgs):

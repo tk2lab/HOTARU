@@ -11,7 +11,6 @@ from ...utils.stats import Stats
 from .map import mapped_imgs
 from .misc import neighbor
 
-
 ImageStats = namedtuple("ImageStats", "imin imax istd icor")
 
 
@@ -47,7 +46,7 @@ def calc_stats(imgs, mask=None, pbar=None):
         imin = imin.min(axis=0)
         imax = imax.max(axis=0)
         return avgt, sumi, sumn, sqi, sqn, cor, imin, imax
-    
+
     def finish(avgt, *args):
         avgt = jnp.concatenate(avgt, axis=0)
         iout = (jnp.stack(o) for o in args)

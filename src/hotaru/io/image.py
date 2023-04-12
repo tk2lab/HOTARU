@@ -1,14 +1,12 @@
 import pathlib
 
 import numpy as np
-
 from tifffile import (
     TiffFile,
     memmap,
 )
 
-
-default_buffer = 2 ** 30
+default_buffer = 2**30
 
 
 def load_imgs(path, in_type=None):
@@ -21,8 +19,8 @@ def load_imgs(path, in_type=None):
         return np.load(path, mmap_mode="r")
 
     if in_type == "raw":
-        #info = path.with_suffix(".raw.info")
-        #h, w, dtype, endian = info.read_text().replace("\n", "").split(".")
+        # info = path.with_suffix(".raw.info")
+        # h, w, dtype, endian = info.read_text().replace("\n", "").split(".")
         h, w, dtype, endian = path.suffixes
         h, w = int(h), int(w)
         endian = "<" if endian == "l" else ">"

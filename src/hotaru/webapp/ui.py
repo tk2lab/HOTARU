@@ -112,9 +112,7 @@ class UI:
                         marks={i: str(i) for i in range(11)},
                     ),
                     dbc.Label("MaxPool", html_for="maxpool"),
-                    dcc.Slider(
-                        id="maxpool", min=3, max=11, step=2, value=3
-                    ),
+                    dcc.Slider(id="maxpool", min=3, max=11, step=2, value=3),
                 ],
                 style=dict(
                     width="1200px",
@@ -207,10 +205,7 @@ class UI:
                     marks={i: str(2**i) for i in range(6)},
                 ),
                 Input(
-                    "nradius",
-                    "Num radius",
-                    dcc.Slider,
-                    min=1, max=50, step=1, value=11
+                    "nradius", "Num radius", dcc.Slider, min=1, max=50, step=1, value=11
                 ),
                 ThreadButton("peak", "PEAK"),
                 dbc.Progress(id="peak-progress"),
@@ -222,14 +217,11 @@ class UI:
                     step=1,
                     value=[1, 9],
                     marks={
-                        i: f"{2 ** r:.2f}"
-                        for i, r in enumerate(np.linspace(1, 5, 11))
+                        i: f"{2 ** r:.2f}" for i, r in enumerate(np.linspace(1, 5, 11))
                     },
                 ),
                 dbc.Label("Distance threshold", html_for="thr"),
-                dcc.Slider(
-                    id="thr", min=0.5, max=3, step=0.1, value=2.0
-                ),
+                dcc.Slider(id="thr", min=0.5, max=3, step=0.1, value=2.0),
             ),
             html.Div(
                 [

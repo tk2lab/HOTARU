@@ -4,9 +4,8 @@ import jax
 import jax.numpy as jnp
 
 from ..filter.laplace import gaussian_laplace_multi
-from ..filter.pool import max_pool
 from ..filter.map import mapped_imgs
-
+from ..filter.pool import max_pool
 
 jnp.set_printoptions(precision=3, suppress=True)
 
@@ -31,13 +30,13 @@ def find_peak(imgs, mask, radius=None, size=3):
 def find_peak_batch(imgs, stats, radius, pbar=None):
     nt, x0, y0, mask, avgx, avgt, std0 = stats
     h, w = mask.shape
-    imgs = imgs[:, y0:y0+h, x0:x0+w]
+    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
 
     nr = len(radius)
 
     def calc(t0, imgs):
-        #avgt = imgs[:, mask].mean(axis=-1)
-        #imgs = (imgs - avgx - avgt[:, None, None]) / std0
+        # avgt = imgs[:, mask].mean(axis=-1)
+        # imgs = (imgs - avgx - avgt[:, None, None]) / std0
         imgs = (imgs - avgx) / std0
         gl = gaussian_laplace_multi(imgs, radius, -3)
         max_gl = max_pool(gl, (3, 3, 3), (1, 1, 1), "same")

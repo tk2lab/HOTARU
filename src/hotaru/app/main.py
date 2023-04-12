@@ -4,10 +4,11 @@ from threading import Thread
 import dash_bootstrap_components as dbc
 import diskcache
 import numpy as np
+import plotly.graph_objects as go
 from dash import (
     Dash,
-    Output,
     Input,
+    Output,
     State,
     callback,
     ctx,
@@ -15,10 +16,9 @@ from dash import (
     html,
     no_update,
 )
-import plotly.graph_objects as go
 
-from ..jax.model import Model
 from ..jax.filter.laplace import gaussian_laplace
+from ..jax.model import Model
 
 
 class Progress:
@@ -43,6 +43,7 @@ def ThreadButton(label, func, *state):
         ]
     )
     jobs = [None, None]
+
     @callback(
         Output(interval, "disabled"),
         Output(pbar, "value"),
@@ -64,6 +65,7 @@ def ThreadButton(label, func, *state):
                 return no_update, pbar.value
             else:
                 return True, 100
+
     div.finish = Input(interval, "disabled")
     return div
 
@@ -75,6 +77,7 @@ def Collapse(name, *children):
             collapse := dbc.Collapse(children=children),
         ]
     )
+
     @callback(
         Output(collapse, "is_open"),
         Input(button, "n_clicks"),
@@ -83,11 +86,11 @@ def Collapse(name, *children):
     )
     def toggle_stats(n, is_open):
         return not is_open
+
     return div
 
 
 class MainApp(Dash):
-
     def __init__(self, cfg, *args, **kwargs):
         kwargs.setdefault("external_stylesheets", [dbc.themes.BOOTSTRAP])
         kwargs.setdefault("title", "HOTARU")
@@ -199,8 +202,12 @@ class MainApp(Dash):
 
             heat_std = go.Heatmap(z=istd, colorscale="greens", colorbar=colorbar)
             heat_cor = go.Heatmap(z=icor, colorscale="greens", colorbar=colorbar)
-            peaks = go.Scatter(x=x, y=y, mode="markers", marker=dict(color="red", opacity=0.3))
-            std_cor = go.Scatter(x=vstd, y=vcor, mode="markers", marker=dict(color="red", opacity=0.5))
+            peaks = go.Scatter(
+                x=x, y=y, mode="markers", marker=dict(color="red", opacity=0.3)
+            )
+            std_cor = go.Scatter(
+                x=vstd, y=vcor, mode="markers", marker=dict(color="red", opacity=0.5)
+            )
 
             stdfig = go.Figure(
                 [peaks, heat_std],
@@ -274,12 +281,14 @@ class MainApp(Dash):
             prevent_initial_call=True,
         )
         def update_frame(finish):
-            if not finish: 
+            if not finish:
                 return (no_update,) * 6
             nt = model.nt
             fmarks = {i: f"{i}" for i in range(0, nt + 1, nt // 10)}
             m, M = model.min, model.max
-            mmarks = {float(v): f"{v:.1f}" for v in np.arange(np.ceil(m), np.ceil(M), 1)}
+            mmarks = {
+                float(v): f"{v:.1f}" for v in np.arange(np.ceil(m), np.ceil(M), 1)
+            }
             return nt - 1, fmarks, 0, m, M, mmarks
 
         @callback(
@@ -303,16 +312,24 @@ class MainApp(Dash):
 
             gcount, ghist = np.histogram(logr, bins=np.linspace(-0.1, 1.0, 100))
 
-            heat_img = go.Heatmap(z=img, zmin=vmin, zmax=vmax, colorscale="greens", colorbar=colorbar)
-            heat_log = go.Heatmap(z=log, zmin=-0.4, zmax=0.4, colorscale="Picnic", colorbar=colorbar)
+            heat_img = go.Heatmap(
+                z=img, zmin=vmin, zmax=vmax, colorscale="greens", colorbar=colorbar
+            )
+            heat_log = go.Heatmap(
+                z=log, zmin=-0.4, zmax=0.4, colorscale="Picnic", colorbar=colorbar
+            )
             hist = go.Bar(x=ghist, y=gcount, width=ghist[1] - ghist[0])
             imgfig = go.Figure([heat_img], image_layout())
             logfig = go.Figure([heat_log], image_layout())
-            histfig = go.Figure([hist], dict(xaxis=dict(title="intensity"), yaxis=dict(title="count"), **layout()))
+            histfig = go.Figure(
+                [hist],
+                dict(
+                    xaxis=dict(title="intensity"), yaxis=dict(title="count"), **layout()
+                ),
+            )
             return imgfig, logfig, histfig
-            
 
-        '''
+        """
         peak = Collapse(
             "peak",
             html.H2("Find peaks"),
@@ -367,6 +384,6 @@ class MainApp(Dash):
                 style=dict(display="none"),
             ),
         )
-        '''
+        """
 
         self.layout = html.Div([load_div, stats_div, frame_div])

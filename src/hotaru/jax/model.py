@@ -4,12 +4,12 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 
-from ..io.saver import (
-    save,
-    load,
-)
 from ..io.image import load_imgs
 from ..io.mask import get_mask
+from ..io.saver import (
+    load,
+    save,
+)
 from ..jax.filter.gaussian import gaussian
 from ..jax.filter.laplace import gaussian_laplace
 from ..jax.filter.pool import max_pool
@@ -24,6 +24,7 @@ from .footprint.find import (
 )
 from .footprint.make import make_segment_batch
 from .footprint.reduce import reduce_peak_block
+
 """
 from .train.prepare import prepare
 """
@@ -136,7 +137,13 @@ class Model:
     def make_footprints(self, pbar=None):
         t, r, y, x = (self.peaks[n].to_numpy() for n in "tryx")
         self.footprints = make_segment_batch(
-            self.imgs, self.stats, t, r, y, x, pbar,
+            self.imgs,
+            self.stats,
+            t,
+            r,
+            y,
+            x,
+            pbar,
         )
         jnp.save(self.footprints_path, self.footprints)
 

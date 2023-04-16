@@ -38,23 +38,12 @@ class Model:
         self.block_size = cfg.env.block_size
 
     def load_imgs(self, path, mask, hz):
-        print(path)
         path = pathlib.Path(path)
         self.imgs = load_imgs(path)
         self.mask = get_mask(mask, self.imgs)
         self.hz = hz
         self.stats_path = path.with_stem(f"{path.stem}_{mask}").with_suffix(".npz")
         self.istats_path = path.with_stem(f"{path.stem}_{mask}_i").with_suffix(".npz")
-        print(self.mask)
-
-    @property
-    def nt(self):
-        return self.imgs.shape[0]
-
-    @property
-    def shape(self):
-        print(dir(self))
-        return self.mask.shape
 
     def load_stats(self):
         if not self.stats_path.exists():
@@ -63,11 +52,22 @@ class Model:
         self.istats = load(self.istats_path)
         return True
 
-    def calc_stats(self, pbar=None):
-        nt, h, w = self.imgs.shape
-        self.stats, self.istats = calc_stats(self.imgs, self.mask, pbar)
-        save(self.stats_path, self.stats)
-        save(self.istats_path, self.istats)
+    def calc_stats(self, path=None, mask=None, hz=None, pbar=None):
+        if path is not None:
+            self.load_imgs(path, mask, hz)
+        if not self.load_stats():
+            nt, h, w = self.imgs.shape
+            self.stats, self.istats = calc_stats(self.imgs, self.mask, pbar)
+            save(self.stats_path, self.stats)
+            save(self.istats_path, self.istats)
+
+    @property
+    def nt(self):
+        return self.imgs.shape[0]
+
+    @property
+    def shape(self):
+        return self.mask.shape
 
     @property
     def min(self):
@@ -97,6 +97,7 @@ class Model:
             self.radius = np.power(2, np.linspace(np.log2(rmin), np.log2(rmax), rnum))
         elif rtype == "lin":
             self.radius = np.linspace(rmin, rmax, rnum)
+        print(self.radius)
         self.peakval_path = self.stats_path.with_stem(
             f"{self.stats_path.stem}_{rmin}_{rmax}_{rnum}_{rtype}"
         ).with_suffix(".npz")
@@ -105,27 +106,36 @@ class Model:
         self.peakval = load(self.peakval_path)
         return True
 
-    def calc_peakval(self, pbar=None):
-        self.peakval = find_peak_batch(self.imgs, self.stats, self.radius, pbar)
-        save(self.peakval_path, self.peakval)
+    def calc_peakval(self, rmin, rmax, rnum, rtype="log", pbar=None):
+        if not self.load_peakval(rmin, rmax, rnum, rtype):
+            self.peakval = find_peak_batch(self.imgs, self.stats, self.radius, pbar)
+            save(self.peakval_path, self.peakval)
 
     def load_peaks(self, rmin, rmax, thr):
         self.rmin = self.radius[rmin]
         self.rmax = self.radius[rmax]
         self.thr = thr
+        print(self.radius)
+        print(self.rmin)
+        print(self.rmax)
         self.peak_path = self.peakval_path.with_stem(
             f"{self.peakval_path.stem}_{rmin}_{rmax}_{thr}"
         ).with_suffix(".csv")
         if not self.peak_path.exists():
             return False
-        self.peaks = pd.read_csv(self.peak_path)
+        self.peaks = pd.read_csv(self.peak_path, index_col=0)
         return True
 
-    def calc_peaks(self):
-        self.peaks = reduce_peak_block(
-            self.peakval, self.rmin, self.rmax, self.thr, self.cfg.env.block_size
-        )
-        self.peaks.to_csv(self.peak_path)
+    def calc_peaks(self, rmin, rmax, thr):
+        if not self.load_peaks(rmin, rmax, thr):
+            self.peaks = reduce_peak_block(
+                self.peakval,
+                self.rmin,
+                self.rmax,
+                self.thr,
+                self.cfg.env.block_size,
+            )
+            self.peaks.to_csv(self.peak_path)
 
     def load_footprints(self, path):
         self.footprints_path = pathlib.Path(path)

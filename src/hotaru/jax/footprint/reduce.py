@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 
-def reduce_peak(vs, ts, rs, rmin, rmax, thr_distance):
+def reduce_peak(ts, rs, vs, rmin, rmax, thr_distance):
     h, w = vs.shape
     idx = np.argsort(vs.ravel())[::-1]
     ys, xs = np.divmod(idx, w)
@@ -39,7 +39,7 @@ def _reduce_peak(args):
 
 
 def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
-    vs, ts, rs = (np.array(o) for o in peakval)
+    ts, rs, vs = peakval
     h, w = vs.shape
     margin = int(np.ceil(thr_distance * rs.max()))
     args = []
@@ -51,10 +51,10 @@ def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
             y0 = max(ys - margin, 0)
             ye = ys + block_size
             y1 = min(ye + margin, h)
-            v = vs[y0:y1, x0:x1]
             t = ts[y0:y1, x0:x1]
             r = rs[y0:y1, x0:x1]
-            args.append(((y0, x0, ys, xs, ye, xe), (v, t, r, rmin, rmax, thr_distance)))
+            v = vs[y0:y1, x0:x1]
+            args.append(((y0, x0, ys, xs, ye, xe), (t, r, v, rmin, rmax, thr_distance)))
 
     y, x = [], []
     with mp.Pool() as pool:

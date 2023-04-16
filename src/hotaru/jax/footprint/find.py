@@ -35,8 +35,6 @@ def find_peak_batch(imgs, stats, radius, pbar=None):
     nr = len(radius)
 
     def calc(t0, imgs):
-        # avgt = imgs[:, mask].mean(axis=-1)
-        # imgs = (imgs - avgx - avgt[:, None, None]) / std0
         imgs = (imgs - avgx) / std0
         gl = gaussian_laplace_multi(imgs, radius, -3)
         max_gl = max_pool(gl, (3, 3, 3), (1, 1, 1), "same")
@@ -45,12 +43,9 @@ def find_peak_batch(imgs, stats, radius, pbar=None):
         idx = jnp.argmax(glp.reshape(-1, h, w), axis=0)
         t, r = jnp.divmod(idx, nr)
         t += t0[0]
-        return t, r, v, gl, glp
+        return t, r, v
 
-    def aggregate(t, r, v, gl, glp):
-        print(jnp.transpose(gl[0], [2, 3, 0, 1])[100:103, 100:103])
-        print(jnp.transpose(glp[0], [2, 3, 0, 1])[100:103, 100:103])
-        print(t[0, 100:103, 100:103], r[0, 100:103, 100:103], v[0, 100:103, 100:103])
+    def aggregate(t, r, v):
         idx = jnp.argmax(v, axis=0)
         x, y = jnp.meshgrid(jnp.arange(w), jnp.arange(h))
         t = t[idx, y, x]

@@ -2,12 +2,12 @@ import numpy as np
 import plotly.graph_objects as go
 
 
-def heat_fig(title, colorscale="greens", zmin=None, zmax=None):
+def heat_fig(title, colorscale="greens", scattercolor="red", zmin=None, zmax=None):
     heat = go.Heatmap(
         colorscale=colorscale, zmin=zmin, zmax=zmax,
         colorbar=dict(orientation="h", y=0, yanchor="top", thickness=10),
     )
-    scatter = go.Scatter(mode="markers")
+    scatter = go.Scatter(mode="markers", marker_color=scattercolor)
     layout = go.Layout(
         title=title,
         xaxis=dict(visible=False, autorange=False),
@@ -34,8 +34,9 @@ def circle_fig(title):
     return go.Figure([scatter], layout)
 
 
-def update_img(fig, h, w):
-    fig.layout.width = 500 * w / h
+def update_img(fig, h, w, height=500):
+    fig.layout.width = height * w / h
+    fig.layout.height = height + 70
     fig.layout.xaxis.range = [0, w]
     fig.layout.yaxis.range = [h, 0]
     return fig
@@ -50,7 +51,7 @@ def scatter_fig(title, xlabel, ylabel):
         width=600,
         height=570,
     )
-    return go.Figure([scatter], layout)
+    return go.Figure([scatter, scatter], layout)
 
 
 def bar_fig(title, xlabel, ylabel):

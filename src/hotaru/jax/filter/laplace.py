@@ -6,15 +6,16 @@ import jax.numpy as jnp
 import numpy as np
 
 
+@partial(jax.jit, static_argnames=["r"])
 def gaussian_laplace(imgs, r):
     return _gaussian_laplace(imgs, r, 4 * np.ceil(r))
 
 
+@partial(jax.jit, static_argnames=["rs", "axis"])
 def gaussian_laplace_multi(imgs, rs, axis=-1):
     return jnp.stack([gaussian_laplace(imgs, r) for r in rs], axis=axis)
 
 
-@partial(jax.jit, static_argnames=["nd"])
 def _gaussian_laplace(imgs, r, nd):
     sqrt_2pi = jnp.sqrt(2 * jnp.pi)
     d = jnp.square(jnp.arange(-nd, nd + 1, 1))

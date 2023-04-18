@@ -20,7 +20,7 @@ from .filter.stats import (
 )
 from .footprint.find import (
     PeakVal,
-    find_peak_batch,
+    find_peaks_batch,
 )
 from .footprint.make import make_segment_batch
 from .footprint.reduce import reduce_peak_block
@@ -52,10 +52,10 @@ class Model:
         self.istats = load(self.istats_path)
         return True
 
-    def calc_stats(self, path=None, mask=None, hz=None, pbar=None):
+    def calc_stats(self, path=None, mask=None, hz=None, pbar=None, force=False):
         if path is not None:
             self.load_imgs(path, mask, hz)
-        if not self.load_stats():
+        if not self.load_stats() or force:
             nt, h, w = self.imgs.shape
             self.stats, self.istats = calc_stats(self.imgs, self.mask, pbar)
             save(self.stats_path, self.stats)
@@ -97,7 +97,6 @@ class Model:
             self.radius = np.power(2, np.linspace(np.log2(rmin), np.log2(rmax), rnum))
         elif rtype == "lin":
             self.radius = np.linspace(rmin, rmax, rnum)
-        print(self.radius)
         self.peakval_path = self.stats_path.with_stem(
             f"{self.stats_path.stem}_{rmin}_{rmax}_{rnum}_{rtype}"
         ).with_suffix(".npz")
@@ -106,9 +105,9 @@ class Model:
         self.peakval = load(self.peakval_path)
         return True
 
-    def calc_peakval(self, rmin, rmax, rnum, rtype="log", pbar=None):
-        if not self.load_peakval(rmin, rmax, rnum, rtype):
-            self.peakval = find_peak_batch(self.imgs, self.stats, self.radius, pbar)
+    def calc_peakval(self, rmin, rmax, rnum, rtype="log", pbar=None, force=False):
+        if not self.load_peakval(rmin, rmax, rnum, rtype) or force:
+            self.peakval = find_peaks_batch(self.imgs, self.stats, self.radius, pbar)
             save(self.peakval_path, self.peakval)
 
     def load_peaks(self, rmin, rmax, thr):

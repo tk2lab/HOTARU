@@ -6,8 +6,6 @@ from tifffile import (
     memmap,
 )
 
-default_buffer = 2**30
-
 
 def load_imgs(path, in_type=None):
     path = pathlib.Path(path)

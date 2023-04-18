@@ -55,6 +55,7 @@ def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
             r = rs[y0:y1, x0:x1]
             v = vs[y0:y1, x0:x1]
             args.append(((y0, x0, ys, xs, ye, xe), (t, r, v, rmin, rmax, thr_distance)))
+            print(y0, x0, ys, xs, ye, xe)
 
     y, x = [], []
     with mp.Pool() as pool:

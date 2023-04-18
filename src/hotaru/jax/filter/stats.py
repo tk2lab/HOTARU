@@ -23,17 +23,17 @@ def calc_stats(imgs, mask=None, pbar=None):
     mask = mask[y0 : y0 + h, x0 : x0 + w]
     mask = jnp.asarray(mask, bool)
 
-    def calc(t0, imgs):
-        avgt = imgs[:, mask].mean(axis=-1)
+    def calc(ts, imgs):
+        avgt = jnp.nanmean(imgs[:, mask], axis=-1)
         diff = imgs - avgt[..., None, None]
         neig = neighbor(diff)
-        sumi = diff.sum(axis=-3)
-        sumn = neig.sum(axis=-3)
-        sqi = jnp.square(diff).sum(axis=-3)
-        sqn = jnp.square(neig).sum(axis=-3)
-        cor = (diff * neig).sum(axis=-3)
-        imin = diff.min(axis=-3)
-        imax = diff.max(axis=-3)
+        sumi = jnp.nansum(diff, axis=-3)
+        sumn = jnp.nansum(neig, axis=-3)
+        sqi = jnp.nansum(jnp.square(diff), axis=-3)
+        sqn = jnp.nansum(jnp.square(neig), axis=-3)
+        cor = jnp.nansum(diff * neig, axis=-3)
+        imin = jnp.nanmin(diff, axis=-3)
+        imax = jnp.nanmax(diff, axis=-3)
         return avgt, sumi, sumn, sqi, sqn, cor, imin, imax
 
     def aggregate(avgt, sumi, sumn, sqi, sqn, cor, imin, imax):
@@ -48,8 +48,8 @@ def calc_stats(imgs, mask=None, pbar=None):
         return avgt, sumi, sumn, sqi, sqn, cor, imin, imax
 
     def finish(avgt, *args):
-        avgt = jnp.concatenate(avgt, axis=0)
-        iout = (jnp.stack(o) for o in args)
+        avgt = np.concatenate(avgt, axis=0)[:nt]
+        iout = (np.stack(o) for o in args)
         return aggregate(avgt, *iout)
 
     scale = 100
@@ -58,20 +58,20 @@ def calc_stats(imgs, mask=None, pbar=None):
 
     avgx = sumi / nt
     avgn = sumn / nt
-    varx = sqi / nt - jnp.square(avgx)
-    stdx = jnp.sqrt(varx)
-    stdn = jnp.sqrt(sqn / nt - jnp.square(avgn))
-    std0 = jnp.sqrt(varx[mask].mean())
+    varx = sqi / nt - np.square(avgx)
+    stdx = np.sqrt(varx)
+    stdn = np.sqrt(sqn / nt - np.square(avgn))
+    std0 = np.sqrt(varx[mask].mean())
 
     imin = (imin - avgx) / std0
     imax = (imax - avgx) / std0
     istd = stdx / std0
     icor = (cor / nt - avgx * avgn) / (stdx * stdn)
 
-    imin.at[~mask].set(0)
-    imax.at[~mask].set(0)
-    istd.at[~mask].set(0)
-    icor.at[~mask].set(0)
+    imin[mask] = 0
+    imax[mask] = 0
+    istd[mask] = 0
+    icor[mask] = 0
 
     stats = Stats(nt, y0, y0, mask, avgx, avgt, std0)
     istats = ImageStats(imin, imax, istd, icor)

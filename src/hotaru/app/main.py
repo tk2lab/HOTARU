@@ -1,4 +1,6 @@
 import dash_bootstrap_components as dbc
+import jax
+import jax.numpy as jnp
 import numpy as np
 from dash import (
     Dash,
@@ -13,7 +15,7 @@ from dash import (
     no_update,
 )
 
-from ..jax.filter.laplace import gaussian_laplace
+from ..jax.footprint.find import find_peaks
 from ..jax.model import Model
 from .ui import (
     two_column,
@@ -129,7 +131,7 @@ class MainApp(Dash):
 
         frame_div = Collapse(
             "frame",
-            html.H2("Check frames (optional)"),
+            html.H2("Check frames"),
             html.Div(
                 style=two_column(1200),
                 children=[
@@ -148,22 +150,32 @@ class MainApp(Dash):
                         step=0.1,
                         value=[-1, 1],
                     ),
-                    dbc.Label("Filter's Radius"),
-                    radius := dcc.Slider(
-                        min=0,
-                        max=5,
-                        step=0.1,
-                        value=2,
-                        marks={i: str(2**i) for i in range(6)},
-                    ),
                 ],
             ),
             frame_graph := dbc.Row(
                 children=[
-                    dcc.Store("frame_data"),
                     dbc.Col(norm_img := dcc.Graph(figure=heat_fig("norm"))),
-                    dbc.Col(filt_img := dcc.Graph(figure=heat_fig("filt", "Picnic", -0.4, 0.4))),
                     dbc.Col(hist_img := dcc.Graph(figure=bar_fig("intensity histogram", "intensity", "count"))),
+                ],
+            ),
+            html.Div(
+                style=two_column(1200),
+                children=[
+                    dbc.Label("Radius range"),
+                    radius := dcc.RangeSlider(
+                        min=0,
+                        max=5,
+                        step=0.1,
+                        value=[1, 4],
+                        marks={i: str(2**i) for i in range(6)},
+                    ),
+                    dbc.Label("Num radius"),
+                    nradius := dcc.Slider(min=1, max=50, step=1, value=11),
+                ],
+            ),
+            filt_graph := dbc.Row(
+                children=[
+                    dbc.Col(filt_img := dcc.Graph(figure=heat_fig("filt", "Picnic", "green", -0.6, 0.6))),
                 ],
             ),
         )
@@ -189,65 +201,59 @@ class MainApp(Dash):
             return nt - 1, fmarks, 0, m, M, mmarks
 
         @callback(
-            Output("frame_data", "data"),
+            Output(norm_img, "figure"),
             load.finish,
             Input(frame, "value"),
-            Input(radius, "value"),
             Input(minmax, "value"),
         )
-        def update_frame(finish, t, radius, minmax):
+        def plot_norm(data, t, minmax):
             if not hasattr(model, "stats"):
                 return no_update
-            radius = np.power(2, radius)
-            model.vmin, model.vmax = minmax
             model.cur_img = model.frame(t)
-            model.log_img = gaussian_laplace(model.cur_img[None, ...], radius)[0]
-            return "finish"
-
-        @callback(Output(norm_img, "figure"), Input("frame_data", "data"))
-        def plot_norm(data):
+            vmin, vmax = minmax
             fig = Patch()
             fig.data[0].z = model.cur_img
-            fig.data[0].zmin = model.vmin 
-            fig.data[0].zmax = model.vmax
+            fig.data[0].zmin = vmin 
+            fig.data[0].zmax = vmax
             return update_img(fig, *model.shape)
 
-        @callback(Output(filt_img, "figure"), Input("frame_data", "data"))
-        def plot_filt(data):
-            fig = Patch()
-            fig.data[0].z = model.log_img
-            return update_img(fig, *model.shape)
-
-        @callback(Output(hist_img, "figure"), Input("frame_data", "data"))
-        def plot_filt(data):
-            gcount, ghist = np.histogram(model.log_img.ravel(), bins=np.linspace(-0.1, 1.0, 100))
+        @callback(Output(hist_img, "figure"), Input(norm_img, "figure"))
+        def plot_hist(data):
+            gcount, ghist = np.histogram(model.cur_img.ravel(), bins=np.linspace(-0.1, 5.0, 100))
             fig = Patch()
             fig.data[0].x = ghist
             fig.data[0].y = gcount
             return fig
 
-        def calc_peakval(radius, nradius, pbar):
+        @callback(
+            Output(filt_img, "figure"),
+            Input(norm_img, "figure"),
+            Input(radius, "value"),
+            Input(nradius, "value"),
+            State(frame, "value"),
+        )
+        def plot_filt(data, radius, rnum, t):
+            if not hasattr(model, "stats"):
+                return no_update
             rmin, rmax = radius
-            return model.calc_peakval(2 ** rmin, 2 ** rmax, nradius, "log", pbar)
+            radius = np.power(2, np.linspace(rmin, rmax, rnum))
+            log_img, t, r, y, x = find_peaks(model.cur_img[None, ...], model.mask, radius)
+            log_img = np.pad(log_img[0, 1:-1], [[0, 0], [0, 0], [2, 2]])
+            r -= 1
+            nr, h, w = log_img.shape
+            fig = Patch()
+            fig.data[0].z = np.concatenate(log_img, axis=1)
+            fig.data[1].x = w * r + x
+            fig.data[1].y = y
+            return update_img(fig, h, nr * w, 200)
+
+        def calc_peakval(radius, nradius, pbar):
+            rmin, rmax = np.power(2, radius)
+            return model.calc_peakval(rmin, rmax, nradius, "log", pbar)
 
         peak_div = Collapse(
             "peak",
             html.H2("Find peaks"),
-            html.Div(
-                style=two_column(1200),
-                children=[
-                    dbc.Label("Radius range"),
-                    radius := dcc.RangeSlider(
-                        min=0,
-                        max=5,
-                        step=0.1,
-                        value=[1, 4],
-                        marks={i: str(2**i) for i in range(6)},
-                    ),
-                    dbc.Label("Num radius"),
-                    nradius := dcc.Slider(min=1, max=50, step=1, value=11),
-                ],
-            ),
             peak := ThreadButton(
                 "PEAK",
                 calc_peakval,

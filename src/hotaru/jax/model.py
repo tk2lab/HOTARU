@@ -1,11 +1,11 @@
 import pathlib
 
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 
 from ..io.image import load_imgs
 from ..io.mask import get_mask
+from ..io.mask import mask_range
 from ..io.saver import (
     load,
     save,
@@ -14,7 +14,6 @@ from ..jax.filter.gaussian import gaussian
 from ..jax.filter.laplace import gaussian_laplace
 from ..jax.filter.pool import max_pool
 from .filter.stats import (
-    ImageStats,
     Stats,
     calc_stats,
 )
@@ -43,23 +42,15 @@ class Model:
         self.mask = get_mask(mask, self.imgs)
         self.hz = hz
         self.stats_path = path.with_stem(f"{path.stem}_{mask}").with_suffix(".npz")
-        self.istats_path = path.with_stem(f"{path.stem}_{mask}_i").with_suffix(".npz")
-
-    def load_stats(self):
-        if not self.stats_path.exists():
-            return False
-        self.stats = load(self.stats_path)
-        self.istats = load(self.istats_path)
-        return True
 
     def calc_stats(self, path=None, mask=None, hz=None, pbar=None, force=False):
         if path is not None:
             self.load_imgs(path, mask, hz)
-        if not self.load_stats() or force:
-            nt, h, w = self.imgs.shape
-            self.stats, self.istats = calc_stats(self.imgs, self.mask, pbar)
+        if force or not self.stats_path.exists():
+            self.stats = calc_stats(self.imgs, self.mask, pbar)
             save(self.stats_path, self.stats)
-            save(self.istats_path, self.istats)
+        else:
+            self.stats = load(self.stats_path)
 
     @property
     def nt(self):
@@ -67,20 +58,19 @@ class Model:
 
     @property
     def shape(self):
-        return self.mask.shape
+        return self.stats.avgx.shape
 
     @property
     def min(self):
-        return self.istats.imin.min()
+        return self.stats.imin.min()
 
     @property
     def max(self):
-        return self.istats.imax.max()
+        return self.stats.imax.max()
 
     def simple_peaks(self, gauss, maxpool):
-        imin, imax, istd, icor = self.istats
         if gauss > 0:
-            fil_cori = gaussian(icor[None, ...], gauss)[0]
+            fil_cori = gaussian(self.stats.icor[None, ...], gauss)[0]
         else:
             fil_cori = cori
         max_cori = max_pool(fil_cori, (maxpool, maxpool), (1, 1), "same")
@@ -140,7 +130,7 @@ class Model:
         self.footprints_path = pathlib.Path(path)
         if not self.footprints_path.exists():
             return False
-        self.footprints = jnp.load(self.footprints_path)
+        self.footprints = np.load(self.footprints_path)
         return True
 
     def make_footprints(self, pbar=None):
@@ -154,13 +144,13 @@ class Model:
             x,
             pbar,
         )
-        jnp.save(self.footprints_path, self.footprints)
+        np.save(self.footprints_path, self.footprints)
 
     def load_spikes(self, path):
         self.spikes_path = pathlib.Path(path)
         if not self.spikes_path.exists():
             return False
-        self.spikes = jnp.load(self.spikes_path)
+        self.spikes = np.load(self.spikes_path)
         return True
 
     def update_spikes(self, pbar=None):

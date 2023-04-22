@@ -7,23 +7,19 @@ import jax.scipy as jsp
 import numpy as np
 
 from ...io.mask import mask_range
-from ...utils.stats import Stats
 from .map import mapped_imgs
 from .misc import neighbor
 
-ImageStats = namedtuple("ImageStats", "imin imax istd icor")
+
+Stats = namedtuple("Stats", "avgx avgt std0 imin imax istd icor")
 
 
-def calc_stats(imgs, mask=None, pbar=None):
-    nt, h0, w0 = imgs.shape
-    if mask is None:
-        mask = np.ones((h0, w0), bool)
-    x0, y0, w, h = mask_range(mask)
-    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
-    mask = mask[y0 : y0 + h, x0 : x0 + w]
-    mask = jnp.asarray(mask, bool)
+def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
 
-    def calc(ts, imgs):
+    def prepare(start, end):
+        return jnp.array(imgs[start:end], jnp.float32)
+
+    def calc(imgs):
         avgt = jnp.nanmean(imgs[:, mask], axis=-1)
         diff = imgs - avgt[..., None, None]
         neig = neighbor(diff)
@@ -49,30 +45,36 @@ def calc_stats(imgs, mask=None, pbar=None):
 
     def finish(avgt, *args):
         avgt = np.concatenate(avgt, axis=0)[:nt]
-        iout = (np.stack(o) for o in args)
-        return aggregate(avgt, *iout)
+        iout = map(np.stack, args)
+        avgt, sumi, sumn, sqi, sqn, cor, imin, imax = aggregate(avgt, *iout)
 
-    scale = 100
-    out = mapped_imgs(imgs, calc, aggregate, finish, scale, pbar)
-    avgt, sumi, sumn, sqi, sqn, cor, imin, imax = out
+        avgx = sumi / nt
+        avgn = sumn / nt
+        varx = sqi / nt - np.square(avgx)
+        stdx = np.sqrt(varx)
+        stdn = np.sqrt(sqn / nt - np.square(avgn))
+        std0 = np.sqrt(varx[mask].mean())
 
-    avgx = sumi / nt
-    avgn = sumn / nt
-    varx = sqi / nt - np.square(avgx)
-    stdx = np.sqrt(varx)
-    stdn = np.sqrt(sqn / nt - np.square(avgn))
-    std0 = np.sqrt(varx[mask].mean())
+        imin = (imin - avgx) / std0
+        imax = (imax - avgx) / std0
+        istd = stdx / std0
+        icor = (cor / nt - avgx * avgn) / (stdx * stdn)
 
-    imin = (imin - avgx) / std0
-    imax = (imax - avgx) / std0
-    istd = stdx / std0
-    icor = (cor / nt - avgx * avgn) / (stdx * stdn)
+        avgx[~mask] = np.nan
+        imin[~mask] = np.nan
+        imax[~mask] = np.nan
+        istd[~mask] = np.nan
+        icor[~mask] = np.nan
 
-    imin[mask] = 0
-    imax[mask] = 0
-    istd[mask] = 0
-    icor[mask] = 0
+        return Stats(avgx, avgt, std0, imin, imax, istd, icor)
 
-    stats = Stats(nt, y0, y0, mask, avgx, avgt, std0)
-    istats = ImageStats(imin, imax, istd, icor)
-    return stats, istats
+    nt, h0, w0 = imgs.shape
+    if mask is None:
+        mask = np.ones((h0, w0), bool)
+    x0, y0, w, h = mask_range(mask)
+    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
+    mask = mask[y0 : y0 + h, x0 : x0 + w]
+
+    if pbar is not None:
+        pbar = pbar(total=nt)
+    return mapped_imgs(nt, prepare, calc, aggregate, finish, batch, pbar.update)

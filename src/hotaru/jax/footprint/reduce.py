@@ -4,13 +4,14 @@ import numpy as np
 import pandas as pd
 
 
-def reduce_peak(ts, rs, vs, rmin, rmax, thr_distance):
+def reduce_peaks(ts, rs, vs, rmin, rmax, thr_distance):
     h, w = vs.shape
-    idx = np.argsort(vs.ravel())[::-1]
+    n = np.count_nonzero(np.isfinite(vs))
+    idx = np.argsort(vs.ravel())[::-1][:n]
     ys, xs = np.divmod(idx, w)
     ts = ts[ys, xs]
     rs = rs[ys, xs]
-    flg = np.arange(h * w)
+    flg = np.arange(idx.size)
     out = []
     while flg.size > 0:
         i, j = flg[0], flg[1:]
@@ -29,17 +30,19 @@ def reduce_peak(ts, rs, vs, rmin, rmax, thr_distance):
     return ys[out], xs[out]
 
 
-def _reduce_peak(args):
+def _reduce_peaks(args):
     y0, x0, ys, xs, ye, xe = args[0]
-    y, x = reduce_peak(*args[1])
+    y, x = reduce_peaks(*args[1])
     y += y0
     x += x0
     cond = (ys <= y) & (y < ye) & (xs <= x) & (x < xe)
     return y[cond], x[cond]
 
 
-def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
-    ts, rs, vs = peakval
+def reduce_peaks_block(peakval, rmin, rmax, thr_distance, block_size):
+    radius, ts, rs, vs = peakval
+    rmin = radius[rmin]
+    rmax = radius[rmax]
     h, w = vs.shape
     margin = int(np.ceil(thr_distance * rs.max()))
     args = []
@@ -55,11 +58,10 @@ def reduce_peak_block(peakval, rmin, rmax, thr_distance, block_size):
             r = rs[y0:y1, x0:x1]
             v = vs[y0:y1, x0:x1]
             args.append(((y0, x0, ys, xs, ye, xe), (t, r, v, rmin, rmax, thr_distance)))
-            print(y0, x0, ys, xs, ye, xe)
 
     y, x = [], []
     with mp.Pool() as pool:
-        for yi, xi in pool.imap_unordered(_reduce_peak, args):
+        for yi, xi in pool.imap_unordered(_reduce_peaks, args):
             y.append(yi)
             x.append(xi)
 

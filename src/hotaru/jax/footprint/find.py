@@ -5,62 +5,70 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from ...io.mask import mask_range
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.map import mapped_imgs
 from ..filter.pool import max_pool
 
-PeakVal = namedtuple("PeakVal", ["t", "y", "x", "r", "v"])
+
+PeakVal = namedtuple("PeakVal", ["radius", "t", "r", "v"])
 
 
 def find_peaks(imgs, mask, radius):
-    imgs, mask = _find_peaks(imgs, mask, tuple(radius), len(radius))
-    return imgs, *jnp.where(mask)
+    return PeakVal(*_find_peaks(imgs, cond, radius))
 
 
-@partial(jax.jit, static_argnames=["radius", "rsize"])
-def _find_peaks(imgs, mask, radius, rsize):
-    imgs = gaussian_laplace_multi(imgs, radius)
-    max_imgs = max_pool(imgs, (3, 3, 3), (1, 1, 1), "same")
-    return imgs, (imgs == max_imgs) & mask[..., None]
+def _find_peaks(imgs, cond, radius, gxy=None):
+    if gxy is None:
+        gxy = np.meshgrid(np.arange(w), np.arange(h))
+    nt, h, w = imgs.shape
+    gl = gaussian_laplace_multi(imgs, radius, -3)
+    max_gl = max_pool(gl, (3, 3, 3), (1, 1, 1), "same")
+    glp = jnp.where((gl == max_gl) & cond, gl, -jnp.inf).reshape(-1, h, w)
+    idx = jnp.argmax(glp.reshape(-1, h, w), axis=0)
+    t, r = jnp.divmod(idx, len(radius))
+    gx, gy = gxy
+    return t, r, glp[idx, gy, gx]
 
 
-def find_peaks_batch(imgs, stats, radius, pbar=None):
-    nt, x0, y0, mask, avgx, avgt, std0 = stats
-    h, w = mask.shape
-    gx, gy = jnp.meshgrid(jnp.arange(w), jnp.arange(h))
+def find_peaks_batch(imgs, mask, avgx, avgt, std0, radius, batch=(1, 100), pbar=None):
 
-    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
-    radius = tuple(radius)
-    nr = len(radius)
+    def prepare(start, end):
+        return (
+            jnp.arange(start, end),
+            jnp.array(imgs[start:end], jnp.float32),
+            jnp.array(avgt[start:end], jnp.float32),
+        )
 
-    def calc(ts, imgs):
-        cond = (ts >= 0)[:, None, None, None]
-        avgt = imgs[..., mask].mean(axis=-1)[..., None, None]
-        imgs = (imgs - avgx - avgt) / std0
-        gl = gaussian_laplace_multi(imgs, radius, -3)
-        max_gl = max_pool(gl, (3, 3, 3), (1, 1, 1), "same")
-        glp = jnp.where((gl == max_gl) & cond & mask, gl, -jnp.inf).reshape(-1, h, w)
-        idx = jnp.argmax(glp.reshape(-1, h, w), axis=0)
-        t, r = jnp.divmod(idx, nr)
+    def apply(ts, imgs, avgt):
+        cond = (ts >= 0)[:, None, None, None] & mask
+        imgs = (imgs - avgx - avgt[:, None, None]) / std0
+        t, r, g = _find_peaks(imgs, cond, radius, (gx, gy))
         t = ts[t]
-        return t, r, glp[idx, gy, gx]
+        return t, r, g
 
     def aggregate(t, r, v):
         idx = np.argmax(v, axis=0)
         t = t[idx, gy, gx]
         r = r[idx, gy, gx]
         v = v[idx, gy, gx]
-        y, x = np.where(v > -jnp.inf)
-        t = t[y, x]
-        r = r[y, x]
-        v = v[y, x]
-        return t, y, x, r, v
+        return t, r, v
 
     def finish(*args):
-        t, y, x, r, v = (np.concatenate(o, axis=0) for o in args)
-        idx = np.argsort(v)[::-1]
-        r = jnp.array(radius)[r]
-        return PeakVal(*(o[idx] for o in (t, y, x, r, v)))
+        t, r, v = (np.stack(o, axis=0) for o in args)
+        t, r, v = aggregate(t, r, v)
+        r = np.array(radius)[r]
+        return PeakVal(radius, t, r, v)
 
-    scale = 50 * nr
-    return mapped_imgs(imgs, calc, aggregate, finish, scale, pbar)
+    x0, y0, w, h = mask_range(mask)
+    nt = imgs.shape[0]
+    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
+    mask = mask[y0 : y0 + h, x0 : x0 + w]
+    gx, gy = np.meshgrid(np.arange(w), np.arange(h))
+
+    radius = tuple(radius)
+    nr = len(radius)
+
+    if pbar is not None:
+        pbar = pbar(total=nt)
+    return mapped_imgs(nt, prepare, apply, aggregate, finish, batch, pbar.update)

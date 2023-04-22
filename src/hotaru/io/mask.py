@@ -4,7 +4,7 @@ import numpy as np
 import tifffile
 
 
-def get_mask(mask_path, imgs, reverse=False):
+def load_mask(mask_path, imgs, reverse=False):
     path = pathlib.Path(mask_path)
     nt, h, w = imgs.shape
     if path.suffix == ".pad":
@@ -13,9 +13,9 @@ def get_mask(mask_path, imgs, reverse=False):
         mask[pad : h - pad, pad : w - pad] = True
     else:
         if path.suffix == ".tif":
-            mask = tifffile.imread(fp)
+            mask = tifffile.imread(path)
         elif path.suffix == ".npy":
-            mask = np.load(fp)
+            mask = np.load(path)
         else:
             raise RuntimeErorr("bad file type: {maskfile}")
         mask = mask > 0

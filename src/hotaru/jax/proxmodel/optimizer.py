@@ -2,24 +2,35 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 
 class ProxOptimizer:
-    def __init__(self, loss_fn, regularizers, lr, scale=20, reset_interval=100):
+
+    def __init__(self, loss_fn, x0, regularizers):
         self.loss_fn = loss_fn
         self.regularizers = regularizers
-        self.scale = scale
-        self.reset_interval = reset_interval
-        self.lr = lr
-
-    def init(self, x0):
         self.i = jnp.array(0)
         self.x = [jnp.array(x) for x in x0]
         self.y = [jnp.array(x) for x in x0]
 
-    def step(self):
-        self.i, self.x, self.y = self._update(self.i, self.x, self.y)
+    def set_params(self, lr, scale=20, reset_interval=100):
+        self.lr = lr
+        self.scale = scale
+        self.reset_interval = reset_interval
 
+    def step(self):
+        i, x, y = self._update(self.i, self.x, self.y)
+        self.i = i.block_until_ready()
+        self.x = [xi.block_until_ready() for xi in x]
+        self.y = [yi.block_until_ready() for yi in y]
+        print(self.val)
+
+    @property
+    def val(self):
+        return [np.array(x) for x in self.x]
+
+    @property
     def loss(self):
         return self.loss_fn(*self.x)
 

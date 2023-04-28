@@ -16,6 +16,10 @@ from dash import (
 
 
 class Progress:
+
+    def __init__(self):
+        self.reset(1)
+
     def reset(self, total):
         self.total = total
         self.n = 0
@@ -61,7 +65,7 @@ def ThreadButton(label, func, *state):
             thread = Thread(target=func, args=state, kwargs=dict(pbar=pbar))
             jobs[:] = thread, pbar
             thread.start()
-            return False, no_update
+            return False, 0
         else:
             thread, pbar = jobs
             if thread.is_alive():

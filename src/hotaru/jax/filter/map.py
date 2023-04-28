@@ -29,7 +29,7 @@ def mapped_imgs(nt, prepare, apply, aggregate, finish, batch, callback=lambda n:
             pout = (pout,)
 
         def to_numpy(x):
-            return np.array(x.block_until_ready())
+            return np.array(x)
         return aggregate(*map(to_numpy, pout))
 
     batch = tuple(batch)

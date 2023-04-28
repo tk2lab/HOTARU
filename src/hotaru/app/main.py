@@ -109,17 +109,23 @@ class MainApp(Dash):
         @callback(Output(std_graph, "figure"), Input("stats_data", "data"))
         def plot_std(data):
             fig = Patch()
+            print("std", model.istats.istd)
             fig.data[0].z = model.istats.istd
-            fig.data[1].x = model.simplex
-            fig.data[1].y = model.simpley
+            #fig.data[0].zmin = model.istats.istd.min()
+            #fig.data[0].zmax = model.istats.istd.max()
+            #fig.data[1].x = model.simplex
+            #fig.data[1].y = model.simpley
             return update_img(fig, *model.shape)
 
         @callback(Output(cor_graph, "figure"), Input("stats_data", "data"))
         def plot_cor(data):
             fig = Patch()
+            print("cor", model.istats.icor)
             fig.data[0].z = model.istats.icor
-            fig.data[1].x = model.simplex
-            fig.data[1].y = model.simpley
+            #fig.data[0].zmin = model.istats.icor.min()
+            #fig.data[0].zmax = model.istats.icor.max()
+            #fig.data[1].x = model.simplex
+            #fig.data[1].y = model.simpley
             return update_img(fig, *model.shape)
 
         @callback(Output(std_cor_graph, "figure"), Input("stats_data", "data"))
@@ -128,6 +134,11 @@ class MainApp(Dash):
             fig.data[0].x = model.vstd
             fig.data[0].y = model.vcor
             return fig
+
+        def test_filt(radius, rnum, pbar):
+            rmin, rmax = radius
+            radius = np.power(2, np.linspace(rmin, rmax, rnum))
+            model.log_img = find_peaks(model.cur_img[None, ...], model.mask, radius)
 
         frame_div = Collapse(
             "frame",
@@ -172,6 +183,12 @@ class MainApp(Dash):
                     dbc.Label("Num radius"),
                     nradius := dcc.Slider(min=1, max=50, step=1, value=11),
                 ],
+            ),
+            test := ThreadButton(
+                "TEST",
+                test_filt,
+                State(radius, "value"),
+                State(nradius, "value"),
             ),
             filt_graph := dbc.Row(
                 children=[
@@ -225,31 +242,26 @@ class MainApp(Dash):
             fig.data[0].y = gcount
             return fig
 
-        @callback(
-            Output(filt_img, "figure"),
-            Input(norm_img, "figure"),
-            Input(radius, "value"),
-            Input(nradius, "value"),
-            State(frame, "value"),
-        )
-        def plot_filt(data, radius, rnum, t):
-            if not hasattr(model, "stats"):
+        @callback(Output(filt_img, "figure"), test.finish)
+        def plot_filt(data):
+            if not hasattr(model, "log_img"):
                 return no_update
-            rmin, rmax = radius
-            radius = np.power(2, np.linspace(rmin, rmax, rnum))
-            log_img, t, r, y, x = find_peaks(model.cur_img[None, ...], model.mask, radius)
-            log_img = np.pad(log_img[0, 1:-1], [[0, 0], [0, 0], [2, 2]])
-            r -= 1
-            nr, h, w = log_img.shape
+            log_img, t, y, x, r = model.log_img
+            print(log_img.shape)
+            nt, nr, h, w = log_img.shape
+            log_img = np.pad(log_img[0, ...], [[0, 0], [0, 0], [2, 2]])
+            print(log_img.shape)
+            log_img = np.concatenate(log_img, axis=1)
+            print(log_img.shape)
             fig = Patch()
-            fig.data[0].z = np.concatenate(log_img, axis=1)
-            fig.data[1].x = w * r + x
+            fig.data[0].z = log_img
+            fig.data[1].x = 2 + (w + 4) * r + x
             fig.data[1].y = y
-            return update_img(fig, h, nr * w, 200)
+            return update_img(fig, *log_img.shape, 200)
 
         def calc_peakval(radius, nradius, pbar):
             rmin, rmax = np.power(2, radius)
-            return model.calc_peakval(rmin, rmax, nradius, "log", pbar)
+            model.calc_peakval(rmin, rmax, nradius, "log", pbar)
 
         peak_div = Collapse(
             "peak",
@@ -305,42 +317,45 @@ class MainApp(Dash):
         @callback(
             Output("peak", "data"),
             peak.finish,
-            State(radius2, "value"),
-            State(thr, "value"),
+            Input(radius2, "value"),
+            Input(thr, "value"),
         )
         def update_peak(finished, radius, thr):
             if not hasattr(model, "peakval"):
                 return no_update
             model.calc_peaks(*radius, thr)
+            print(model.peaks)
             return "finish"
 
         @callback(Output(circle, "figure"), Input("peak", "data"))
         def plot_circle(data):
+            h, w = model.shape
             fig = Patch()
             fig.data[0].x = model.peaks.x
             fig.data[0].y = model.peaks.y
-            fig.data[0].marker.opacity = model.peaks.v
-            fig.data[0].marker.opacityref = 1 / model.peaks.v.max()
+            fig.data[0].marker.opacity = 0.5 * model.peaks.v / model.peaks.v.max()
             fig.data[0].marker.size = model.peaks.r
-            #fig.data[0].marker.sizeref = 2 * 500 / model.shape[0]
+            fig.data[0].marker.sizeref = 0.25 * h / 500
             fig.data[0].marker.sizemode = "diameter"
-            fig.data[0].marker.sizemin = 1
-            print(model.peaks)
             return update_img(fig, *model.shape)
 
         @callback(Output(radius_intensity, "figure"), Input("peak", "data"))
         def plot_radius_intensity(data):
             dr = model.radius[1] / model.radius[0] - 1
             v0 = model.peakval.v.ravel()
-            m = (v0.size + 9999) // 10000
-            v0 = v0[::m]
+            v0 = v0
             r = (1 + 0.2 * dr * np.random.randn(v0.size))
-            r0 = r * model.peakval.r.ravel()[::m]
+            r0 = r * model.peakval.r.ravel()
+            r = (1 + 0.2 * dr * np.random.randn(model.peaks.r.size))
             fig = Patch()
             fig.data[0].x = r0
             fig.data[0].y = v0
-            fig.data[1].x = model.peaks.r
+            fig.data[0].marker.maxdisplayed = 1000
+            fig.data[0].marker.opacity = 0.3
+            fig.data[1].x = r * model.peaks.r
             fig.data[1].y = model.peaks.v
+            fig.data[1].marker.opacity = 0.3
+            fig.layout.xaxis.type = "log"
             return fig
 
         self.layout = html.Div([load_div, stats_div, frame_div, peak_div])

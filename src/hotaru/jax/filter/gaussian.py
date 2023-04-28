@@ -6,11 +6,11 @@ import jax.numpy as jnp
 import numpy as np
 
 
+@partial(jax.jit, static_argnames=["r"])
 def gaussian(imgs, r):
     return _gaussian(imgs, r, 4 * np.ceil(r))
 
 
-@partial(jax.jit, static_argnames=["nd"])
 def _gaussian(imgs, r, nd):
     sqrt_2pi = jnp.sqrt(2 * jnp.pi)
     d = jnp.square(jnp.arange(-nd, nd + 1, 1))

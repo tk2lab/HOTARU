@@ -1,13 +1,26 @@
-data:
-  imgs: sample/imgs.tif
-  mask: 0.pad
-  hz: 20.0
+defaults:
+  - data: sample 
+  - radius: default
+  - dynamics: default
+  - penalty: default
+  - stats: default
+  - init: default
+  - body: default
+  - _self_
+
+n_iter: 1
 
 env:
-  buffer:
   num_devices:
-  block_size: 100
 
-app:
-  debug: True
-  port: 8888
+hydra:
+  job_logging:
+    root:
+      level: WARNING
+  mode: MULTIRUN
+  sweeper:
+    params:
+      stage: range(${n_iter})
+
+stage: 0
+next: ${stage} + 1

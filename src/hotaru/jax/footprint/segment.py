@@ -1,7 +1,6 @@
 import jax
 import jax.lax as lax
 import jax.numpy as jnp
-import numpy as np
 
 
 def get_segment_mask(val, y0, x0):

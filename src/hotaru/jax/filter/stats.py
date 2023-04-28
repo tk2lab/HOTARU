@@ -8,7 +8,7 @@ import numpy as np
 
 from ...io.mask import mask_range
 from .map import mapped_imgs
-from .misc import neighbor
+from .neighbor import neighbor
 
 
 Stats = namedtuple("Stats", "avgx avgt std0 imin imax istd icor")

@@ -20,13 +20,11 @@ def heat_fig(title, colorscale="greens", scattercolor="red", zmin=None, zmax=Non
 
 
 def circle_fig(title):
-    scatter = go.Scatter(mode="markers", marker=dict(color="green"))
+    scatter = go.Scatter(mode="markers", marker=dict(color="green", sizeref=10.0))
     layout = go.Layout(
         title=title,
-        #xaxis=dict(visible=False, autorange=False),
-        #yaxis=dict(visible=False, autorange=False),
-        xaxis=dict(autorange=False),
-        yaxis=dict(autorange=False),
+        xaxis=dict(visible=False, autorange=False),
+        yaxis=dict(visible=False, autorange=False),
         width=600,
         height=570,
         margin=dict(t=25, b=45, l=0, r=0),
@@ -43,7 +41,7 @@ def update_img(fig, h, w, height=500):
 
 
 def scatter_fig(title, xlabel, ylabel):
-    scatter = go.Scatter(mode="markers")
+    scatter = go.Scatter(mode="markers", showlegend=False)
     layout = go.Layout(
         title=title,
         xaxis_title=xlabel,

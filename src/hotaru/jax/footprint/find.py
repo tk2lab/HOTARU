@@ -5,7 +5,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ...io.mask import mask_range
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.map import mapped_imgs
 from ..filter.pool import max_pool
@@ -15,11 +14,14 @@ PeakVal = namedtuple("PeakVal", ["radius", "t", "r", "v"])
 
 
 def find_peaks(imgs, mask, radius):
-    return PeakVal(*_find_peaks(imgs, cond, radius))
+    gl, t, r, v = (np.array(o) for o in _find_peaks(imgs, mask, tuple(radius)))
+    y, x = np.where(np.isfinite(v))
+    return gl, t[y, x], y, x, r[y, x], v[y, x]
 
 
 def _find_peaks(imgs, cond, radius, gxy=None):
     if gxy is None:
+        nt, h, w = imgs.shape
         gxy = np.meshgrid(np.arange(w), np.arange(h))
     nt, h, w = imgs.shape
     gl = gaussian_laplace_multi(imgs, radius, -3)
@@ -28,7 +30,7 @@ def _find_peaks(imgs, cond, radius, gxy=None):
     idx = jnp.argmax(glp.reshape(-1, h, w), axis=0)
     t, r = jnp.divmod(idx, len(radius))
     gx, gy = gxy
-    return t, r, glp[idx, gy, gx]
+    return gl, t, r, glp[idx, gy, gx]
 
 
 def find_peaks_batch(imgs, mask, avgx, avgt, std0, radius, batch=(1, 100), pbar=None):
@@ -43,7 +45,7 @@ def find_peaks_batch(imgs, mask, avgx, avgt, std0, radius, batch=(1, 100), pbar=
     def apply(ts, imgs, avgt):
         cond = (ts >= 0)[:, None, None, None] & mask
         imgs = (imgs - avgx - avgt[:, None, None]) / std0
-        t, r, g = _find_peaks(imgs, cond, radius, (gx, gy))
+        gl, t, r, g = _find_peaks(imgs, cond, radius, (gx, gy))
         t = ts[t]
         return t, r, g
 
@@ -60,15 +62,12 @@ def find_peaks_batch(imgs, mask, avgx, avgt, std0, radius, batch=(1, 100), pbar=
         r = np.array(radius)[r]
         return PeakVal(radius, t, r, v)
 
-    x0, y0, w, h = mask_range(mask)
-    nt = imgs.shape[0]
-    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
-    mask = mask[y0 : y0 + h, x0 : x0 + w]
+    nt, h, w = imgs.shape
     gx, gy = np.meshgrid(np.arange(w), np.arange(h))
 
     radius = tuple(radius)
     nr = len(radius)
 
     if pbar is not None:
-        pbar = pbar(total=nt)
-    return mapped_imgs(nt, prepare, apply, aggregate, finish, batch, pbar.update)
+        pbar = pbar(total=nt).update
+    return mapped_imgs(nt, prepare, apply, aggregate, finish, batch, pbar)

@@ -42,6 +42,7 @@ tqdm = "^4.64"
 dash = "^2.8.1"
 dash-bootstrap-components = "^1.4.1"
 setuptools = "^67.6.1"
+diskcache = "^5.6.1"
 
 [tool.poetry.extras]
 tensorflow = ["tensorflow"]

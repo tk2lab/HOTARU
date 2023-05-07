@@ -1,0 +1,5 @@
+outfile: "99_2footprint.npy"
+batch:
+  - ${env.num_devices}
+  - 100
+force: false

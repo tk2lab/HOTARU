@@ -7,7 +7,7 @@ import jax.scipy as jsp
 import numpy as np
 
 
-def mapped_imgs(nt, prepare, apply, aggregate, finish, batch, callback=lambda n: None):
+def mapped_imgs(nt, prepare, apply, aggregate, finish, batch, callback=None):
 
     def calc(start, end):
         clip = prepare(start, end)
@@ -31,6 +31,9 @@ def mapped_imgs(nt, prepare, apply, aggregate, finish, batch, callback=lambda n:
         def to_numpy(x):
             return np.array(x)
         return aggregate(*map(to_numpy, pout))
+
+    if callback is None:
+        callback = lambda n: None
 
     batch = tuple(batch)
     batch_size = np.prod(batch)

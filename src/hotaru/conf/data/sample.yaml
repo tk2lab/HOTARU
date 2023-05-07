@@ -1,3 +1,4 @@
+name: sample
 dir: sample
 imgs: imgs.tif
 mask: mask.tif

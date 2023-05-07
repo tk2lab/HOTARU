@@ -1,26 +1,29 @@
 defaults:
-  - data: sample 
+  - data: sample
   - radius: default
   - dynamics: default
   - penalty: default
   - stats: default
-  - init: default
-  - body: default
+  - find: default
+  - reduce: default
+  - segment: default
+  - spatial: default
+  - clean: default
+  - temporal: default
   - _self_
 
-n_iter: 1
+outdir: ${data.dir}
+n_iter: 2
+stage:
 
 env:
   num_devices:
+
+server:
+  port: 8888
+  debug: true
 
 hydra:
   job_logging:
     root:
       level: WARNING
-  mode: MULTIRUN
-  sweeper:
-    params:
-      stage: range(${n_iter})
-
-stage: 0
-next: ${stage} + 1

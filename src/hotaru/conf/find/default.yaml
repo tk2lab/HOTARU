@@ -1,0 +1,9 @@
+label: ${find.rmin}_${find.rmax}_${find.rnum}
+outfile: find${find.label}.npz
+rmin: ${radius.rmin}
+rmax: ${radius.rmax}
+rnum: ${radius.rnum}
+batch:
+  - ${env.num_devices}
+  - 100
+force: false

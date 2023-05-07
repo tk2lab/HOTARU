@@ -1,2 +1,0 @@
-spatial:
-  infile: f"spike{${stage}:02d}.npy"

@@ -8,7 +8,6 @@ from ...io.saver import (
     load,
     save,
 )
-from ...io.mask import mask_range
 from ..filter.laplace import gaussian_laplace
 from ..filter.map import mapped_imgs
 from .segment import get_segment_mask
@@ -39,20 +38,18 @@ def make_segment_batch(imgs, mask, avgx, avgt, std0, peaks, batch=100, pbar=None
     def finish(seg):
         return np.concatenate(seg, axis=0)
 
-    x0, y0, w, h = mask_range(mask)
-    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
-    mask = mask[y0 : y0 + h, x0 : x0 + w]
+    nt, h, w = imgs.shape
 
     ts, ys, xs, rs = (np.array(v) for v in (peaks.t, peaks.y, peaks.x, peaks.r))
     nk = rs.size
     out = np.empty((nk, h, w), np.float32)
     if pbar is not None:
-        pbar = pbar(total=nk)
+        pbar = pbar(total=nk).update
     for r in np.unique(rs):
         idx = np.where(rs == r)[0]
         tsr, ysr, xsr = (v[idx] for v in (ts, ys, xs))
         apply = partial(_apply, r=r)
-        o = mapped_imgs(tsr.size, prepare, apply, finish, finish, batch, pbar.update)
+        o = mapped_imgs(tsr.size, prepare, apply, finish, finish, batch, pbar)
         for i, oi in zip(idx, o):
             out[i] = oi
     return out

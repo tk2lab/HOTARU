@@ -17,12 +17,10 @@ from dash import (
 
 class Progress:
 
-    def __init__(self):
-        self.reset(1)
-
-    def reset(self, total):
+    def __call__(self, total):
         self.total = total
         self.n = 0
+        return self
 
     def update(self, n):
         self.n += n
@@ -40,7 +38,7 @@ def two_column(width):
     )
 
 
-def ThreadButton(label, func, *state):
+def ThreadButton(label, setter, func, *state):
     div = html.Div(
         children=[
             button := dbc.Button(label),
@@ -56,32 +54,35 @@ def ThreadButton(label, func, *state):
         Output(pbar, "value"),
         Input(button, "n_clicks"),
         Input(interval, "n_intervals"),
-        *state,
+        *(Input(s, "value") for s in state),
         prevent_initial_call=True,
     )
     def on_click(nc, ni, *state):
         if ctx.triggered_id == button.id:
             pbar = Progress()
-            thread = Thread(target=func, args=state, kwargs=dict(pbar=pbar))
+            thread = Thread(target=func, kwargs=dict(pbar=pbar))
             jobs[:] = thread, pbar
             thread.start()
             return False, 0
-        else:
+        elif ctx.triggered_id == interval.id:
             thread, pbar = jobs
             if thread.is_alive():
                 return no_update, pbar.value
             else:
                 return True, 100
+        else:
+            setter(*state)
+            return True, 0
 
     div.finish = Input(interval, "disabled")
     return div
 
 
-def Collapse(name, *children):
+def Collapse(name, is_open, *children):
     div = html.Div(
         children=[
             button := dbc.Button(f"Open/Close {name}"),
-            collapse := dbc.Collapse(children=children),
+            collapse := dbc.Collapse(children=children, is_open=is_open),
         ]
     )
 

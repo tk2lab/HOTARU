@@ -19,6 +19,23 @@ def heat_fig(title, colorscale="greens", scattercolor="red", zmin=None, zmax=Non
     return go.Figure([heat, scatter], layout)
 
 
+def spike_fig(title, hz, colorscale="reds"):
+    spike = go.Heatmap(
+        dx=1 / hz,
+        colorscale=colorscale, zmin=0.0, zmax=1.0,
+        #colorbar=dict(orientation="h", y=0, yanchor="top", thickness=10),
+    )
+    layout = go.Layout(
+        title=title,
+        xaxis=dict(title="time"),
+        yaxis=dict(title="ID"),
+        width=1000,
+        height=570,
+        margin=dict(t=25, b=45, l=0, r=0),
+    )
+    return go.Figure([spike], layout)
+
+
 def circle_fig(title):
     scatter = go.Scatter(mode="markers", marker=dict(color="green", sizeref=10.0))
     layout = go.Layout(

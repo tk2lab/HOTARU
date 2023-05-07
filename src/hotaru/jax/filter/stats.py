@@ -6,7 +6,6 @@ import jax.numpy as jnp
 import jax.scipy as jsp
 import numpy as np
 
-from ...io.mask import mask_range
 from .map import mapped_imgs
 from .neighbor import neighbor
 
@@ -68,13 +67,10 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
 
         return Stats(avgx, avgt, std0, imin, imax, istd, icor)
 
-    nt, h0, w0 = imgs.shape
+    nt, h, w = imgs.shape
     if mask is None:
-        mask = np.ones((h0, w0), bool)
-    x0, y0, w, h = mask_range(mask)
-    imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
-    mask = mask[y0 : y0 + h, x0 : x0 + w]
+        mask = np.ones((h, w), bool)
 
     if pbar is not None:
-        pbar = pbar(total=nt)
-    return mapped_imgs(nt, prepare, calc, aggregate, finish, batch, pbar.update)
+        pbar = pbar(total=nt).update
+    return mapped_imgs(nt, prepare, calc, aggregate, finish, batch, pbar)

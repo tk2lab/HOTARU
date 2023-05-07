@@ -1,12 +1,14 @@
+import os
+
 import hydra
 
-from .main import MainApp
+from .main import HotaruApp
 
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg):
-    app = MainApp(cfg)
-    app.run_server(debug=cfg.app.debug, port=cfg.app.port)
+    app = HotaruApp(cfg)
+    app.run_server(**cfg.server)
 
 
 main()

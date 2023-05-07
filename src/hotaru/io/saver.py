@@ -14,10 +14,11 @@ def save(path, obj):
 
 
 def load(path):
-    if path.suffix == ".npz":
+    suffix = path.suffix
+    if suffix == ".npz":
         with np.load(path) as npz:
             return namedtuple("LoadedData", npz.files)(**dict(npz.items()))
-    elif path.suffix == ".npy":
+    elif suffix == ".npy":
         return np.load(path)
-    elif path.suffix == ".csv":
+    elif suffix == ".csv":
         return pd.read_csv(path, index_col=0)

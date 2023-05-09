@@ -43,7 +43,9 @@ def find_peaks_batch(data, radius, batch=(1, 100), pbar=None):
         )
 
     def apply(ts, imgs, avgt):
-        cond = (ts >= 0)[:, None, None, None] & mask
+        cond = (ts >= 0)[:, None, None, None]
+        if mask is not None:
+            cond &= mask
         imgs = (imgs - avgx - avgt[:, None, None]) / std0
         gl, t, r, g = _find_peaks(imgs, cond, radius, (gx, gy))
         t = ts[t]

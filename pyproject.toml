@@ -49,7 +49,7 @@ tensorflow = ["tensorflow"]
 jax = ["jax"]
 
 [tool.poetry.scripts]
-hotaru = "hotaru.__main__:app"
+hotaru = "hotaru.main:main"
 
 [[tool.poetry.source]]
 name = "jax"

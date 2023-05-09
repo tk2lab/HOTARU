@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 
-from ...io.mask import mask_range
 from ..filter.map import mapped_imgs
 from .matmul import matmul_batch
 

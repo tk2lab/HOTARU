@@ -1,5 +1,5 @@
 defaults:
-  - data: sample
+  - data: default
   - radius: default
   - dynamics: default
   - penalty: default
@@ -12,6 +12,7 @@ defaults:
   - temporal: default
   - _self_
 
+srcdir: .
 outdir: ${data.dir}
 stage: 9
 force: false

@@ -14,6 +14,10 @@ def spatial_optimizer(spike, data, dynamics, penalty, batch, pbar=None):
     _loss = gen_loss("spatial", calcium, data, penalty, batch, pbar)
     _pena = penalty.lu(spike)
     nk = spike.shape[0]
-    nx = jnp.count_nonzero(data.mask)
+    if data.mask is None:
+        nt, h, w = data.imgs.shape
+        nx = h * w
+    else:
+        nx = jnp.count_nonzero(data.mask)
     footprint = jnp.zeros((nk, nx))
     return ProxOptimizer(loss_fn, [footprint], [penalty.lu])

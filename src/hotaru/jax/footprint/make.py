@@ -25,13 +25,15 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
 
     def prepare(start, end):
         return (
-            jnp.array(imgs[tsr[start:end]], jnp.float32).at[:, ~mask].set(jnp.nan),
+            jnp.array(imgs[tsr[start:end]], jnp.float32),
             jnp.array(avgt[tsr[start:end]], jnp.float32),
             jnp.array(ysr[start:end], jnp.int32),
             jnp.array(xsr[start:end], jnp.int32),
         )
 
     def _apply(imgs, avgt, y, x, r):
+        if mask is not None:
+            imgs.at[:, ~mask].set(jnp.nan),
         imgs = (imgs - avgx - avgt[:, None, None]) / std0
         return make_segment(imgs, y, x, r)
 
@@ -55,4 +57,8 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
         o = mapped_imgs(tsr.size, prepare, apply, finish, finish, batch, pbar)
         for i, oi in zip(idx, o):
             out[i] = oi
-    return out[:, mask]
+    if mask is None:
+        out = out.reshape(-1, h * w)
+    else:
+        out = out[:, mask]
+    return out

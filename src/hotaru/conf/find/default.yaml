@@ -1,4 +1,4 @@
-label: ${find.rmin}_${find.rmax}_${find.rnum}
+label: ${stats.label}/${find.rmin}_${find.rmax}_${find.rnum}
 outfile: ${find.label}/find.npz
 rmin: ${radius.rmin}
 rmax: ${radius.rmax}

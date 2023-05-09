@@ -16,7 +16,10 @@ def matmul_batch(x, y, trans, batch, pbar=None):
             )
 
         def apply(imgs, avgt):
-            y = ((imgs - avgx)[:, mask] - avgt[:, None]) / std0
+            if mask is None:
+                y = ((imgs - avgx).reshape(-1, h * w) - avgt[:, None]) / std0
+            else:
+                y = ((imgs - avgx)[:, mask] - avgt[:, None]) / std0
             return jnp.matmul(x, y.T)
 
         def finish(out):
@@ -32,13 +35,17 @@ def matmul_batch(x, y, trans, batch, pbar=None):
             )
 
         def apply(x, imgs, avgt):
-            y = ((imgs - avgx)[:, mask] - avgt[:, None]) / std0
+            if mask is None:
+                y = ((imgs - avgx).reshape(-1, h * w) - avgt[:, None]) / std0
+            else:
+                y = ((imgs - avgx)[:, mask] - avgt[:, None]) / std0
             return jnp.matmul(x.T, y)
 
         def finish(out):
             return np.sum(out, axis=0)
 
-    nt = imgs.shape[0]
+    nt, h, w = imgs.shape
+
     if pbar is not None:
         pbar = pbar(total=nt)
         pbar.set_description("matmul")

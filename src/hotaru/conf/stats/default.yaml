@@ -1,4 +1,5 @@
-outfile: stats.npz
+label: ${data.label}
+outfile: ${stats.label}/stats.npz
 batch:
   - ${env.num_devices}
   - 100

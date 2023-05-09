@@ -1,5 +1,0 @@
-name: sample
-dir: sample
-imgs: imgs.tif
-mask: mask.tif
-hz: 20.0

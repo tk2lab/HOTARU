@@ -7,16 +7,12 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from .io.image import load_imgs
 from .io.logger import logger
-from .io.mask import (
-    load_mask,
-    mask_range,
-)
 from .io.saver import (
     load,
     save,
 )
+from .io.image import load_imgs
 from .jax.filter.stats import (
     Stats,
     calc_stats,
@@ -88,9 +84,7 @@ def penalty(cfg):
 
 
 def data(cfg, pbar=None):
-    path = Path(cfg.data.dir)
-    imgs = load_imgs(path / cfg.data.imgs)
-    mask = load_mask(path / cfg.data.mask, imgs)
+    imgs, mask = load_imgs(cfg.data)
     stats = autoload(
         cfg, "stats",
         lambda c: calc_stats(imgs, mask, c.batch, pbar),

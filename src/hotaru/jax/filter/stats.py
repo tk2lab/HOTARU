@@ -19,7 +19,11 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
         return jnp.array(imgs[start:end], jnp.float32)
 
     def calc(imgs):
-        avgt = jnp.nanmean(imgs[:, mask], axis=-1)
+        if mask is None:
+            masked = imgs.reshape(-1, h * w)
+        else:
+            masked = imgs[:, mask]
+        avgt = jnp.nanmean(masked, axis=-1)
         diff = imgs - avgt[..., None, None]
         neig = neighbor(diff)
         sumi = jnp.nansum(diff, axis=-3)
@@ -52,24 +56,27 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
         varx = sqi / nt - np.square(avgx)
         stdx = np.sqrt(varx)
         stdn = np.sqrt(sqn / nt - np.square(avgn))
-        std0 = np.sqrt(varx[mask].mean())
+        if mask is None:
+            varx_masked = varx.ravel()
+        else:
+            varx_masked = varx[mask]
+        std0 = np.sqrt(varx_masked.mean())
 
         imin = (imin - avgx) / std0
         imax = (imax - avgx) / std0
         istd = stdx / std0
         icor = (cor / nt - avgx * avgn) / (stdx * stdn)
 
-        avgx[~mask] = np.nan
-        imin[~mask] = np.nan
-        imax[~mask] = np.nan
-        istd[~mask] = np.nan
-        icor[~mask] = np.nan
+        if mask is not None:
+            avgx[~mask] = np.nan
+            imin[~mask] = np.nan
+            imax[~mask] = np.nan
+            istd[~mask] = np.nan
+            icor[~mask] = np.nan
 
         return Stats(avgx, avgt, std0, imin, imax, istd, icor)
 
     nt, h, w = imgs.shape
-    if mask is None:
-        mask = np.ones((h, w), bool)
 
     if pbar is not None:
         pbar = pbar(total=nt)

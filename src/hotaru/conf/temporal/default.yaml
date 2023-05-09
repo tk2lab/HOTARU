@@ -7,5 +7,5 @@ n_iter: 1000
 batch:
   - ${env.num_devices}
   - 100
-loop: false
+loop: true
 force: ${force}

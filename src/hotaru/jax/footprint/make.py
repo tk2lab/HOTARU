@@ -44,15 +44,14 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
     ts, ys, xs, rs = (np.array(v) for v in (peaks.t, peaks.y, peaks.x, peaks.r))
     nk = rs.size
     out = np.empty((nk, h, w), np.float32)
-    _pbar = pbar
+    if pbar is not None:
+        pbar = pbar(total=ts.size)
+        pbar.set_description("make")
+        pbar = pbar.update
     for r in np.unique(rs):
         idx = np.where(rs == r)[0]
         tsr, ysr, xsr = (v[idx] for v in (ts, ys, xs))
         apply = partial(_apply, r=r)
-        if _pbar is not None:
-            pbar = _pbar(total=tsr.size)
-            pbar.set_description(f"make {r:.3f}")
-            pbar = pbar.update
         o = mapped_imgs(tsr.size, prepare, apply, finish, finish, batch, pbar)
         for i, oi in zip(idx, o):
             out[i] = oi

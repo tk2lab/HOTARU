@@ -6,24 +6,26 @@ defaults:
   - stats: default
   - find: default
   - reduce: default
-  - segment: default
+  - make: default
   - spatial: default
   - clean: default
   - temporal: default
   - _self_
 
 outdir: ${data.dir}
-n_iter: 2
-stage:
+stage: 9
+force: false
 
 env:
-  num_devices:
+  num_devices: 1
 
 server:
   port: 8888
   debug: true
 
 hydra:
+  run:
+    dir: ${outdir}/logs/${now:%Y-%m-%d}/${now:%H-%M-%S}
   job_logging:
     root:
       level: WARNING

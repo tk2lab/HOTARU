@@ -1,5 +1,10 @@
-outfile: "99_2footprint.npy"
+label: ${reduce.label}
+outfile: ${clean.label}/${stage}_1footprint.npy
+rmin: ${radius.rmin}
+rmax: ${radius.rmax}
+rnum: ${radius.rnum}
 batch:
   - ${env.num_devices}
   - 100
+loop: false
 force: false

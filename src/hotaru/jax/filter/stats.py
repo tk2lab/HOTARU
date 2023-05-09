@@ -72,5 +72,7 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
         mask = np.ones((h, w), bool)
 
     if pbar is not None:
-        pbar = pbar(total=nt).update
+        pbar = pbar(total=nt)
+        pbar.set_description("stats")
+        pbar = pbar.update
     return mapped_imgs(nt, prepare, calc, aggregate, finish, batch, pbar)

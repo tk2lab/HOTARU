@@ -5,13 +5,18 @@ from ..filter.map import mapped_imgs
 from .matmul import matmul_batch
 
 
-def gen_loss(yval, imgs, mask, avgx, avgt, std0, ly, bx, by, trans, batch, pbar=None):
-    if trans:
-        yval = yval[:, mask]
+def gen_loss(kind, yval, data, penalty, batch, pbar=None):
+    trans = kind == "temporal"
 
-    ycor = matmul_batch(yval, imgs, mask, avgx, avgt, std0, trans, batch, pbar)
+    if trans:
+        bx = penalty.bt
+        by = penalty.bx
+    else:
+        bx = penalty.bx
+        by = penalty.bt
+
+    ycor = matmul_batch(yval, data, trans, batch, pbar)
     yval, ycov, yout = calc_cov_out(yval)
-    penalty_y = ly(yval)
 
     cx = 1 - jnp.square(bx)
     cy = 1 - jnp.square(by)
@@ -20,14 +25,14 @@ def gen_loss(yval, imgs, mask, avgx, avgt, std0, ly, bx, by, trans, batch, pbar=
     b = ycov - cx * yout
     c = yout - cy * ycov
 
-    nt, h, w = imgs.shape
+    nt, h, w = data.imgs.shape
     nn = nt * h * w
     nm = nn + nt + h * w
 
     def loss(xval):
         xval, xcov, xout = calc_cov_out(xval)
         var = (nn + (a * xval).sum() + (b * xcov).sum() + (c * xout).sum()) / nm
-        return jnp.log(var) / 2 + penalty_y, var
+        return jnp.log(var) / 2, var
 
     return loss
 

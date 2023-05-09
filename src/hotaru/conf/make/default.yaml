@@ -1,4 +1,5 @@
-outfile: stats.npz
+label: ${reduce.label}
+outfile: ${make.label}/0_1footprint.npy
 batch:
   - ${env.num_devices}
   - 100

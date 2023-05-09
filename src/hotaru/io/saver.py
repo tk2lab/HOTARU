@@ -5,11 +5,12 @@ import pandas as pd
 
 
 def save(path, obj):
+    path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix == ".npz":
         np.savez(path, **obj._asdict())
     elif path.suffix == ".npy":
         np.save(path, obj)
-    elif path.suffix == ".cvs":
+    elif path.suffix == ".csv":
         obj.to_csv(path)
 
 

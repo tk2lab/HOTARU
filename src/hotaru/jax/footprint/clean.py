@@ -13,7 +13,7 @@ from ..filter.map import mapped_imgs
 from .segment import get_segment_mask
 
 
-def make_segment(imgs, y, x, r):
+def clean_segment(imgs, y, x, r):
     g = gaussian_laplace(imgs, r)
     seg = jax.vmap(get_segment_mask)(g, y, x)
     dmin = jnp.nanmin(jnp.where(seg, g, jnp.nan))
@@ -21,7 +21,7 @@ def make_segment(imgs, y, x, r):
     return jnp.where(seg, (g - dmin) / (dmax - dmin), 0)
 
 
-def make_segment_batch(data, peaks, batch=100, pbar=None):
+def clean_segment_batch(data, peaks, batch=100, pbar=None):
 
     def prepare(start, end):
         return (
@@ -44,16 +44,15 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
     ts, ys, xs, rs = (np.array(v) for v in (peaks.t, peaks.y, peaks.x, peaks.r))
     nk = rs.size
     out = np.empty((nk, h, w), np.float32)
-    _pbar = pbar
+    if pbar is not None:
+        pbar = pbar(total=nk)
+        pbar.set_description("make")
+        pbar = pbar.update
     for r in np.unique(rs):
         idx = np.where(rs == r)[0]
         tsr, ysr, xsr = (v[idx] for v in (ts, ys, xs))
         apply = partial(_apply, r=r)
-        if _pbar is not None:
-            pbar = _pbar(total=tsr.size)
-            pbar.set_description(f"make {r:.3f}")
-            pbar = pbar.update
         o = mapped_imgs(tsr.size, prepare, apply, finish, finish, batch, pbar)
         for i, oi in zip(idx, o):
             out[i] = oi
-    return out[:, mask]
+    return out

@@ -1,6 +1,0 @@
-label: ${reduce.label}
-outfile: make${segment.label}.npy
-batch:
-  - ${env.num_devices}
-  - 100
-force: false

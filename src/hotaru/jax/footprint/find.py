@@ -33,7 +33,7 @@ def _find_peaks(imgs, cond, radius, gxy=None):
     return gl, t, r, glp[idx, gy, gx]
 
 
-def find_peaks_batch(imgs, mask, avgx, avgt, std0, radius, batch=(1, 100), pbar=None):
+def find_peaks_batch(data, radius, batch=(1, 100), pbar=None):
 
     def prepare(start, end):
         return (
@@ -62,6 +62,7 @@ def find_peaks_batch(imgs, mask, avgx, avgt, std0, radius, batch=(1, 100), pbar=
         r = np.array(radius)[r]
         return PeakVal(radius, t, r, v)
 
+    imgs, mask, avgx, avgt, std0 = data
     nt, h, w = imgs.shape
     gx, gy = np.meshgrid(np.arange(w), np.arange(h))
 
@@ -69,5 +70,7 @@ def find_peaks_batch(imgs, mask, avgx, avgt, std0, radius, batch=(1, 100), pbar=
     nr = len(radius)
 
     if pbar is not None:
-        pbar = pbar(total=nt).update
+        pbar = pbar(total=nt)
+        pbar.set_description("find")
+        pbar = pbar.update
     return mapped_imgs(nt, prepare, apply, aggregate, finish, batch, pbar)

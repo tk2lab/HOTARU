@@ -19,12 +19,20 @@ class ProxOptimizer:
         self.scale = scale
         self.reset_interval = reset_interval
 
+    def fit(self, n_iter, pbar=None):
+        if pbar is not None:
+            pbar = pbar(total=n_iter)
+            pbar.set_description("optimize")
+        for i in range(n_iter):
+            self.step()
+            if pbar is not None:
+                pbar.update(1)
+
     def step(self):
         i, x, y = self._update(self.i, self.x, self.y)
         self.i = i.block_until_ready()
         self.x = [xi.block_until_ready() for xi in x]
         self.y = [yi.block_until_ready() for yi in y]
-        print(self.val)
 
     @property
     def val(self):

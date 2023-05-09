@@ -1,17 +1,19 @@
 import jax.numpy as jnp
 
 from ..proxmodel.optimizer import ProxOptimizer
-from ..proxmodel.regularizer import Regularizer
 from .loss import gen_loss
 
 
-def temporal_optimizer(footprint, data, dynamics, lu, la, bt, bx, batch, pbar=None):
-    def loss(spike):
-        calsium = dynamics(spike)
-        return _loss(calsium)
+def temporal_optimizer(footprint, data, dynamics, penalty, batch, pbar=None):
 
-    _loss = gen_loss(footprint, *data, la, bt, bx, True, batch, pbar)
+    def loss_fn(spike):
+        calsium = dynamics(spike)
+        loss, var = _loss(calsium)
+        return loss + _pena, var
+
+    _loss = gen_loss("temporal", footprint, data, penalty, batch, pbar)
+    _pena = penalty.la(footprint)
     nk = footprint.shape[0]
-    nt = data[0].shape[0]
-    spike0 = jnp.zeros((nk, nt + dynamics.size - 1))
-    return ProxOptimizer(loss, [spike0], [lu])
+    nu = data.imgs.shape[0] + dynamics.size - 1
+    spike = jnp.zeros((nk, nu))
+    return ProxOptimizer(loss_fn, [spike], [penalty.lu])

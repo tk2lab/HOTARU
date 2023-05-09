@@ -1,7 +1,8 @@
-label: ${find.label}_${reduce.rmin}_${reduce.rmax}_${reduce.thr}
-outfile: reduce${reduce.label}.csv
+label: ${find.label}/${reduce.rmin}_${reduce.rmax}_${reduce.thr}
+outfile: ${reduce.label}/reduce.csv
 rmin: ${radius.rmin2}
 rmax: ${radius.rmax2}
 thr: ${radius.thr}
 block_size: 100
-force: false
+loop: false
+force: ${force}

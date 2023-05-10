@@ -42,14 +42,11 @@ def main(cfg):
     reduce(cfg)
     make(cfg, tqdm)
     stage = cfg.stage
-    print("spike 0")
     spike(cfg, 0, tqdm)
     for stage in range(1, stage + 1):
-        print(f"footprint {stage}")
         footprint(cfg, stage, tqdm)
         #print(f"clean {stage}")
         #clean(cfg, stage, tqdm)
-        print(f"spike {stage}")
         spike(cfg, stage, tqdm)
 
 
@@ -93,9 +90,7 @@ def data(cfg, pbar=None):
 
 
 def stats(cfg, pbar=None):
-    path = Path(cfg.data.dir)
-    imgs = load_imgs(path / cfg.data.imgs)
-    mask = load_mask(path / cfg.data.mask, imgs)
+    imgs, mask = load_imgs(cfg.data)
     stats = autoload(
         cfg, "stats",
         lambda c: calc_stats(imgs, mask, c.batch, pbar),
@@ -135,6 +130,7 @@ def clean(cfg, stage, pbar=None):
 
 def spike(cfg, stage, pbar=None):
     def func(c):
+        print(f"spike {stage}")
         footprint = make(cfg) if stage == 0 else clean(cfg, stage)
         optimizer = temporal_optimizer(
             footprint,
@@ -153,6 +149,7 @@ def spike(cfg, stage, pbar=None):
 
 def footprint(cfg, stage, pbar=None):
     def func(c):
+        print(f"footprint {stage}")
         optimizer = spatial_optimizer(
             spike(cfg, stage - 1),
             data(cfg),

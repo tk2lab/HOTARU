@@ -9,3 +9,4 @@ batch:
   - 100
 loop: true
 force: ${force}
+done: -1

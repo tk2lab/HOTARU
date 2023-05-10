@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ...io.saver import (
+from ..io.saver import (
     load,
     save,
 )
@@ -13,7 +13,7 @@ from ..filter.map import mapped_imgs
 from .segment import get_segment_mask
 
 
-def clean_segment(imgs, y, x, r):
+def make_segment(imgs, y, x, r):
     g = gaussian_laplace(imgs, r)
     seg = jax.vmap(get_segment_mask)(g, y, x)
     dmin = jnp.nanmin(jnp.where(seg, g, jnp.nan))
@@ -21,17 +21,19 @@ def clean_segment(imgs, y, x, r):
     return jnp.where(seg, (g - dmin) / (dmax - dmin), 0)
 
 
-def clean_segment_batch(data, peaks, batch=100, pbar=None):
+def make_segment_batch(data, peaks, batch=100, pbar=None):
 
     def prepare(start, end):
         return (
-            jnp.array(imgs[tsr[start:end]], jnp.float32).at[:, ~mask].set(jnp.nan),
+            jnp.array(imgs[tsr[start:end]], jnp.float32),
             jnp.array(avgt[tsr[start:end]], jnp.float32),
             jnp.array(ysr[start:end], jnp.int32),
             jnp.array(xsr[start:end], jnp.int32),
         )
 
     def _apply(imgs, avgt, y, x, r):
+        if mask is not None:
+            imgs.at[:, ~mask].set(jnp.nan),
         imgs = (imgs - avgx - avgt[:, None, None]) / std0
         return make_segment(imgs, y, x, r)
 
@@ -45,7 +47,7 @@ def clean_segment_batch(data, peaks, batch=100, pbar=None):
     nk = rs.size
     out = np.empty((nk, h, w), np.float32)
     if pbar is not None:
-        pbar = pbar(total=nk)
+        pbar = pbar(total=ts.size)
         pbar.set_description("make")
         pbar = pbar.update
     for r in np.unique(rs):
@@ -55,4 +57,8 @@ def clean_segment_batch(data, peaks, batch=100, pbar=None):
         o = mapped_imgs(tsr.size, prepare, apply, finish, finish, batch, pbar)
         for i, oi in zip(idx, o):
             out[i] = oi
+    if mask is None:
+        out = out.reshape(-1, h * w)
+    else:
+        out = out[:, mask]
     return out

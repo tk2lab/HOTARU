@@ -142,8 +142,12 @@ def spike(cfg, stage, pbar=None):
             c.batch,
             pbar,
         )
-        optimizer.set_params(c.lr, c.scale, c.reset)
-        optimizer.fit(c.n_iter, pbar)
+        optimizer.set_params(c.lr, c.scale)
+        optimizer.fit(c.n_epoch, c.n_step, pbar)
+        #print(np.count_nonzero(optimizer.val[0]>0, axis=1))
+        #print(optimizer.val[0].min(axis=1))
+        #print(optimizer.val[0].mean(axis=1))
+        #print(optimizer.val[0].max(axis=1))
         return optimizer.val[0]
     return autoload(func, cfg, "temporal", stage)
 
@@ -159,7 +163,8 @@ def footprint(cfg, stage, pbar=None):
             c.batch,
             pbar,
         )
-        optimizer.set_params(c.lr, c.scale, c.reset)
-        optimizer.fit(c.n_iter, pbar)
+        optimizer.set_params(c.lr, c.scale)
+        optimizer.fit(c.n_epoch, c.n_step, pbar)
+        #print(np.count_nonzero(optimizer.val[0]>0, axis=1))
         return optimizer.val[0]
     return autoload(func, cfg, "spatial", stage)

@@ -1,6 +1,7 @@
 from functools import partial
 
 import jax
+import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
 
@@ -10,51 +11,54 @@ class ProxOptimizer:
     def __init__(self, loss_fn, x0, regularizers):
         self.loss_fn = loss_fn
         self.regularizers = regularizers
-        self.i = jnp.array(0)
-        self.x = [jnp.array(x) for x in x0]
-        self.y = [jnp.array(x) for x in x0]
+        self.x = tuple(jnp.array(x) for x in x0)
 
-    def set_params(self, lr, scale=20, reset_interval=100):
+    def set_params(self, lr, scale=20):
         self.lr = lr
         self.scale = scale
-        self.reset_interval = reset_interval
-
-    def fit(self, n_iter, pbar=None):
-        if pbar is not None:
-            pbar = pbar(total=n_iter)
-            pbar.set_description("optimize")
-        for i in range(n_iter):
-            self.step()
-            if pbar is not None:
-                pbar.update(1)
-
-    def step(self):
-        i, x, y = self._update(self.i, self.x, self.y)
-        self.i = i.block_until_ready()
-        self.x = [xi.block_until_ready() for xi in x]
-        self.y = [yi.block_until_ready() for yi in y]
 
     @property
     def val(self):
-        return [np.array(x) for x in self.x]
+        return tuple(np.array(x) for x in self.x)
 
-    @property
     def loss(self):
-        return self.loss_fn(*self.x)
+        loss, aux = self.loss_fn(*self.x)
+        for xi, ri in zip(self.x, self.regularizers):
+            loss += ri(xi)
+        return loss, aux
 
-    @partial(jax.jit, static_argnums=(0,))
-    def _update(self, i, x, y):
+    def fit(self, n_epoch, n_step, pbar=None):
+        history = [self.loss()]
+        if pbar is not None:
+            pbar = pbar(total=n_epoch)
+            pbar.set_description("optimize")
+            pbar.set_postfix(dict(loss=history[-1][0]))
+        for i in range(n_epoch):
+            self.step(n_step)
+            history.append(self.loss())
+            if pbar is not None:
+                pbar.update(1)
+                pbar.set_postfix(dict(loss=history[-1][0]))
+        return history
+
+    def step(self, n_step):
+        x = self.x
+        y = tuple(jnp.array(xi) for xi in x)
+        x, _ = lax.fori_loop(0, n_step, self._update, (x, y))
+        self.x = tuple(xi.block_until_ready() for xi in x)
+
+    def _update(self, i, xy):
         scale = self.scale
         lr = self.lr
-        j = i % self.reset_interval
-        t0 = (scale + j) / scale
-        t1 = (scale + 1) / (scale + j + 1)
+        t0 = (scale + i) / scale
+        t1 = (scale + 1) / (scale + i + 1)
+        x, y = xy
         grady, aux = jax.grad(self.loss_fn, argnums=range(len(y)), has_aux=True)(*y)
         xy = [
             self._prox_update(ri.prox, xi, yi, gi, lr, t0, t1)
             for ri, xi, yi, gi in zip(self.regularizers, x, y, grady)
         ]
-        return j + 1, *zip(*xy)
+        return tuple(zip(*xy))
 
     def _prox_update(self, prox, oldx, oldy, grady, lr, t0, t1):
         newx = prox(oldy - lr * grady, lr)

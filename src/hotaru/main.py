@@ -52,7 +52,7 @@ def main(cfg):
 def autoload(func, cfg, label, stage=None):
     c = cfg[label]
     file = Path(cfg.outdir) / c.outfile
-    if (not c.force or (stage and stage <= c.done)) and file.exists():
+    if (not c.force or (stage is not None and stage <= c.done)) and file.exists():
         obj = load(file)
     else:
         stage_saved = cfg.stage
@@ -60,10 +60,10 @@ def autoload(func, cfg, label, stage=None):
         obj = func(c)
         cfg.stage = stage_saved
         save(file, obj)
-        if stage:
-            c.done = stage
-        else:
+        if stage is None:
             c.force = False
+        else:
+            c.done = stage
     return obj
 
 

@@ -52,7 +52,11 @@ def main(cfg):
 def autoload(func, cfg, label, stage=None):
     c = cfg[label]
     file = Path(cfg.outdir) / c.outfile
-    if (not c.force or (stage is not None and stage <= c.done)) and file.exists():
+    if stage is None:
+        force = c.force
+    else:
+        force = stage > c.done
+    if not force and file.exists():
         obj = load(file)
     else:
         stage_saved = cfg.stage
@@ -124,7 +128,9 @@ def make(cfg, pbar=None):
 
 
 def clean(cfg, stage, pbar=None):
-    return footprint(cfg, stage)
+    x = footprint(cfg, stage)
+    x /= x.max(axis=1, keepdims=True)
+    return x
     return autoload(
         lambda c: clean_segment_batch(footprint(cfg, stage), radius(c), c.batch, pbar),
         cfg, "clean", stage,
@@ -148,7 +154,10 @@ def spike(cfg, stage, pbar=None):
         #print(optimizer.val[0].min(axis=1))
         #print(optimizer.val[0].mean(axis=1))
         #print(optimizer.val[0].max(axis=1))
-        return optimizer.val[0]
+        spike = optimizer.val[0]
+        normalize = spike / spike.max(axis=1, keepdims=True)
+        tifffile.imwrite("test.tif", normalize)
+        return spike
     return autoload(func, cfg, "temporal", stage)
 
 

@@ -29,7 +29,8 @@ def matmul_batch(x, y, trans, batch, pbar=None):
             return []
 
         def append(out, data):
-            return out.append(np.array(data))
+            out.append(np.array(data))
+            return out
 
         def finish(out):
             return np.concatenate(out, axis=1)

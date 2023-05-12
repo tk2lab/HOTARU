@@ -45,7 +45,7 @@ def gen_factor(kind, yval, data, dynamics, penalty, batch, pbar=None):
     return Prepare(nt, nx, nk, pena, a, b, c)
 
 
-def gen_optimizer(kind, factor, dynamics, penalty):
+def gen_optimizer(kind, factor, dynamics, penalty, lr, scale):
 
     def loss_fn(xval):
         if kind == "temporal":
@@ -66,7 +66,10 @@ def gen_optimizer(kind, factor, dynamics, penalty):
         init = [np.zeros((nk, nx))]
         pena = [penalty.la]
 
-    return ProxOptimizer(loss_fn, init, pena)
+    lr_scale = nm / b.diagonal().mean()
+    opt = ProxOptimizer(loss_fn, init, pena)
+    opt.set_params(lr * lr_scale, scale)
+    return opt
 
 
 def calc_cov_out(xval):

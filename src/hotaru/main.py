@@ -173,8 +173,9 @@ def spike(cfg, stage, pbar=None):
     def optimize(c):
         if print_flag:
             print(f"{stage} spike")
-        optimizer = gen_optimizer("temporal", factor, dynamics(cfg), penalty(cfg))
-        optimizer.set_params(c.lr, c.scale)
+        optimizer = gen_optimizer(
+            "temporal", factor, dynamics(cfg), penalty(cfg), c.lr, c.scale,
+        )
         optimizer.fit(c.n_epoch, c.n_step, c.early_stop.tol, pbar)
         #print(np.count_nonzero(optimizer.val[0]>0, axis=1))
         #print(optimizer.val[0].min(axis=1))
@@ -206,8 +207,9 @@ def footprint(cfg, stage, pbar=None):
     def optimize(c):
         if print_flag:
             print(f"{stage} footprint")
-        optimizer = gen_optimizer("spatial", factor, dynamics(cfg), penalty(cfg))
-        optimizer.set_params(c.lr, c.scale)
+        optimizer = gen_optimizer(
+            "spatial", factor, dynamics(cfg), penalty(cfg), c.lr, c.scale,
+        )
         optimizer.fit(c.n_epoch, c.n_step, c.early_stop.tol, pbar)
         #print(np.count_nonzero(optimizer.val[0]>0, axis=1))
         return optimizer.val[0]

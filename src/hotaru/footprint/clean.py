@@ -1,3 +1,4 @@
+from collections import namedtuple
 from functools import partial
 
 import jax
@@ -8,51 +9,48 @@ from ..io.saver import (
     load,
     save,
 )
-from ..filter.laplace import gaussian_laplace
+from ..filter.laplace import gaussian_laplace_multi
 from ..filter.map import mapped_imgs
 from .segment import get_segment_mask
 
 
-def clean_segment(imgs, y, x, r):
-    g = gaussian_laplace(imgs, r)
-    seg = jax.vmap(get_segment_mask)(g, y, x)
-    dmin = jnp.nanmin(jnp.where(seg, g, jnp.nan))
-    dmax = jnp.nanmax(jnp.where(seg, g, jnp.nan))
-    return jnp.where(seg, (g - dmin) / (dmax - dmin), 0)
+Peaks = namedtuple("Peaks", "idx r y x radius intensity")
 
 
-def clean_segment_batch(data, peaks, batch=100, pbar=None):
+def clean_segment_batch(imgs, mask, radius, batch=100, pbar=None):
 
     def prepare(start, end):
-        return (
-            jnp.array(imgs[tsr[start:end]], jnp.float32).at[:, ~mask].set(jnp.nan),
-            jnp.array(avgt[tsr[start:end]], jnp.float32),
-            jnp.array(ysr[start:end], jnp.int32),
-            jnp.array(xsr[start:end], jnp.int32),
-        )
+        return jnp.array(imgs[start:end], jnp.float32)
 
-    def _apply(imgs, avgt, y, x, r):
-        imgs = (imgs - avgx - avgt[:, None, None]) / std0
-        return make_segment(imgs, y, x, r)
+    def apply(imgs):
+        gl = gaussian_laplace_multi(imgs, radius, -3)
+        if mask is not None:
+            gl.at[:, :, ~mask].set(jnp.nan)
+        nt, nr, h, w = gl.shape
+        idx = jnp.argmax(gl.reshape(nt, nr * h * w), axis=1)
+        t = jnp.arange(nt)
+        r, y, x = idx // (h * w), (idx // w) % h, idx % w
+        g = gl[t, r, y, x]
+        seg = jax.vmap(get_segment_mask)(gl[t, r], y, x)
+        imgs = jnp.where(seg, imgs, jnp.nan)
+        dmin = jnp.nanmin(jnp.where(seg, imgs, jnp.nan), axis=(1, 2), keepdims=True)
+        dmax = jnp.nanmax(jnp.where(seg, imgs, jnp.nan), axis=(1, 2), keepdims=True)
+        imgs = jnp.where(seg, (imgs - dmin) / (dmax - dmin), 0)
+        return imgs, t, r, y, x, g
 
-    def finish(seg):
-        return np.concatenate(seg, axis=0)
+    def aggregate(*args):
+        return tuple(np.concatenate(a, axis=0) for a in args)
 
-    imgs, mask, avgx, avgt, std0 = data
+    def finish(*args):
+        imgs, *stats = tuple(np.concatenate(a, axis=0)[:nt] for a in args)
+        t, r, y, x, intensity = stats
+        return imgs, Peaks(t, r, y, x, np.array(radius)[r], intensity)
+
+    radius = tuple(radius)
     nt, h, w = imgs.shape
 
-    ts, ys, xs, rs = (np.array(v) for v in (peaks.t, peaks.y, peaks.x, peaks.r))
-    nk = rs.size
-    out = np.empty((nk, h, w), np.float32)
     if pbar is not None:
-        pbar = pbar(total=nk)
-        pbar.set_description("make")
+        pbar = pbar(total=nt)
+        pbar.set_description("clean")
         pbar = pbar.update
-    for r in np.unique(rs):
-        idx = np.where(rs == r)[0]
-        tsr, ysr, xsr = (v[idx] for v in (ts, ys, xs))
-        apply = partial(_apply, r=r)
-        o = mapped_imgs(tsr.size, prepare, apply, finish, finish, batch, pbar)
-        for i, oi in zip(idx, o):
-            out[i] = oi
-    return out
+    return mapped_imgs(nt, prepare, apply, aggregate, finish, batch, pbar)

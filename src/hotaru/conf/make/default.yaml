@@ -3,5 +3,4 @@ outfile: ${make.label}/0_1footprint.npy
 batch:
   - ${env.num_devices}
   - 100
-loop: false
 force: ${force}

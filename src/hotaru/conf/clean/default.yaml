@@ -6,6 +6,5 @@ rnum: ${radius.rnum}
 batch:
   - ${env.num_devices}
   - 100
-loop: false
-force: false
-done: -1
+force: ${force}
+done: ${done}

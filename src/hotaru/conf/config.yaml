@@ -16,6 +16,7 @@ srcdir: .
 outdir: ${data.dir}
 stage: 9
 force: false
+done: null
 
 env:
   num_devices: 1

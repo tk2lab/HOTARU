@@ -4,5 +4,4 @@ rmin: ${radius.rmin2}
 rmax: ${radius.rmax2}
 thr: ${radius.thr}
 block_size: 100
-loop: false
 force: ${force}

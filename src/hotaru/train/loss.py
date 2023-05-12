@@ -1,10 +1,15 @@
+from collections import namedtuple
+
 import jax.numpy as jnp
 
 from ..filter.map import mapped_imgs
 from .matmul import matmul_batch
 
 
-def gen_loss(kind, yval, data, penalty, batch, pbar=None):
+Prepare = namedtuple("Prepare", "nn nm a b c")
+
+
+def prepare(kind, yval, data, penalty, batch, pbar=None):
     trans = kind == "temporal"
 
     if trans:
@@ -27,6 +32,11 @@ def gen_loss(kind, yval, data, penalty, batch, pbar=None):
     nt, h, w = data.imgs.shape
     nn = float(nt * h * w)
     nm = float(nn + nt + h * w)
+
+    return Prepare(nn, nm, a, b, c)
+
+
+def gen_loss(nn, nm, a, b, c):
 
     def loss(xval):
         xval, xcov, xout = calc_cov_out(xval)

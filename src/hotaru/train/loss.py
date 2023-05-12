@@ -25,7 +25,6 @@ def gen_factor(kind, yval, data, dynamics, penalty, batch, pbar=None):
         pena = penalty.lu(yval)
         yval = dynamics(yval)
 
-    print(np.count_nonzero(yval), np.count_nonzero(~jnp.isfinite(yval)))
     ycor = matmul_batch(yval, data, trans, batch, pbar)
     yval, ycov, yout = calc_cov_out(yval)
 
@@ -58,10 +57,6 @@ def gen_optimizer(kind, factor, dynamics, penalty):
     nt, nx, nk, py, a, b, c = factor
     nn = float(nt * nx)
     nm = float(nn + nt + nx)
-    print(nn, nm, py)
-    print(a)
-    print(b)
-    print(c)
 
     if kind == "temporal":
         nu = nt + dynamics.size - 1

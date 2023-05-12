@@ -46,21 +46,41 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
         imax = imax.max(axis=0)
         return avgt, sumi, sumn, sqi, sqn, cor, imin, imax
 
-    def finish(avgt, *args):
-        avgt = np.concatenate(avgt, axis=0)[:nt]
-        iout = map(np.stack, args)
-        avgt, sumi, sumn, sqi, sqn, cor, imin, imax = aggregate(avgt, *iout)
+    def init():
+        avgt = []
+        sumi = jnp.zeros((h, w))
+        sumn = jnp.zeros((h, w))
+        sqi = jnp.zeros((h, w))
+        sqn = jnp.zeros((h, w))
+        cor = jnp.zeros((h, w))
+        imin = jnp.zeros((h, w))
+        imax = jnp.zeros((h, w))
+        return [avgt, sumi, sumn, sqi, sqn, cor, imin, imax]
 
+    def append(out, val):
+        out[0].append(val[0])
+        out[1] += val[1]
+        out[2] += val[2]
+        out[3] += val[3]
+        out[4] += val[4]
+        out[5] += val[5]
+        out[6] = np.maximum(out[6], val[6])
+        out[7] = np.minimum(out[7], val[7])
+        return out
+
+    def finish(out):
+        avgt, sumi, sumn, sqi, sqn, cor, imin, imax = out
+        avgt = jnp.concatenate(avgt, axis=0)[:nt]
         avgx = sumi / nt
         avgn = sumn / nt
-        varx = sqi / nt - np.square(avgx)
-        stdx = np.sqrt(varx)
-        stdn = np.sqrt(sqn / nt - np.square(avgn))
+        varx = sqi / nt - jnp.square(avgx)
+        stdx = jnp.sqrt(varx)
+        stdn = jnp.sqrt(sqn / nt - jnp.square(avgn))
         if mask is None:
             varx_masked = varx.ravel()
         else:
             varx_masked = varx[mask]
-        std0 = np.sqrt(varx_masked.mean())
+        std0 = jnp.sqrt(varx_masked.mean())
 
         imin = (imin - avgx) / std0
         imax = (imax - avgx) / std0
@@ -68,13 +88,13 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
         icor = (cor / nt - avgx * avgn) / (stdx * stdn)
 
         if mask is not None:
-            avgx[~mask] = np.nan
-            imin[~mask] = np.nan
-            imax[~mask] = np.nan
-            istd[~mask] = np.nan
-            icor[~mask] = np.nan
+            avgx.at[~mask].set(jnp.nan)
+            imin.at[~mask].set(jnp.nan)
+            imax.at[~mask].set(jnp.nan)
+            istd.at[~mask].set(jnp.nan)
+            icor.at[~mask].set(jnp.nan)
 
-        return Stats(avgx, avgt, std0, imin, imax, istd, icor)
+        return Stats(*map(np.array, (avgx, avgt, std0, imin, imax, istd, icor)))
 
     nt, h, w = imgs.shape
 
@@ -82,4 +102,4 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
         pbar = pbar(total=nt)
         pbar.set_description("stats")
         pbar = pbar.update
-    return mapped_imgs(nt, prepare, calc, aggregate, finish, batch, pbar)
+    return mapped_imgs(nt, prepare, calc, aggregate, init, append, finish, batch, pbar)

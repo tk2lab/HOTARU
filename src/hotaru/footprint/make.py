@@ -37,8 +37,15 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
         imgs = (imgs - avgx - avgt[:, None, None]) / std0
         return make_segment(imgs, y, x, r)
 
+    def aggregate(seg):
+        return jnp.concatenate(seg, axis=0)
+
+    def append(out, data):
+        out.append(data)
+        return out
+
     def finish(seg):
-        return np.concatenate(seg, axis=0)
+        return np.array(aggregate(seg))
 
     imgs, mask, avgx, avgt, std0 = data
     nt, h, w = imgs.shape
@@ -54,7 +61,7 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
         idx = np.where(rs == r)[0]
         tsr, ysr, xsr = (v[idx] for v in (ts, ys, xs))
         apply = partial(_apply, r=r)
-        o = mapped_imgs(tsr.size, prepare, apply, finish, finish, batch, pbar)
+        o = mapped_imgs(tsr.size, prepare, apply, finish, list, append, finish, batch, pbar)
         for i, oi in zip(idx, o):
             out[i] = oi
     if mask is None:

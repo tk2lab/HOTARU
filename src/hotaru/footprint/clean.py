@@ -41,7 +41,12 @@ def clean_segment_batch(imgs, mask, radius, batch=100, pbar=None):
     def aggregate(*args):
         return tuple(np.concatenate(a, axis=0) for a in args)
 
-    def finish(*args):
+    def append(out, data):
+        out.append(data)
+        return out
+
+    def finish(out):
+        args = zip(*out)
         imgs, *stats = tuple(np.concatenate(a, axis=0)[:nt] for a in args)
         t, r, y, x, intensity = stats
         return imgs, Peaks(t, r, y, x, np.array(radius)[r], intensity)
@@ -53,4 +58,4 @@ def clean_segment_batch(imgs, mask, radius, batch=100, pbar=None):
         pbar = pbar(total=nt)
         pbar.set_description("clean")
         pbar = pbar.update
-    return mapped_imgs(nt, prepare, apply, aggregate, finish, batch, pbar)
+    return mapped_imgs(nt, prepare, apply, aggregate, list, append, finish, batch, pbar)

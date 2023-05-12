@@ -22,6 +22,15 @@ def matmul_batch(x, y, trans, batch, pbar=None):
                 y = ((imgs - avgx)[:, mask] - avgt[:, None]) / std0
             return jnp.matmul(x, y.T)
 
+        def aggregate(out):
+            return jnp.concatenate(out, axis=1)
+
+        def init():
+            return []
+
+        def append(out, data):
+            return out.append(np.array(data))
+
         def finish(out):
             return np.concatenate(out, axis=1)
 
@@ -41,13 +50,23 @@ def matmul_batch(x, y, trans, batch, pbar=None):
                 y = ((imgs - avgx)[:, mask] - avgt[:, None]) / std0
             return jnp.matmul(x.T, y)
 
+        def aggregate(out):
+            return jnp.sum(out, axis=0)
+
+        def init():
+            return jnp.zeros((nk, nx), jnp.float32)
+
+        def append(out, val):
+            return out + val
+
         def finish(out):
-            return np.sum(out, axis=0)
+            return np.array(out)
 
     nt, h, w = imgs.shape
+    nk, nx = x.shape[0], h * w
 
     if pbar is not None:
         pbar = pbar(total=nt)
         pbar.set_description("matmul")
         pbar = pbar.update
-    return mapped_imgs(nt, prepare, apply, finish, finish, batch, pbar)
+    return mapped_imgs(nt, prepare, apply, aggregate, init, append, finish, batch, pbar)

@@ -52,17 +52,26 @@ def find_peaks_batch(data, radius, batch=(1, 100), pbar=None):
         return t, r, g
 
     def aggregate(t, r, v):
-        idx = np.argmax(v, axis=0)
+        idx = jnp.argmax(v, axis=0)
         t = t[idx, gy, gx]
         r = r[idx, gy, gx]
         v = v[idx, gy, gx]
         return t, r, v
 
-    def finish(*args):
-        t, r, v = (np.stack(o, axis=0) for o in args)
-        t, r, v = aggregate(t, r, v)
-        r = np.array(radius)[r]
-        return PeakVal(radius, t, r, v)
+    def init():
+        return tuple(jnp.full((h, w), jnp.nan) for _ in range(3))
+
+    def append(out, val):
+        outt, outr, outv = out
+        t, r, v = val
+        cond = outv > v
+        outt = jnp.where(cond, outv, v)
+        outr = jnp.where(cond, outr, r)
+        outv = jnp.where(cond, outr, v)
+        return outt, outr, outv
+
+    def finish(out):
+        return PeakVal(radius, *(np.array(o) for o in out))
 
     imgs, mask, avgx, avgt, std0 = data
     nt, h, w = imgs.shape
@@ -75,4 +84,4 @@ def find_peaks_batch(data, radius, batch=(1, 100), pbar=None):
         pbar = pbar(total=nt)
         pbar.set_description("find")
         pbar = pbar.update
-    return mapped_imgs(nt, prepare, apply, aggregate, finish, batch, pbar)
+    return mapped_imgs(nt, prepare, apply, aggregate, init, append, finish, batch, pbar)

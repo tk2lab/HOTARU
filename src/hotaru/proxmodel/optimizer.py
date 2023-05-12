@@ -27,22 +27,24 @@ class ProxOptimizer:
         return loss + penalty, aux
 
     def fit(self, n_epoch, n_step, tol=None, pbar=None):
-        history = [self.loss()]
+        loss, aux = self.loss()
+        diff = np.inf
+        history = [(loss, aux)]
         if pbar is not None:
             pbar = pbar(total=n_epoch)
             pbar.set_description("optimize")
-            pbar.set_postfix(dict(loss=f"{history[-1][0]:.4f}"))
+            pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=" nan"))
         for i in range(n_epoch):
             self.step(n_step)
-            history.append(self.loss())
+            old_loss, loss, aux = loss, *self.loss()
+            diff = np.log10((old_loss - loss) / tol)
+            history.append((loss, aux))
+            if diff < 0.0:
+                break
             if pbar is not None:
+                diff = -np.log10(diff / tol)
                 pbar.update(1)
-                pbar.set_postfix(dict(loss=f"{history[-1][0]:.4f}"))
-            if len(history) >= 2:
-                if (history[-2][0] - history[-1][0]) < tol:
-                    #if pbar is not None:
-                    #    pbar.update(n_epoch - i - 1)
-                    break
+                pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=f"{diff:.2f}"))
         return history
 
     def step(self, n_step):

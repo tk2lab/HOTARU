@@ -66,7 +66,7 @@ def gen_optimizer(kind, factor, dynamics, penalty, lr, scale):
         init = [np.zeros((nk, nx))]
         pena = [penalty.la]
 
-    lr_scale = nm / b.diagonal().mean()
+    lr_scale = nm / b.diagonal().max()
     opt = ProxOptimizer(loss_fn, init, pena)
     opt.set_params(lr * lr_scale, scale)
     return opt

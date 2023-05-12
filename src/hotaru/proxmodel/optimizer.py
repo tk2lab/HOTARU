@@ -42,7 +42,6 @@ class ProxOptimizer:
             if diff < 0.0:
                 break
             if pbar is not None:
-                diff = -np.log10(diff / tol)
                 pbar.update(1)
                 pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=f"{diff:.2f}"))
         return history

@@ -25,8 +25,8 @@ def gen_loss(kind, yval, data, penalty, batch, pbar=None):
     c = yout - cy * ycov
 
     nt, h, w = data.imgs.shape
-    nn = nt * h * w
-    nm = nn + nt + h * w
+    nn = float(nt * h * w)
+    nm = float(nn + nt + h * w)
 
     def loss(xval):
         xval, xcov, xout = calc_cov_out(xval)

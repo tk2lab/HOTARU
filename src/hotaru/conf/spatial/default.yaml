@@ -2,8 +2,8 @@ label: ${reduce.label}
 outfile: ${spatial.label}/${stage}_0footprint.npy
 batch:
   - ${env.num_devices}
-  - 100
-lr: 20.0
+  - 1000
+lr: 500.0
 scale: 20.0
 n_epoch: 100
 n_step: 100

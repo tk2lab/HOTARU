@@ -193,11 +193,13 @@ def spike(cfg, stage, pbar=None):
 def footprint(cfg, stage, pbar=None):
     def prepare(c):
         nonlocal print_flag
+        spk = spike(cfg, stage - 1)
+        spk /= spk.max(axis=1, keepdims=True)
         print_flag = False
         print(f"{stage} footprint")
         return gen_factor(
             "spatial",
-            spike(cfg, stage - 1),
+            spk,
             data(cfg),
             dynamics(cfg),
             penalty(cfg),

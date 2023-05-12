@@ -16,8 +16,8 @@ from .segment import get_segment_mask
 def make_segment(imgs, y, x, r):
     g = gaussian_laplace(imgs, r)
     seg = jax.vmap(get_segment_mask)(g, y, x)
-    dmin = jnp.nanmin(jnp.where(seg, g, jnp.nan))
-    dmax = jnp.nanmax(jnp.where(seg, g, jnp.nan))
+    dmin = jnp.nanmin(jnp.where(seg, g, jnp.nan), axis=(1, 2), keepdims=True)
+    dmax = jnp.nanmax(jnp.where(seg, g, jnp.nan), axis=(1, 2), keepdims=True)
     return jnp.where(seg, (g - dmin) / (dmax - dmin), 0)
 
 

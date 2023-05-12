@@ -8,7 +8,7 @@ prepare:
   done: ${temporal.done}
 optimize:
   outfile: ${temporal.label}/${stage}_4spike.npy
-  lr: 100.0
+  lr: 0.0001
   scale: 20
   n_epoch: 100
   n_step: 100

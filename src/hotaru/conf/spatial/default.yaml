@@ -8,7 +8,7 @@ prepare:
   done: ${spatial.done}
 optimize:
   outfile: ${spatial.label}/${stage}_1spatial.npy
-  lr: 500.0
+  lr: 0.0001
   scale: 20.0
   n_epoch: 100
   n_step: 100

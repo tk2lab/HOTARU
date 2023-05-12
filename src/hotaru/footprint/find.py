@@ -59,15 +59,19 @@ def find_peaks_batch(data, radius, batch=(1, 100), pbar=None):
         return t, r, v
 
     def init():
-        return tuple(jnp.full((h, w), jnp.nan) for _ in range(3))
+        return (
+            jnp.full((h, w), -1, dtype=jnp.int32),
+            jnp.full((h, w), -1, dtype=jnp.int32),
+            jnp.full((h, w), jnp.nan),
+        )
 
     def append(out, val):
         outt, outr, outv = out
         t, r, v = val
         cond = outv > v
-        outt = jnp.where(cond, outv, v)
+        outt = jnp.where(cond, outt, t)
         outr = jnp.where(cond, outr, r)
-        outv = jnp.where(cond, outr, v)
+        outv = jnp.where(cond, outv, v)
         return outt, outr, outv
 
     def finish(out):

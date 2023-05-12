@@ -39,11 +39,11 @@ class ProxOptimizer:
             old_loss, loss, aux = loss, *self.loss()
             diff = np.log10((old_loss - loss) / tol)
             history.append((loss, aux))
-            if diff < 0.0:
-                break
             if pbar is not None:
                 pbar.update(1)
                 pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=f"{diff:.2f}"))
+            if diff < 0.0:
+                break
         return history
 
     def step(self, n_step):

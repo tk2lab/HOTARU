@@ -26,8 +26,10 @@ from .footprint.reduce import reduce_peaks_block
 from .footprint.make import make_segment_batch
 from .footprint.clean import clean_segment_batch
 from .train.dynamics import SpikeToCalcium
-from .train.temporal import temporal_optimizer
-from .train.spatial import spatial_optimizer
+from .train.loss import (
+    gen_factor,
+    gen_optimizer,
+)
 from .proxmodel.regularizer import MaxNormNonNegativeL1
 
 
@@ -40,7 +42,6 @@ Penalty = namedtuple("Penalty", "la lu bx bt")
 def main(cfg):
     data(cfg, tqdm)
     find(cfg, tqdm)
-    reduce(cfg)
     make(cfg, tqdm)
     spike(cfg, 0, tqdm)
     for stage in range(1, cfg.stage + 1):
@@ -49,9 +50,8 @@ def main(cfg):
         spike(cfg, stage, tqdm)
 
 
-def autoload(func, cfg, label, stage=None):
+def autoload(func, cfg, c, stage=None):
     cfg.stage, stage_saved = stage, cfg.stage
-    c = cfg[label]
     file = Path(cfg.outdir) / c.outfile
     force = c.force
     if stage is not None:
@@ -101,7 +101,7 @@ def data(cfg, pbar=None):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
         lambda c: calc_stats(imgs, mask, c.batch, pbar),
-        cfg, "stats",
+        cfg, cfg.stats,
     )
     return Data(imgs, mask, stats.avgx, stats.avgt, stats.std0)
 
@@ -111,27 +111,24 @@ def stats(cfg, pbar=None):
         imgs, mask = load_imgs(cfg.data)
         stats = calc_stats(imgs, mask, c.batch, pbar),
         return Stats(stats.imin, stats.imax, stats.istd, stats.icor)
-    return autoload(func, cfg, "stats")
+    return autoload(func, cfg, cfg.stats)
 
 
 def find(cfg, pbar=None):
     return autoload(
         lambda c: find_peaks_batch(data(cfg), radius(c), c.batch, pbar),
-        cfg, "find",
-    )
-
-
-def reduce(cfg, pbar=None):
-    return autoload(
-        lambda c: reduce_peaks_block(find(cfg), c.rmin, c.rmax, c.thr, c.block_size),
-        cfg, "reduce",
+        cfg, cfg.find,
     )
 
 
 def make(cfg, pbar=None):
+    reduce = autoload(
+        lambda c: reduce_peaks_block(find(cfg), c.rmin, c.rmax, c.thr, c.block_size),
+        cfg, cfg.reduce,
+    )
     return autoload(
-        lambda c: make_segment_batch(data(cfg), reduce(cfg), c.batch, pbar),
-        cfg, "make",
+        lambda c: make_segment_batch(data(cfg), reduce, c.batch, pbar),
+        cfg, cfg.make,
     )
 
 
@@ -156,13 +153,16 @@ def clean(cfg, stage, pbar=None):
         else:
             cimgs = cimgs[:, mask] > _radius
         return cimgs
-    return autoload(func, cfg, "clean", stage)
+    return autoload(func, cfg, cfg.clean, stage)
 
 
 def spike(cfg, stage, pbar=None):
-    def func(c):
+    def prepare(c):
+        nonlocal print_flag
+        print_flag = False
         print(f"{stage} spike")
-        optimizer = temporal_optimizer(
+        return gen_factor(
+            "temporal",
             make(cfg) if stage == 0 else clean(cfg, stage),
             data(cfg),
             dynamics(cfg),
@@ -170,6 +170,10 @@ def spike(cfg, stage, pbar=None):
             c.batch,
             pbar,
         )
+    def optimize(c):
+        if print_flag:
+            print(f"{stage} spike")
+        optimizer = gen_optimizer("temporal", factor, dynamics(cfg), penalty(cfg))
         optimizer.set_params(c.lr, c.scale)
         optimizer.fit(c.n_epoch, c.n_step, c.early_stop.tol, pbar)
         #print(np.count_nonzero(optimizer.val[0]>0, axis=1))
@@ -180,13 +184,18 @@ def spike(cfg, stage, pbar=None):
         normalize = spike / spike.max(axis=1, keepdims=True)
         tifffile.imwrite(f"spike{stage}.tif", normalize)
         return spike
-    return autoload(func, cfg, "temporal", stage)
+    print_flag = True
+    factor = autoload(prepare, cfg, cfg.temporal.prepare, stage)
+    return autoload(optimize, cfg, cfg.temporal.optimize, stage)
 
 
 def footprint(cfg, stage, pbar=None):
-    def func(c):
+    def prepare(c):
+        nonlocal print_flag
+        print_flag = False
         print(f"{stage} footprint")
-        optimizer = spatial_optimizer(
+        return gen_factor(
+            "spatial",
             spike(cfg, stage - 1),
             data(cfg),
             dynamics(cfg),
@@ -194,8 +203,14 @@ def footprint(cfg, stage, pbar=None):
             c.batch,
             pbar,
         )
+    def optimize(c):
+        if print_flag:
+            print(f"{stage} footprint")
+        optimizer = gen_optimizer("spatial", factor, dynamics(cfg), penalty(cfg))
         optimizer.set_params(c.lr, c.scale)
         optimizer.fit(c.n_epoch, c.n_step, c.early_stop.tol, pbar)
         #print(np.count_nonzero(optimizer.val[0]>0, axis=1))
         return optimizer.val[0]
-    return autoload(func, cfg, "spatial", stage)
+    print_flag = True
+    factor = autoload(prepare, cfg, cfg.spatial.prepare, stage)
+    return autoload(optimize, cfg, cfg.spatial.optimize, stage)

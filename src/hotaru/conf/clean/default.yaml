@@ -1,5 +1,5 @@
 label: ${reduce.label}
-outfile: ${clean.label}/${stage}_1footprint.npy
+outfile: ${clean.label}/${stage}_2footprint.npy
 rmin: ${radius.rmin}
 rmax: ${radius.rmax}
 rnum: ${radius.rnum}

@@ -1,6 +1,6 @@
 label: ${reduce.label}
-outfile: ${make.label}/0_1footprint.npy
+outfile: ${make.label}/0_2footprint.npy
 batch:
   - ${env.num_devices}
-  - 1000
+  - 100
 force: ${force}

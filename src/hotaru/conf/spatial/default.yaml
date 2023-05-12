@@ -1,13 +1,20 @@
 label: ${reduce.label}
-outfile: ${spatial.label}/${stage}_0footprint.npy
-batch:
-  - ${env.num_devices}
-  - 1000
-lr: 500.0
-scale: 20.0
-n_epoch: 100
-n_step: 100
-early_stop:
-  tol: 1e-5
+prepare:
+  outfile: ${spatial.label}/${stage}_0prepare.npz
+  batch:
+    - ${env.num_devices}
+    - 1000
+  force: ${spatial.force}
+  done: ${spatial.done}
+optimize:
+  outfile: ${spatial.label}/${stage}_1spatial.npy
+  lr: 500.0
+  scale: 20.0
+  n_epoch: 100
+  n_step: 100
+  early_stop:
+    tol: 1e-5
+  force: ${spatial.force}
+  done: ${spatial.done}
 force: ${force}
 done: ${done}

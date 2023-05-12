@@ -1,13 +1,20 @@
 label: ${reduce.label}
-outfile: ${temporal.label}/${stage}_2spike.npy
-batch:
-  - ${env.num_devices}
-  - 100
-lr: 100.0
-scale: 20
-n_epoch: 100
-n_step: 100
-early_stop:
-  tol: 1e-5
+prepare:
+  outfile: ${temporal.label}/${stage}_3prepare.npz
+  batch:
+    - ${env.num_devices}
+    - 100
+  force: ${temporal.force}
+  done: ${temporal.done}
+optimize:
+  outfile: ${temporal.label}/${stage}_4spike.npy
+  lr: 100.0
+  scale: 20
+  n_epoch: 100
+  n_step: 100
+  early_stop:
+    tol: 1e-5
+  force: ${temporal.force}
+  done: ${temporal.done}
 force: ${force}
 done: ${done}

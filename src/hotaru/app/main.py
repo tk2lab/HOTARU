@@ -16,10 +16,14 @@ from dash import (
     no_update,
 )
 
-from ..jax.footprint.find import find_peaks
-from ..main import Hotaru
+from ..footprint.find import find_peaks
+from ..main import (
+    stats,
+
+)
 from .ui import (
     two_column,
+    ConfigInput,
     ThreadButton,
     Collapse,
 )
@@ -38,11 +42,11 @@ def HotaruApp(cfg, *args, **kwargs):
     kwargs.setdefault("external_stylesheets", [dbc.themes.BOOTSTRAP])
     kwargs.setdefault("title", "HOTARU")
     app = Dash(__name__, *args, **kwargs)
-    cache = Cache("hotaru")
-    cache["cfg"] = cfg
+    _cache = Cache("hotaru")
+    _cache["cfg"] = cfg
 
-    def model():
-        return Hotaru(cache["cfg"])
+    def cfg():
+        return _cache["cfg"]
 
     divs = []
 
@@ -61,11 +65,11 @@ def HotaruApp(cfg, *args, **kwargs):
             style=two_column(500),
             children=[
                 dbc.Label("Image file path"),
-                imgs_path := dbc.Input(type="text", value=cfg.data.imgs),
+                imgs_path := ConfigInput(cache, "data", "imgs", type="text"),
                 dbc.Label("Mask type"),
-                imgs_mask := dbc.Input(type="text", value=cfg.data.mask),
+                imgs_mask := ConfigInput(cache, "data", "mask", type="text"),
                 dbc.Label("Frequency"),
-                imgs_hz := dbc.Input(type="number", value=cfg.data.hz),
+                imgs_hz := ConfigInput(cache, "data", "hz", type="number"),
             ],
         ),
         load := ThreadButton(

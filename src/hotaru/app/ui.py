@@ -38,6 +38,43 @@ def two_column(width):
     )
 
 
+def ConfigStore():
+    store = dcc.Store("config")
+
+    @callback(
+        Output(store, "data"),
+        list(inputs.keys()),
+        State(store, "data"),
+    )
+    def set_val(*args):
+        *args, cfg = args
+
+
+class ConfigInput(dbc.Input):
+
+    def __init__(self, store, *label, **kwargs):
+        self.cache = cache
+        self.label = label
+        for l in label:
+            cache = cache[l]
+        super().__init__(value=cache, **kwargs)
+
+        @callback(
+            Output(store, ""),
+            Input(self, "value"),
+            State(
+        )
+        def set_cfg(value):
+            ls = self.label
+            cfg = self.cache[ls[0]]
+            c = cfg
+            for l in ls[1:-1]:
+                c = c[l]
+            c[l[-1]] = value
+            self.cache[ls[0]] = cfg
+            return no_update
+
+
 def ThreadButton(label, setter, func, *state):
     div = html.Div(
         children=[

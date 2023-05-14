@@ -1,4 +1,9 @@
-label: ${reduce.label}
+label: ${make.label}/${temporal.penalty.la}_${temporal.penalty.lu}_${temporal.penalty.bx}_${temporal.penalty.bt}
+penalty:
+  la: ${penalty.la}
+  lu: ${penalty.lu}
+  bx: ${penalty.bx}
+  bt: ${penalty.bt}
 prepare:
   outfile: ${temporal.label}/${stage}_3prepare.npz
   batch:

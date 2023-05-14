@@ -1,4 +1,9 @@
-label: ${reduce.label}
+label: ${make.label}/${spatial.penalty.la}_${spatial.penalty.lu}_${spatial.penalty.bx}_${spatial.penalty.bt}
+penalty:
+  la: ${penalty.la}
+  lu: ${penalty.lu}
+  bx: ${penalty.bx}
+  bt: ${penalty.bt}
 prepare:
   outfile: ${spatial.label}/${stage}_0prepare.npz
   batch:

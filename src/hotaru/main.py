@@ -84,14 +84,13 @@ def dynamics(cfg):
         return SpikeToCalcium.double_exp(c.tau1, c.tau2, c.duration, cfg.data.hz)
 
 
-def penalty(cfg):
+def penalty(cfg, c):
     imgs, mask = load_imgs(cfg.data)
     if mask is None:
         nt, h, w = imgs.shape
         scale = nt * h * w
     else:
         scale = imgs.shape[0] * np.count_nonzero(mask)
-    c = cfg.penalty
     la = MaxNormNonNegativeL1(c.la / scale)
     lu = MaxNormNonNegativeL1(c.lu / scale)
     return Penalty(la, lu, c.bx, c.bt)
@@ -166,7 +165,7 @@ def spike(cfg, stage, pbar=None):
             make(cfg) if stage == 0 else clean(cfg, stage),
             data(cfg),
             dynamics(cfg),
-            penalty(cfg),
+            penalty(cfg, cfg.temporal.penalty),
             c.batch,
             pbar,
         )
@@ -177,7 +176,7 @@ def spike(cfg, stage, pbar=None):
             "temporal",
             factor,
             dynamics(cfg),
-            penalty(cfg),
+            penalty(cfg, cfg.temporal.penalty),
             c.lr,
             c.scale,
             c.loss.num_devices,
@@ -204,7 +203,7 @@ def footprint(cfg, stage, pbar=None):
             spk,
             data(cfg),
             dynamics(cfg),
-            penalty(cfg),
+            penalty(cfg, cfg.spatial.penalty),
             c.batch,
             pbar,
         )
@@ -215,7 +214,7 @@ def footprint(cfg, stage, pbar=None):
             "spatial",
             factor,
             dynamics(cfg),
-            penalty(cfg),
+            penalty(cfg, cfg.spatial.penalty),
             c.lr,
             c.scale,
             c.loss.num_devices,

@@ -55,7 +55,5 @@ def clean_segment_batch(imgs, mask, radius, batch=100, pbar=None):
     nt, h, w = imgs.shape
 
     if pbar is not None:
-        pbar = pbar(total=nt)
-        pbar.set_description("clean")
-        pbar = pbar.update
+        pbar.reset(total=nt)
     return mapped_imgs(nt, prepare, apply, aggregate, list, append, finish, batch, pbar)

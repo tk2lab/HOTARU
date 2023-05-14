@@ -31,8 +31,7 @@ class ProxOptimizer:
         diff = np.inf
         history = [loss]
         if pbar is not None:
-            pbar = pbar(total=n_epoch)
-            pbar.set_description("optimize")
+            pbar.reset(total=n_epoch)
             pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=" nan"))
         for i in range(n_epoch):
             self.step(n_step, num_devices)

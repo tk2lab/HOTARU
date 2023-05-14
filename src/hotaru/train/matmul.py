@@ -67,7 +67,5 @@ def matmul_batch(x, y, trans, batch, pbar=None):
     nk, nx = x.shape[0], h * w
 
     if pbar is not None:
-        pbar = pbar(total=nt)
-        pbar.set_description("matmul")
-        pbar = pbar.update
+        pbar.reset(total=nt)
     return mapped_imgs(nt, prepare, apply, aggregate, init, append, finish, batch, pbar)

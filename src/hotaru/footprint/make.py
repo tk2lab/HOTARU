@@ -54,9 +54,8 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
     nk = rs.size
     out = np.empty((nk, h, w), np.float32)
     if pbar is not None:
-        pbar = pbar(total=ts.size)
+        pbar.reset(total=ts.size)
         pbar.set_description("make")
-        pbar = pbar.update
     for r in np.unique(rs):
         idx = np.where(rs == r)[0]
         tsr, ysr, xsr = (v[idx] for v in (ts, ys, xs))

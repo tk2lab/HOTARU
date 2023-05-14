@@ -99,7 +99,6 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
     nt, h, w = imgs.shape
 
     if pbar is not None:
-        pbar = pbar(total=nt)
+        pbar.reset(total=nt)
         pbar.set_description("stats")
-        pbar = pbar.update
     return mapped_imgs(nt, prepare, calc, aggregate, init, append, finish, batch, pbar)

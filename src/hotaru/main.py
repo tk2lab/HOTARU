@@ -43,11 +43,12 @@ def main(cfg):
     data(cfg, tqdm)
     find(cfg, tqdm)
     make(cfg, tqdm)
-    spike(cfg, 0, tqdm)
+    nk = spike(cfg, 0, tqdm).shape[0]
     for stage in range(1, cfg.stage + 1):
         footprint(cfg, stage, tqdm)
-        clean(cfg, stage, tqdm)
-        spike(cfg, stage, tqdm)
+        old_nk, nk = nk, spike(cfg, stage, tqdm).shape[0]
+        if old_nk == nk:
+            break
 
 
 def autoload(func, cfg, c, stage=None):
@@ -99,7 +100,7 @@ def penalty(cfg, c):
 def data(cfg, pbar=None):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
-        lambda c: calc_stats(imgs, mask, c.batch, pbar),
+        lambda c: calc_stats(imgs, mask, c.batch, pbar()),
         cfg, cfg.stats,
     )
     return Data(imgs, mask, stats.avgx, stats.avgt, stats.std0)
@@ -108,33 +109,102 @@ def data(cfg, pbar=None):
 def stats(cfg, pbar=None):
     def func(c):
         imgs, mask = load_imgs(cfg.data)
-        stats = calc_stats(imgs, mask, c.batch, pbar),
+        stats = calc_stats(imgs, mask, c.batch, pbar()),
         return Stats(stats.imin, stats.imax, stats.istd, stats.icor)
     return autoload(func, cfg, cfg.stats)
 
 
 def find(cfg, pbar=None):
     return autoload(
-        lambda c: find_peaks_batch(data(cfg), radius(c), c.batch, pbar),
+        lambda c: find_peaks_batch(data(cfg), radius(c), c.batch, pbar()),
         cfg, cfg.find,
     )
 
 
-def make(cfg, pbar=None):
-    reduce = autoload(
+def reduce(cfg, pbar=None):
+    return autoload(
         lambda c: reduce_peaks_block(find(cfg), c.rmin, c.rmax, c.thr, c.block_size),
         cfg, cfg.reduce,
     )
+
+
+def make(cfg, pbar=None):
     return autoload(
-        lambda c: make_segment_batch(data(cfg), reduce, c.batch, pbar),
+        lambda c: make_segment_batch(data(cfg), reduce(cfg), c.batch, pbar()),
         cfg, cfg.make,
     )
 
 
-def clean(cfg, stage, pbar=None):
-    def func(c):
+def spike(cfg, stage, pbar=None):
+    def prepare(c):
+        return gen_factor(
+            "temporal",
+            make(cfg) if stage == 0 else footprint(cfg, stage),
+            data(cfg),
+            dynamics(cfg),
+            penalty(cfg, cfg.temporal.penalty),
+            c.batch,
+            pbar and pbar(desc=f"{stage}spike prepare"),
+        )
+    def optimize(c):
+        optimizer = gen_optimizer(
+            "temporal",
+            factor,
+            dynamics(cfg),
+            penalty(cfg, cfg.temporal.penalty),
+            c.lr,
+            c.scale,
+            c.loss.num_devices,
+        )
+        optimizer.fit(
+            c.n_epoch,
+            c.n_step,
+            c.early_stop.tol,
+            pbar and pbar(desc=f"{stage}spike optimize"),
+            c.prox.num_devices,
+        )
+        spike = optimizer.val[0]
+        normalize = spike / spike.max(axis=1, keepdims=True)
+        tifffile.imwrite(f"spike{stage}.tif", normalize)
+        return spike
+    factor = autoload(prepare, cfg, cfg.temporal.prepare, stage)
+    return autoload(optimize, cfg, cfg.temporal.optimize, stage)
+
+
+def footprint(cfg, stage, pbar=None):
+    def prepare(c):
+        spk = spike(cfg, stage - 1)
+        spk /= spk.max(axis=1, keepdims=True)
+        return gen_factor(
+            "spatial",
+            spk,
+            data(cfg),
+            dynamics(cfg),
+            penalty(cfg, cfg.spatial.penalty),
+            c.batch,
+            pbar and pbar(desc=f"{stage}footprint prepare"),
+        )
+    def optimize(c):
+        optimizer = gen_optimizer(
+            "spatial",
+            factor,
+            dynamics(cfg),
+            penalty(cfg, cfg.spatial.penalty),
+            c.lr,
+            c.scale,
+            c.loss.num_devices,
+        )
+        optimizer.fit(
+            c.n_epoch,
+            c.n_step,
+            c.early_stop.tol,
+            pbar and pbar(desc=f"{stage}footprint optimize"),
+            c.prox.num_devices,
+        )
+        return optimizer.val[0]
+    def clean(c):
         imgs, mask = load_imgs(cfg.data)
-        val = footprint(cfg, stage)
+        val = footprint
         val /= val.max(axis=1, keepdims=True)
         nk, h, w = val.shape[0], *imgs.shape[1:]
         _radius = radius(c)
@@ -143,84 +213,21 @@ def clean(cfg, stage, pbar=None):
         else:
             fimgs = np.empty((nk, h, w), np.float32)
             fimgs[:, mask] = val
-        cimgs, peaks = clean_segment_batch(fimgs, mask, _radius, c.batch, pbar)
+        cimgs, peaks = clean_segment_batch(
+            fimgs,
+            mask,
+            _radius,
+            c.batch,
+            pbar and pbar(desc=f"{stage}footprint clean"),
+        )
         tifffile.imwrite(f"footprint{stage}.tif", cimgs.max(axis=0))
         pd.DataFrame(peaks._asdict()).to_csv(f"peaks{stage}.csv")
         cimgs = cimgs[peaks.r > 0]
         if mask is None:
             cimgs = cimgs.reshape(-1, h * w)
         else:
-            cimgs = cimgs[:, mask] > _radius
+            cimgs = cimgs[:, mask]
         return cimgs
-    return autoload(func, cfg, cfg.clean, stage)
-
-
-def spike(cfg, stage, pbar=None):
-    def prepare(c):
-        nonlocal print_flag
-        print_flag = False
-        print(f"{stage} spike")
-        return gen_factor(
-            "temporal",
-            make(cfg) if stage == 0 else clean(cfg, stage),
-            data(cfg),
-            dynamics(cfg),
-            penalty(cfg, cfg.temporal.penalty),
-            c.batch,
-            pbar,
-        )
-    def optimize(c):
-        if print_flag:
-            print(f"{stage} spike")
-        optimizer = gen_optimizer(
-            "temporal",
-            factor,
-            dynamics(cfg),
-            penalty(cfg, cfg.temporal.penalty),
-            c.lr,
-            c.scale,
-            c.loss.num_devices,
-        )
-        optimizer.fit(c.n_epoch, c.n_step, c.early_stop.tol, pbar, c.prox.num_devices)
-        spike = optimizer.val[0]
-        normalize = spike / spike.max(axis=1, keepdims=True)
-        tifffile.imwrite(f"spike{stage}.tif", normalize)
-        return spike
-    print_flag = True
-    factor = autoload(prepare, cfg, cfg.temporal.prepare, stage)
-    return autoload(optimize, cfg, cfg.temporal.optimize, stage)
-
-
-def footprint(cfg, stage, pbar=None):
-    def prepare(c):
-        nonlocal print_flag
-        spk = spike(cfg, stage - 1)
-        spk /= spk.max(axis=1, keepdims=True)
-        print_flag = False
-        print(f"{stage} footprint")
-        return gen_factor(
-            "spatial",
-            spk,
-            data(cfg),
-            dynamics(cfg),
-            penalty(cfg, cfg.spatial.penalty),
-            c.batch,
-            pbar,
-        )
-    def optimize(c):
-        if print_flag:
-            print(f"{stage} footprint")
-        optimizer = gen_optimizer(
-            "spatial",
-            factor,
-            dynamics(cfg),
-            penalty(cfg, cfg.spatial.penalty),
-            c.lr,
-            c.scale,
-            c.loss.num_devices,
-        )
-        optimizer.fit(c.n_epoch, c.n_step, c.early_stop.tol, pbar, c.prox.num_devices)
-        return optimizer.val[0]
-    print_flag = True
     factor = autoload(prepare, cfg, cfg.spatial.prepare, stage)
-    return autoload(optimize, cfg, cfg.spatial.optimize, stage)
+    footprint = autoload(optimize, cfg, cfg.spatial.optimize, stage)
+    return autoload(clean, cfg, cfg.clean, stage)

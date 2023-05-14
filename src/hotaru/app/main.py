@@ -2,7 +2,7 @@ import dash_bootstrap_components as dbc
 import jax
 import jax.numpy as jnp
 import numpy as np
-from diskcache import Cache
+from omegaconf import OmegaConf
 from dash import (
     Dash,
     Input,
@@ -19,7 +19,13 @@ from dash import (
 from ..footprint.find import find_peaks
 from ..main import (
     stats,
-
+    data,
+    find,
+    reduce,
+    make,
+    spike,
+    footprint,
+    clean,
 )
 from .ui import (
     two_column,
@@ -42,43 +48,24 @@ def HotaruApp(cfg, *args, **kwargs):
     kwargs.setdefault("external_stylesheets", [dbc.themes.BOOTSTRAP])
     kwargs.setdefault("title", "HOTARU")
     app = Dash(__name__, *args, **kwargs)
-    _cache = Cache("hotaru")
-    _cache["cfg"] = cfg
 
-    def cfg():
-        return _cache["cfg"]
-
-    divs = []
-
-    def set_load_params(imgs, mask, hz):
-        cfg = cache["cfg"]
-        cfg.data.imgs = imgs
-        cfg.data.mask = mask
-        cfg.data.hz = hz
-        cache["cfg"] = cfg
+    divs = [cfg := dcc.Store("cfg_store", data=OmegaConf.to_container(cfg))]
 
     load_div = Collapse(
         "load",
         True,
-        dcc.Store("load_store"),
         html.Div(
             style=two_column(500),
             children=[
                 dbc.Label("Image file path"),
-                imgs_path := ConfigInput(cache, "data", "imgs", type="text"),
+                imgs_path := ConfigInput(cfg, "data", "imgs", type="text"),
                 dbc.Label("Mask type"),
-                imgs_mask := ConfigInput(cache, "data", "mask", type="text"),
+                imgs_mask := ConfigInput(cfg, "data", "mask", type="text"),
                 dbc.Label("Frequency"),
-                imgs_hz := ConfigInput(cache, "data", "hz", type="number"),
+                imgs_hz := ConfigInput(cfg, "data", "hz", type="number"),
+                dbc.Label("Progress"),
+                pbar := dbc.Progress(),
             ],
-        ),
-        load := ThreadButton(
-            "LOAD",
-            set_load_params,
-            model().stats,
-            imgs_path,
-            imgs_mask,
-            imgs_hz,
         ),
     )
 
@@ -86,6 +73,7 @@ def HotaruApp(cfg, *args, **kwargs):
         "stats",
         False,
         html.H2("Conventional cell candidates detection"),
+        load := ThreadButton("LOAD", stats, pbar),
         html.Div(
             style=two_column(1200),
             children=[
@@ -112,61 +100,34 @@ def HotaruApp(cfg, *args, **kwargs):
     )
 
     @callback(
-        Output("stats_data", "data"),
+        Output(std_graph, "figure"),
+        Output(cor_graph, "figure"),
+        Output(std_cor_graph, "figure"),
         load.finish,
         Input(gaussian, "value"),
         Input(maxpool, "value"),
+        State(cfg, "data"),
         prevent_initial_call=True,
     )
-    def update_speaks(finished, gauss, maxpool):
-        stats = model().stats()
-        cache["yx"] = model().simple_peaks(gauss, maxpool)
-        return "finish"
-
-    @callback(
-        Output(std_graph, "figure"),
-        Input("stats_data", "data"),
-        prevent_initial_call=True,
-    )
-    def plot_std(data):
-        istd = model().stats().istd
-        y, x = cache["yx"]
-        fig = Patch()
-        fig.data[0].z = istd
-        fig.data[0].zmin = istd.min()
-        fig.data[0].zmax = istd.max()
+    def plot_std(finish, gaussina, maxpool, cfg):
+        cfg = OmegaConf.create(cfg)
+        imin, imax, istd, icor = stats(cfg)
+        std_fig = Patch()
+        std_fig.data[0].z = istd
+        std_fig.data[0].zmin = istd.min()
+        std_fig.data[0].zmax = istd.max()
         #fig.data[1].x = x
         #fig.data[1].y = y
-        return update_img(fig, *istd.shape)
-
-    @callback(
-        Output(cor_graph, "figure"),
-        Input("stats_data", "data"),
-        prevent_initial_call=True,
-    )
-    def plot_cor(data):
-        icor = model().stats().icor
-        y, x = cache["yx"]
-        fig = Patch()
-        fig.data[0].z = icor
-        fig.data[0].zmin = icor.min()
-        fig.data[0].zmax = icor.max()
+        cor_fig = Patch()
+        cor_fig.data[0].z = icor
+        cor_fig.data[0].zmin = icor.min()
+        cor_fig.data[0].zmax = icor.max()
         #fig.data[1].x = x
         #fig.data[1].y = y
-        return update_img(fig, *icor.shape)
-
-    @callback(
-        Output(std_cor_graph, "figure"),
-        Input("stats_data", "data"),
-        prevent_initial_call=True,
-    )
-    def plot_std_cor(data):
-        stats = model().stats()
-        y, x = cache["yx"]
-        fig = Patch()
-        fig.data[0].x = stats.istd[y, x]
-        fig.data[0].y = stats.icor[y, x]
-        return fig
+        scatter = Patch()
+        scatter.data[0].x = stats.istd[y, x]
+        scatter.data[0].y = stats.icor[y, x]
+        return update_img(std_fig, *istd.shape), update_img(cor_fig, *icor.shape), scatter
 
     divs += [load_div, stats_div]
 

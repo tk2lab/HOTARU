@@ -38,48 +38,29 @@ def two_column(width):
     )
 
 
-def ConfigStore():
-    store = dcc.Store("config")
-
-    @callback(
-        Output(store, "data"),
-        list(inputs.keys()),
-        State(store, "data"),
-    )
-    def set_val(*args):
-        *args, cfg = args
-
-
 class ConfigInput(dbc.Input):
 
-    def __init__(self, store, *label, **kwargs):
-        self.cache = cache
-        self.label = label
-        for l in label:
-            cache = cache[l]
-        super().__init__(value=cache, **kwargs)
+    def __init__(self, cfg, *label, **kwargs):
+        super().__init__(**kwargs)
 
         @callback(
-            Output(store, ""),
-            Input(self, "value"),
-            State(
+            Output(cfg, "data"),
+            Input(cfg, "value"),
+            State(cfg, "data"),
         )
-        def set_cfg(value):
-            ls = self.label
-            cfg = self.cache[ls[0]]
+        def set_cfg(value, cfg):
+            cfg = OmegaConfcfg.create(cfg)
             c = cfg
-            for l in ls[1:-1]:
+            for l in ls[:-1]:
                 c = c[l]
             c[l[-1]] = value
-            self.cache[ls[0]] = cfg
-            return no_update
+            return OmegaConfig.to_container(cfg)
 
 
-def ThreadButton(label, setter, func, *state):
+def ThreadButton(label, func, pbar):
     div = html.Div(
         children=[
             button := dbc.Button(label),
-            pbar := dbc.Progress(),
             interval := dcc.Interval(interval=100, disabled=True),
         ],
         style=two_column(1200),
@@ -91,10 +72,9 @@ def ThreadButton(label, setter, func, *state):
         Output(pbar, "value"),
         Input(button, "n_clicks"),
         Input(interval, "n_intervals"),
-        *(Input(s, "value") for s in state),
         prevent_initial_call=True,
     )
-    def on_click(nc, ni, *state):
+    def on_click(n_clicks, n_intervals):
         if ctx.triggered_id == button.id:
             pbar = Progress()
             thread = Thread(target=func, kwargs=dict(pbar=pbar))
@@ -107,9 +87,6 @@ def ThreadButton(label, setter, func, *state):
                 return no_update, pbar.value
             else:
                 return True, 100
-        else:
-            setter(*state)
-            return True, 0
 
     div.finish = Input(interval, "disabled")
     return div

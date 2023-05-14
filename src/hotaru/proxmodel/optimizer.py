@@ -22,23 +22,23 @@ class ProxOptimizer:
         return tuple(np.array(x) for x in self.x)
 
     def loss(self):
-        loss, aux = self.loss_fn(*self.x)
+        loss = self.loss_fn(*self.x)
         penalty = sum(ri(xi) for xi, ri in zip(self.x, self.regularizers))
-        return loss + penalty, aux
+        return loss + penalty
 
     def fit(self, n_epoch, n_step, tol=None, pbar=None):
-        loss, aux = self.loss()
+        loss = self.loss()
         diff = np.inf
-        history = [(loss, aux)]
+        history = [loss]
         if pbar is not None:
             pbar = pbar(total=n_epoch)
             pbar.set_description("optimize")
             pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=" nan"))
         for i in range(n_epoch):
             self.step(n_step)
-            old_loss, loss, aux = loss, *self.loss()
+            old_loss, loss = loss, self.loss()
             diff = np.log10((old_loss - loss) / tol)
-            history.append((loss, aux))
+            history.append(loss)
             if pbar is not None:
                 pbar.update(1)
                 pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=f"{diff:.2f}"))
@@ -58,8 +58,8 @@ class ProxOptimizer:
         t0 = (scale + i) / scale
         t1 = (scale + 1) / (scale + i + 1)
         x, y = xy
-        grad_loss_fn = jax.grad(self.loss_fn, argnums=range(len(y)), has_aux=True)
-        grady, aux = grad_loss_fn(*y)
+        grad_loss_fn = jax.grad(self.loss_fn, argnums=range(len(y)))
+        grady = grad_loss_fn(*y)
         xy = [
             self._prox_update(ri.prox, xi, yi, gi, lr, t0, t1)
             for ri, xi, yi, gi in zip(self.regularizers, x, y, grady)

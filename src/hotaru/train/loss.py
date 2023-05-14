@@ -1,5 +1,6 @@
 from collections import namedtuple
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -45,14 +46,30 @@ def gen_factor(kind, yval, data, dynamics, penalty, batch, pbar=None):
     return Prepare(nt, nx, nk, pena, a, b, c)
 
 
-def gen_optimizer(kind, factor, dynamics, penalty, lr, scale):
+def gen_optimizer(kind, factor, dynamics, penalty, lr, scale, num_devices=1):
 
-    def loss_fn(xval):
+    def _calc_var(x, i):
         if kind == "temporal":
-            xval = dynamics(xval)
-        xval, xcov, xout = calc_cov_out(xval)
-        var = (nn + (a * xval).sum() + (b * xcov).sum() + (c * xout).sum()) / nm
-        return jnp.log(var) / 2 + py, var
+            x = dynamics(x)
+        xval, xcov, xout = calc_cov_out(x, i, num_devices)
+        err = (a[i] *  xval).sum() + (b[i] * xcov).sum() + (c[i] * xout).sum()
+        return (nn + err) / nm
+
+    def loss_fwd(x):
+        var = jax.pmap(_calc_var, in_axes=(None, 0))(x, dev_id).sum()
+        return jnp.log(var) / 2 + py, (x, var)
+
+    def loss_bwd(res, g):
+        x, var = res
+        grad_var_fn = jax.pmap(jax.grad(_calc_var), in_axes=(None, 0))
+        grad_var = grad_var_fn(x, dev_id).sum(axis=0)
+        return g / 2 * grad_var / var,
+
+    @jax.custom_vjp
+    def loss_fn(x):
+        return loss_fwd(x)[0]
+
+    loss_fn.defvjp(loss_fwd, loss_bwd)
 
     nt, nx, nk, py, a, b, c = factor
     nn = float(nt * nx)
@@ -66,15 +83,28 @@ def gen_optimizer(kind, factor, dynamics, penalty, lr, scale):
         init = [np.zeros((nk, nx))]
         pena = [penalty.la]
 
+    dev_id = jnp.arange(num_devices)
+    a = mask_fn(a, num_devices)
+    b = mask_fn(b, num_devices)
+    c = mask_fn(c, num_devices)
     lr_scale = nm / b.diagonal().max()
     opt = ProxOptimizer(loss_fn, init, pena)
     opt.set_params(lr * lr_scale, scale)
     return opt
 
 
-def calc_cov_out(xval):
-    nx = xval.shape[1]
-    xcov = xval @ xval.T
-    xsum = xval.sum(axis=1)
-    xout = xsum[:, None] * (xsum / nx)
+def mask_fn(x, num_devices):
+    n, *shape = x.shape
+    d = n % num_devices
+    xval = jnp.pad(x, [[0, d]] + [[0, 0]] * len(shape))
+    return xval.reshape(num_devices, (n + d) // num_devices, *shape)
+
+
+def calc_cov_out(x0, i=0, num_devices=1):
+    nx = x0.shape[1]
+    xs = x0.sum(axis=1)
+    xval = mask_fn(x0, num_devices)[i]
+    xsum = mask_fn(xs, num_devices)[i]
+    xcov = xval @ x0.T
+    xout = xsum[:, None] * (xs / nx)
     return xval, xcov, xout

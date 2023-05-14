@@ -61,13 +61,23 @@ class ProxOptimizer:
         x, y = xy
         grad_loss_fn = jax.grad(self.loss_fn, argnums=range(len(y)))
         grady = grad_loss_fn(*y)
+        if num_devices == 1:
+            prox_update = self._prox_update
+        else:
+            prox_update = partial(self._prox_update_pmap, num_devices=num_devices)
         xy = [
-            self._prox_update(xi, yi, gi, ri.prox, lr, t0, t1, num_devices)
+            prox_update(xi, yi, gi, ri.prox, lr, t0, t1)
             for ri, xi, yi, gi in zip(self.regularizers, x, y, grady)
         ]
         return tuple(zip(*xy))
 
-    def _prox_update(self, oldx, oldy, grady, prox, lr, t0, t1, num_devices):
+    def _prox_update(self, oldx, oldy, grady, prox, lr, t0, t1):
+        newx = prox(oldy - lr * grady, lr)
+        tmpx = (1 - t0) * oldx + t0 * newx
+        newy = (1 - t1) * newx + t1 * tmpx
+        return newx, newy
+
+    def _prox_update_pmap(self, oldx, oldy, grady, prox, lr, t0, t1, num_devices):
         def mask_fn(x):
             n, *shape = x.shape
             d = n % num_devices
@@ -77,10 +87,7 @@ class ProxOptimizer:
             oldx = mask_fn(oldx)[i]
             oldy = mask_fn(oldy)[i]
             grady = mask_fn(grady)[i]
-            newx = prox(oldy - lr * grady, lr)
-            tmpx = (1 - t0) * oldx + t0 * newx
-            newy = (1 - t1) * newx + t1 * tmpx
-            return newx, newy
+            return self._prox_update(oldx, oldy, grady, prox, lr, t0, t1)
         dev_id = jnp.arange(num_devices)
         update_pmap = jax.pmap(update, in_axes=(None, None, None, 0))
         newx, newy = update_pmap(oldx, oldy, grady, dev_id)

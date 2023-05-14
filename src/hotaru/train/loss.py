@@ -47,33 +47,38 @@ def gen_factor(kind, yval, data, dynamics, penalty, batch, pbar=None):
 
 
 def gen_optimizer(kind, factor, dynamics, penalty, lr, scale, num_devices=1):
+    nt, nx, nk, py, a, b, c = factor
+    nn = float(nt * nx)
+    nm = float(nn + nt + nx)
+    lr_scale = nm / b.diagonal().max()
 
-    def _calc_var(x, i):
+    dev_id = jnp.arange(num_devices)
+    a = mask_fn(a, num_devices)
+    b = mask_fn(b, num_devices)
+    c = mask_fn(c, num_devices)
+
+    def _calc_err(x, i):
         if kind == "temporal":
             x = dynamics(x)
         xval, xcov, xout = calc_cov_out(x, i, num_devices)
-        err = (a[i] *  xval).sum() + (b[i] * xcov).sum() + (c[i] * xout).sum()
-        return (nn + err) / nm
+        return (a[i] *  xval).sum() + (b[i] * xcov).sum() + (c[i] * xout).sum()
 
     def loss_fwd(x):
-        var = jax.pmap(_calc_var, in_axes=(None, 0))(x, dev_id).sum()
-        return jnp.log(var) / 2 + py, (x, var)
+        err = jax.pmap(_calc_err, in_axes=(None, 0))(x, dev_id).sum()
+        var = (err + nn) / nm
+        return jnp.log(var) / 2 + py, (x, err)
 
     def loss_bwd(res, g):
-        x, var = res
-        grad_var_fn = jax.pmap(jax.grad(_calc_var), in_axes=(None, 0))
-        grad_var = grad_var_fn(x, dev_id).sum(axis=0)
-        return g / 2 * grad_var / var,
+        x, err = res
+        grad_err_fn = jax.pmap(jax.grad(_calc_err), in_axes=(None, 0))
+        grad_err = grad_err_fn(x, dev_id).sum(axis=0)[:nk]
+        return g / 2 * grad_err / (err + nn),
 
     @jax.custom_vjp
     def loss_fn(x):
         return loss_fwd(x)[0]
 
     loss_fn.defvjp(loss_fwd, loss_bwd)
-
-    nt, nx, nk, py, a, b, c = factor
-    nn = float(nt * nx)
-    nm = float(nn + nt + nx)
 
     if kind == "temporal":
         nu = nt + dynamics.size - 1
@@ -83,11 +88,6 @@ def gen_optimizer(kind, factor, dynamics, penalty, lr, scale, num_devices=1):
         init = [np.zeros((nk, nx))]
         pena = [penalty.la]
 
-    dev_id = jnp.arange(num_devices)
-    a = mask_fn(a, num_devices)
-    b = mask_fn(b, num_devices)
-    c = mask_fn(c, num_devices)
-    lr_scale = nm / b.diagonal().max()
     opt = ProxOptimizer(loss_fn, init, pena)
     opt.set_params(lr * lr_scale, scale)
     return opt

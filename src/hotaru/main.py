@@ -97,6 +97,24 @@ def penalty(cfg, c):
     return Penalty(la, lu, c.bx, c.bt)
 
 
+def stats(cfg, pbar=None):
+    imgs, mask = load_imgs(cfg.data)
+    stats = autoload(
+        lambda c: calc_stats(imgs, mask, c.batch, pbar()),
+        cfg, cfg.stats,
+    )
+    return Stats(stats.imin, stats.imax, stats.istd, stats.icor)
+
+
+def get_frame(cfg, t):
+    imgs, mask = load_imgs(cfg.data)
+    stats = autoload(
+        lambda c: calc_stats(imgs, mask, c.batch, pbar()),
+        cfg, cfg.stats,
+    )
+    return (imgs[t] - stats.avgx - stats.avgt[t]) / stats.std0
+
+
 def data(cfg, pbar=None):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
@@ -104,14 +122,6 @@ def data(cfg, pbar=None):
         cfg, cfg.stats,
     )
     return Data(imgs, mask, stats.avgx, stats.avgt, stats.std0)
-
-
-def stats(cfg, pbar=None):
-    def func(c):
-        imgs, mask = load_imgs(cfg.data)
-        stats = calc_stats(imgs, mask, c.batch, pbar()),
-        return Stats(stats.imin, stats.imax, stats.istd, stats.icor)
-    return autoload(func, cfg, cfg.stats)
 
 
 def find(cfg, pbar=None):

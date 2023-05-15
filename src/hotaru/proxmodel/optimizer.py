@@ -32,7 +32,7 @@ class ProxOptimizer:
         history = [loss]
         if pbar is not None:
             pbar.reset(total=n_epoch)
-            pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=" nan"))
+            pbar.set_postfix_str(f"loss={loss:.4f}, diff= nan")
         for i in range(n_epoch):
             self.step(n_step, num_devices)
             old_loss, loss = loss, self.loss()
@@ -40,7 +40,7 @@ class ProxOptimizer:
             history.append(loss)
             if pbar is not None:
                 pbar.update(1)
-                pbar.set_postfix(dict(loss=f"{loss:.4f}", diff=f"{diff:.2f}"))
+                pbar.set_postfix_str(f"loss={loss:.4f}, diff={diff:.2f}")
             if diff < 0.0:
                 break
         return history

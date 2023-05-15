@@ -15,9 +15,9 @@ from ..filter.pool import max_pool
 PeakVal = namedtuple("PeakVal", ["radius", "t", "r", "v"])
 
 
-def simple_peaks(img, mask, gaussian, maxpool):
-    g = gaussian(img[None, ...], mask)[0]
-    m = max_pool(g, [maxpool, maxpool], [1, 1], "valid")
+def simple_peaks(img, gauss, maxpool):
+    g = gaussian(img[None, ...], gauss)[0]
+    m = max_pool(g, (maxpool, maxpool), (1, 1), "same")
     y, x = jnp.where(g == m)
     return np.array(y), np.array(x)
 

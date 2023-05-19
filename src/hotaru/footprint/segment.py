@@ -4,7 +4,6 @@ import jax.numpy as jnp
 
 
 def get_segment_mask(val, y0, x0):
-
     def cond(args):
         seg, old_seg = args
         return jnp.any(seg != old_seg)

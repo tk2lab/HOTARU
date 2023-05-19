@@ -7,7 +7,6 @@ import numpy as np
 
 
 class ProxOptimizer:
-
     def __init__(self, loss_fn, x0, regularizers):
         self.loss_fn = loss_fn
         self.regularizers = regularizers
@@ -82,11 +81,13 @@ class ProxOptimizer:
             d = n % num_devices
             xval = jnp.pad(x, [[0, d]] + [[0, 0]] * len(shape))
             return xval.reshape(num_devices, (n + d) // num_devices, *shape)
+
         def update(oldx, oldy, grady, i):
             oldx = mask_fn(oldx)[i]
             oldy = mask_fn(oldy)[i]
             grady = mask_fn(grady)[i]
             return self._prox_update(oldx, oldy, grady, prox, lr, t0, t1)
+
         dev_id = jnp.arange(num_devices)
         update_pmap = jax.pmap(update, in_axes=(None, None, None, 0))
         newx, newy = update_pmap(oldx, oldy, grady, dev_id)

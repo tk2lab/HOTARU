@@ -9,12 +9,10 @@ import numpy as np
 from .map import mapped_imgs
 from .neighbor import neighbor
 
-
 Stats = namedtuple("Stats", "avgx avgt std0 imin imax istd icor")
 
 
 def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
-
     def prepare(start, end):
         return jnp.array(imgs[start:end], jnp.float32)
 

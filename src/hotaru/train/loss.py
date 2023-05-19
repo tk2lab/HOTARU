@@ -8,12 +8,10 @@ from ..filter.map import mapped_imgs
 from ..proxmodel.optimizer import ProxOptimizer
 from .matmul import matmul_batch
 
-
 Prepare = namedtuple("Prepare", "nt nx nk pena a b c")
 
 
 def gen_factor(kind, yval, data, dynamics, penalty, batch, pbar=None):
-
     if kind == "temporal":
         bx = penalty.bt
         by = penalty.bx
@@ -61,7 +59,7 @@ def gen_optimizer(kind, factor, dynamics, penalty, lr, scale, num_devices=1):
         if kind == "temporal":
             x = dynamics(x)
         xval, xcov, xout = calc_cov_out(x, i, num_devices)
-        return (a[i] *  xval).sum() + (b[i] * xcov).sum() + (c[i] * xout).sum()
+        return (a[i] * xval).sum() + (b[i] * xcov).sum() + (c[i] * xout).sum()
 
     def loss_fwd(x):
         err = jax.pmap(_calc_err, in_axes=(None, 0))(x, dev_id).sum()
@@ -72,7 +70,7 @@ def gen_optimizer(kind, factor, dynamics, penalty, lr, scale, num_devices=1):
         x, err = res
         grad_err_fn = jax.pmap(jax.grad(_calc_err), in_axes=(None, 0))
         grad_err = grad_err_fn(x, dev_id).sum(axis=0)[:nk]
-        return g / 2 * grad_err / (err + nn),
+        return (g / 2 * grad_err / (err + nn),)
 
     @jax.custom_vjp
     def loss_fn(x):

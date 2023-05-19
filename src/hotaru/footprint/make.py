@@ -4,12 +4,12 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from ..filter.laplace import gaussian_laplace
+from ..filter.map import mapped_imgs
 from ..io.saver import (
     load,
     save,
 )
-from ..filter.laplace import gaussian_laplace
-from ..filter.map import mapped_imgs
 from .segment import get_segment_mask
 
 
@@ -22,7 +22,6 @@ def make_segment(imgs, y, x, r):
 
 
 def make_segment_batch(data, peaks, batch=100, pbar=None):
-
     def prepare(start, end):
         return (
             jnp.array(imgs[tsr[start:end]], jnp.float32),
@@ -60,7 +59,9 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
         idx = np.where(rs == r)[0]
         tsr, ysr, xsr = (v[idx] for v in (ts, ys, xs))
         apply = partial(_apply, r=r)
-        o = mapped_imgs(tsr.size, prepare, apply, finish, list, append, finish, batch, pbar)
+        o = mapped_imgs(
+            tsr.size, prepare, apply, finish, list, append, finish, batch, pbar
+        )
         for i, oi in zip(idx, o):
             out[i] = oi
     if mask is None:

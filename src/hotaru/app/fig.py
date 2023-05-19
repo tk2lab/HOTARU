@@ -4,7 +4,9 @@ import plotly.graph_objects as go
 
 def heat_fig(title, colorscale="greens", scattercolor="red", zmin=None, zmax=None):
     heat = go.Heatmap(
-        colorscale=colorscale, zmin=zmin, zmax=zmax,
+        colorscale=colorscale,
+        zmin=zmin,
+        zmax=zmax,
         colorbar=dict(orientation="h", y=0, yanchor="top", thickness=10),
     )
     scatter = go.Scatter(mode="markers", marker_color=scattercolor)
@@ -22,8 +24,10 @@ def heat_fig(title, colorscale="greens", scattercolor="red", zmin=None, zmax=Non
 def spike_fig(title, hz, colorscale="reds"):
     spike = go.Heatmap(
         dx=1 / hz,
-        colorscale=colorscale, zmin=0.0, zmax=1.0,
-        #colorbar=dict(orientation="h", y=0, yanchor="top", thickness=10),
+        colorscale=colorscale,
+        zmin=0.0,
+        zmax=1.0,
+        # colorbar=dict(orientation="h", y=0, yanchor="top", thickness=10),
     )
     layout = go.Layout(
         title=title,

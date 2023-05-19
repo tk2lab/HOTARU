@@ -1,10 +1,9 @@
-import jax.numpy as jnp
 import jax.lax as lax
+import jax.numpy as jnp
 import numpy as np
 
 
 class SpikeToCalcium:
-
     @classmethod
     def double_exp(cls, tau1, tau2, duration, hz=1.0):
         if tau1 > tau2:

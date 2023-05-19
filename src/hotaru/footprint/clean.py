@@ -5,20 +5,18 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from ..filter.laplace import gaussian_laplace_multi
+from ..filter.map import mapped_imgs
 from ..io.saver import (
     load,
     save,
 )
-from ..filter.laplace import gaussian_laplace_multi
-from ..filter.map import mapped_imgs
 from .segment import get_segment_mask
-
 
 Peaks = namedtuple("Peaks", "idx r y x radius intensity")
 
 
 def clean_segment_batch(imgs, mask, radius, batch=100, pbar=None):
-
     def prepare(start, end):
         return jnp.array(imgs[start:end], jnp.float32)
 

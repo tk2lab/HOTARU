@@ -1,5 +1,7 @@
 from threading import Thread
 
+import dash.dcc as dcc
+import dash.html as html
 import dash_bootstrap_components as dbc
 from dash import (
     Dash,
@@ -9,18 +11,31 @@ from dash import (
     State,
     callback,
     ctx,
-    dcc,
-    html,
     no_update,
 )
+from omegaconf import OmegaConf
 
 
-class Progress:
+class ProgressProxy:
+    def __init__(self):
+        self()
 
-    def __call__(self, total):
+    def __call__(self, total=1, desc=None, postfix=None):
+        self.desc = desc or ""
+        self.postfix = postfix or ""
         self.total = total
         self.n = 0
         return self
+
+    def set_description(self, desc):
+        self.desc = desc
+
+    def set_postfix_str(self, postfix):
+        self.postfix
+
+    def reset(self, total):
+        self.total = total
+        self.n = 0
 
     def update(self, n):
         self.n += n
@@ -28,6 +43,10 @@ class Progress:
     @property
     def value(self):
         return self.n / self.total
+
+    @property
+    def label(self):
+        return f"{self.desc}: {int(100 * self.n / self.total)}% ({self.postfix})"
 
 
 def two_column(width):
@@ -38,28 +57,10 @@ def two_column(width):
     )
 
 
-class ConfigInput(dbc.Input):
-
-    def __init__(self, cfg, *label, **kwargs):
-        super().__init__(**kwargs)
-
-        @callback(
-            Output(cfg, "data"),
-            Input(cfg, "value"),
-            State(cfg, "data"),
-        )
-        def set_cfg(value, cfg):
-            cfg = OmegaConfcfg.create(cfg)
-            c = cfg
-            for l in ls[:-1]:
-                c = c[l]
-            c[l[-1]] = value
-            return OmegaConfig.to_container(cfg)
-
-
-def ThreadButton(label, func, pbar):
+def ThreadButton(label, func, cfg, pbar):
     div = html.Div(
         children=[
+            finish := dcc.Store(label),
             button := dbc.Button(label),
             interval := dcc.Interval(interval=100, disabled=True),
         ],
@@ -68,27 +69,31 @@ def ThreadButton(label, func, pbar):
     jobs = [None, None]
 
     @callback(
+        Output(finish, "data"),
         Output(interval, "disabled"),
         Output(pbar, "value"),
+        Output(pbar, "label"),
         Input(button, "n_clicks"),
         Input(interval, "n_intervals"),
+        State(cfg, "data"),
         prevent_initial_call=True,
     )
-    def on_click(n_clicks, n_intervals):
+    def on_click(n_clicks, n_intervals, cfg):
         if ctx.triggered_id == button.id:
-            pbar = Progress()
-            thread = Thread(target=func, kwargs=dict(pbar=pbar))
+            cfg = OmegaConf.create(cfg)
+            pbar = ProgressProxy()
+            thread = Thread(target=func, kwargs=dict(cfg=cfg, pbar=pbar))
             jobs[:] = thread, pbar
             thread.start()
-            return False, 0
+            return no_update, False, 0, pbar.label
         elif ctx.triggered_id == interval.id:
             thread, pbar = jobs
             if thread.is_alive():
-                return no_update, pbar.value
+                return no_update, no_update, pbar.value, pbar.label
             else:
-                return True, 100
+                return "finish", True, 100, pbar.label
 
-    div.finish = Input(interval, "disabled")
+    div.finish = Input(finish, "data")
     return div
 
 

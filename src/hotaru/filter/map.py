@@ -8,7 +8,6 @@ import numpy as np
 
 
 def mapped_imgs(nt, prepare, apply, aggregate, init, append, finish, batch, pbar=None):
-
     def calc(start, end):
         clip = prepare(start, end)
         if not isinstance(clip, tuple):
@@ -16,11 +15,14 @@ def mapped_imgs(nt, prepare, apply, aggregate, init, append, finish, batch, pbar
 
         diff = batch_size - (end - start)
         if diff != 0:
+
             def pad(c):
                 return jnp.pad(
-                    c, [[0, diff]] + [[0, 0]] * (c.ndim - 1),
+                    c,
+                    [[0, diff]] + [[0, 0]] * (c.ndim - 1),
                     constant_values=np.nan if c.dtype == jnp.float32 else -1,
                 )
+
             clip = map(pad, clip)
         clip = [c.reshape(batch + c.shape[1:]) for c in clip]
 

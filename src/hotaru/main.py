@@ -8,30 +8,29 @@ import pandas as pd
 import tifffile
 from tqdm import tqdm
 
+from .filter.stats import (
+    Stats,
+    calc_stats,
+)
+from .footprint.clean import clean_segment_batch
+from .footprint.find import (
+    PeakVal,
+    find_peaks_batch,
+)
+from .footprint.make import make_segment_batch
+from .footprint.reduce import reduce_peaks_block
+from .io.image import load_imgs
 from .io.logger import logger
 from .io.saver import (
     load,
     save,
 )
-from .io.image import load_imgs
-from .filter.stats import (
-    Stats,
-    calc_stats,
-)
-from .footprint.find import (
-    PeakVal,
-    find_peaks_batch,
-)
-from .footprint.reduce import reduce_peaks_block
-from .footprint.make import make_segment_batch
-from .footprint.clean import clean_segment_batch
+from .proxmodel.regularizer import MaxNormNonNegativeL1
 from .train.dynamics import SpikeToCalcium
 from .train.loss import (
     gen_factor,
     gen_optimizer,
 )
-from .proxmodel.regularizer import MaxNormNonNegativeL1
-
 
 Data = namedtuple("Data", "imgs mask avgx avgt std0")
 Stats = namedtuple("Stats", "imin imax istd icor")
@@ -101,7 +100,8 @@ def stats(cfg, pbar=None):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
         lambda c: calc_stats(imgs, mask, c.batch, pbar()),
-        cfg, cfg.stats,
+        cfg,
+        cfg.stats,
     )
     return Stats(stats.imin, stats.imax, stats.istd, stats.icor)
 
@@ -110,7 +110,8 @@ def get_frame(cfg, t):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
         lambda c: calc_stats(imgs, mask, c.batch, pbar()),
-        cfg, cfg.stats,
+        cfg,
+        cfg.stats,
     )
     return (imgs[t] - stats.avgx - stats.avgt[t]) / stats.std0
 
@@ -119,7 +120,8 @@ def data(cfg, pbar=None):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
         lambda c: calc_stats(imgs, mask, c.batch, pbar()),
-        cfg, cfg.stats,
+        cfg,
+        cfg.stats,
     )
     return Data(imgs, mask, stats.avgx, stats.avgt, stats.std0)
 
@@ -127,21 +129,24 @@ def data(cfg, pbar=None):
 def find(cfg, pbar=None):
     return autoload(
         lambda c: find_peaks_batch(data(cfg), radius(c), c.batch, pbar()),
-        cfg, cfg.find,
+        cfg,
+        cfg.find,
     )
 
 
 def reduce(cfg, pbar=None):
     return autoload(
         lambda c: reduce_peaks_block(find(cfg), c.rmin, c.rmax, c.thr, c.block_size),
-        cfg, cfg.reduce,
+        cfg,
+        cfg.reduce,
     )
 
 
 def make(cfg, pbar=None):
     return autoload(
         lambda c: make_segment_batch(data(cfg), reduce(cfg), c.batch, pbar()),
-        cfg, cfg.make,
+        cfg,
+        cfg.make,
     )
 
 
@@ -156,6 +161,7 @@ def spike(cfg, stage, pbar=None):
             c.batch,
             pbar and pbar(desc=f"{stage}spike prepare"),
         )
+
     def optimize(c):
         optimizer = gen_optimizer(
             "temporal",
@@ -177,6 +183,7 @@ def spike(cfg, stage, pbar=None):
         normalize = spike / spike.max(axis=1, keepdims=True)
         tifffile.imwrite(f"spike{stage}.tif", normalize)
         return spike
+
     factor = autoload(prepare, cfg, cfg.temporal.prepare, stage)
     return autoload(optimize, cfg, cfg.temporal.optimize, stage)
 
@@ -194,6 +201,7 @@ def footprint(cfg, stage, pbar=None):
             c.batch,
             pbar and pbar(desc=f"{stage}footprint prepare"),
         )
+
     def optimize(c):
         optimizer = gen_optimizer(
             "spatial",
@@ -212,6 +220,7 @@ def footprint(cfg, stage, pbar=None):
             c.prox.num_devices,
         )
         return optimizer.val[0]
+
     def clean(c):
         imgs, mask = load_imgs(cfg.data)
         val = footprint
@@ -238,6 +247,7 @@ def footprint(cfg, stage, pbar=None):
         else:
             cimgs = cimgs[:, mask]
         return cimgs
+
     factor = autoload(prepare, cfg, cfg.spatial.prepare, stage)
     footprint = autoload(optimize, cfg, cfg.spatial.optimize, stage)
     return autoload(clean, cfg, cfg.clean, stage)

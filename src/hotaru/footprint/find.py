@@ -5,12 +5,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ..filter.laplace import gaussian_laplace_multi
 from ..filter.gaussian import gaussian
-from ..filter.pool import max_pool
+from ..filter.laplace import gaussian_laplace_multi
 from ..filter.map import mapped_imgs
 from ..filter.pool import max_pool
-
 
 PeakVal = namedtuple("PeakVal", ["radius", "t", "r", "v"])
 
@@ -43,7 +41,6 @@ def _find_peaks(imgs, cond, radius, gxy=None):
 
 
 def find_peaks_batch(data, radius, batch=(1, 100), pbar=None):
-
     def prepare(start, end):
         return (
             jnp.arange(start, end),

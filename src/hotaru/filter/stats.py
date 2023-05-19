@@ -1,9 +1,6 @@
 from collections import namedtuple
 
-import jax
-import jax.lax as lax
 import jax.numpy as jnp
-import jax.scipy as jsp
 import numpy as np
 
 from .map import mapped_imgs
@@ -97,6 +94,5 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
     nt, h, w = imgs.shape
 
     if pbar is not None:
-        pbar.reset(total=nt)
-        pbar.set_description("stats")
+        pbar.set_count(nt)
     return mapped_imgs(nt, prepare, calc, aggregate, init, append, finish, batch, pbar)

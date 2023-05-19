@@ -1,5 +1,4 @@
 from collections import namedtuple
-from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -7,10 +6,6 @@ import numpy as np
 
 from ..filter.laplace import gaussian_laplace_multi
 from ..filter.map import mapped_imgs
-from ..io.saver import (
-    load,
-    save,
-)
 from .segment import get_segment_mask
 
 Peaks = namedtuple("Peaks", "idx r y x radius intensity")
@@ -53,5 +48,5 @@ def clean_segment_batch(imgs, mask, radius, batch=100, pbar=None):
     nt, h, w = imgs.shape
 
     if pbar is not None:
-        pbar.reset(total=nt)
+        pbar.set_count(nt)
     return mapped_imgs(nt, prepare, apply, aggregate, list, append, finish, batch, pbar)

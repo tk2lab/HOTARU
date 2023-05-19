@@ -6,10 +6,6 @@ import numpy as np
 
 from ..filter.laplace import gaussian_laplace
 from ..filter.map import mapped_imgs
-from ..io.saver import (
-    load,
-    save,
-)
 from .segment import get_segment_mask
 
 
@@ -53,8 +49,7 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
     nk = rs.size
     out = np.empty((nk, h, w), np.float32)
     if pbar is not None:
-        pbar.reset(total=ts.size)
-        pbar.set_description("make")
+        pbar.set_count(ts.size)
     for r in np.unique(rs):
         idx = np.where(rs == r)[0]
         tsr, ysr, xsr = (v[idx] for v in (ts, ys, xs))

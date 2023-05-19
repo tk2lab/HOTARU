@@ -1,5 +1,6 @@
 label: ${find.label}/${reduce.rmin}_${reduce.rmax}_${reduce.thr}
-outfile: ${reduce.label}/0_0reduce.csv
+outfile:
+  - ${reduce.label}/0_0reduce.csv
 rmin: ${radius.rmin2}
 rmax: ${radius.rmax2}
 thr: ${radius.thr}

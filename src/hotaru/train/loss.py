@@ -4,7 +4,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ..filter.map import mapped_imgs
 from ..proxmodel.optimizer import ProxOptimizer
 from .matmul import matmul_batch
 

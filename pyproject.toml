@@ -14,8 +14,6 @@ keywords = [
     "Cell Extraction",
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
@@ -25,7 +23,7 @@ requires = ["poetry-core>=1.2.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.12"
+python = ">=3.10,<3.12"
 jax = { extras = ["cuda11-cudnn86"], version = "^0.4.7" }
 
 tifffile = "^2022.8"
@@ -54,6 +52,9 @@ profile = "black"
 multi_line_output = 3
 force_grid_wrap = 2
 
+[tool.black]
+target-version = ["py310"]
+
 [tool.flake8]
 max-line-length = 88
 extend-ignore = ["E203"]
@@ -74,11 +75,11 @@ isolated_build = True
 
 [gh-actions]
 python =
-    3.8: py38-tf28, py38-tf212
-    3.10: py310-tf28
-    3.11: py311-tf212
+    3.10: py310
+    3.11: py311
 
 [testenv:lint]
+basepython = python3.10
 skip_install = True
 deps =
     isort
@@ -95,15 +96,8 @@ basepython = python3.10
 commands =
     {envpython} -m {posargs}
 
-[testenv:py{38,39,310,311}-tf{28,29,210,211,212}]
-deps =
-    tf28: tensorflow >=2.8,<2.9
-    tf29: tensorflow >=2.9,<2.10
-    tf210: tensorflow >=2.10,<2.11
-    tf211: tensorflow >=2.11,<2.12
-    tf212: tensorflow >=2.12,<2.13
+[testenv:py{310,311}]
 changedir = sample
 commands =
-    python work.py
-    #{envpython} -m pytest tests/test_tensorflow.py {posargs}
+    python -m hotaru
 """

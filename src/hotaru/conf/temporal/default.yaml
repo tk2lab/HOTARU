@@ -5,14 +5,16 @@ penalty:
   bx: ${penalty.bx}
   bt: ${penalty.bt}
 prepare:
-  outfile: ${temporal.label}/${stage}_3prepare.npz
+  outfile:
+    - ${temporal.label}/${stage}_3prepare.npz
   batch:
     - ${env.num_devices}
     - 100
   force: ${temporal.force}
   done: ${temporal.done}
 optimize:
-  outfile: ${temporal.label}/${stage}_4spike.npy
+  outfile:
+    - ${temporal.label}/${stage}_4spike.npy
   lr: 0.005
   scale: 20
   n_epoch: 100

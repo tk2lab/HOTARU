@@ -5,14 +5,16 @@ penalty:
   bx: ${penalty.bx}
   bt: ${penalty.bt}
 prepare:
-  outfile: ${spatial.label}/${stage}_0prepare.npz
+  outfile:
+    - ${spatial.label}/${stage}_0prepare.npz
   batch:
     - ${env.num_devices}
     - 1000
   force: ${spatial.force}
   done: ${spatial.done}
 optimize:
-  outfile: ${spatial.label}/${stage}_1spatial.npy
+  outfile:
+    - ${spatial.label}/${stage}_1spatial.npy
   lr: 0.005
   scale: 20.0
   n_epoch: 100
@@ -23,6 +25,18 @@ optimize:
     num_devices: ${env.num_devices}
   prox:
     num_devices: ${env.num_devices}
+  force: ${spatial.force}
+  done: ${spatial.done}
+clean:
+  outfile:
+    - ${spatial.label}/${stage}_2footprint.npy
+    - ${spatial.label}/${stage}_3peaks.csv
+  rmin: ${radius.rmin}
+  rmax: ${radius.rmax}
+  rnum: ${radius.rnum}
+  batch:
+    - ${env.num_devices}
+    - 100
   force: ${spatial.force}
   done: ${spatial.done}
 force: ${force}

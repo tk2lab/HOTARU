@@ -2,25 +2,17 @@ from collections import namedtuple
 from pathlib import Path
 
 import hydra
-import jax
 import numpy as np
 import pandas as pd
 import tifffile
 from tqdm import tqdm
 
-from .filter.stats import (
-    Stats,
-    calc_stats,
-)
+from .filter.stats import calc_stats
 from .footprint.clean import clean_segment_batch
-from .footprint.find import (
-    PeakVal,
-    find_peaks_batch,
-)
+from .footprint.find import find_peaks_batch
 from .footprint.make import make_segment_batch
 from .footprint.reduce import reduce_peaks_block
 from .io.image import load_imgs
-from .io.logger import logger
 from .io.saver import (
     load,
     save,
@@ -37,22 +29,61 @@ Stats = namedtuple("Stats", "imin imax istd icor")
 Penalty = namedtuple("Penalty", "la lu bx bt")
 
 
+class SilentProgress:
+    def skip(self):
+        pass
+
+    def session(self, name):
+        return self
+
+    def set_count(self, total, status=None):
+        pass
+
+    def update(self, n, status=None):
+        pass
+
+
+class Progress:
+
+    def __init__(self):
+        self._curr = None
+
+    def skip(self):
+        pass
+
+    def session(self, name):
+        #print("session", name)
+        if self._curr is not None:
+            self._curr.close()
+        self._name = name
+        return self
+
+    def set_count(self, total, status=None):
+        #print("set_count", total, status)
+        self._curr = tqdm(desc=self._name, total=total)
+
+    def update(self, n, status=None):
+        #print("update", n, status)
+        if status is not None:
+            self._curr.set_postfix_str(status, refresh=False)
+        self._curr.update(n)
+
+
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg):
-    data(cfg, tqdm)
-    find(cfg, tqdm)
-    make(cfg, tqdm)
-    nk = spike(cfg, 0, tqdm).shape[0]
-    for stage in range(1, cfg.stage + 1):
-        footprint(cfg, stage, tqdm)
-        old_nk, nk = nk, spike(cfg, stage, tqdm).shape[0]
+    pbar = Progress()
+    nk = -1
+    for stage in range(cfg.stage + 1):
+        old_nk, nk = nk, spike_optimize(cfg, stage, pbar).shape[0]
         if old_nk == nk:
             break
 
 
-def autoload(func, cfg, c, stage=None):
+def autoload(func, cfg, c, pbar=None, stage=None):
+    if pbar is None:
+        pbar = SilentProgress()
     cfg.stage, stage_saved = stage, cfg.stage
-    file = Path(cfg.outdir) / c.outfile
+    file = Path(cfg.outdir) / c.outfile[0]
     force = c.force
     if stage is not None:
         force = force or (c.done is not None)
@@ -62,8 +93,9 @@ def autoload(func, cfg, c, stage=None):
             force = stage > c.done
     if not force and file.exists():
         obj = load(file)
+        pbar.skip()
     else:
-        obj = func(c)
+        obj = func(c, pbar)
         cfg.stage = stage_saved
         save(file, obj)
         if stage is None:
@@ -99,19 +131,21 @@ def penalty(cfg, c):
 def stats(cfg, pbar=None):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
-        lambda c: calc_stats(imgs, mask, c.batch, pbar()),
+        lambda c, pbar: calc_stats(imgs, mask, c.batch, pbar.session("stats")),
         cfg,
         cfg.stats,
+        pbar,
     )
     return Stats(stats.imin, stats.imax, stats.istd, stats.icor)
 
 
-def get_frame(cfg, t):
+def get_frame(cfg, t, pbar=None):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
-        lambda c: calc_stats(imgs, mask, c.batch, pbar()),
+        lambda c, pbar: calc_stats(imgs, mask, c.batch, pbar.session("stats")),
         cfg,
         cfg.stats,
+        pbar,
     )
     return (imgs[t] - stats.avgx - stats.avgt[t]) / stats.std0
 
@@ -119,53 +153,67 @@ def get_frame(cfg, t):
 def data(cfg, pbar=None):
     imgs, mask = load_imgs(cfg.data)
     stats = autoload(
-        lambda c: calc_stats(imgs, mask, c.batch, pbar()),
+        lambda c, pbar: calc_stats(imgs, mask, c.batch, pbar.session("data")),
         cfg,
         cfg.stats,
+        pbar,
     )
     return Data(imgs, mask, stats.avgx, stats.avgt, stats.std0)
 
 
 def find(cfg, pbar=None):
     return autoload(
-        lambda c: find_peaks_batch(data(cfg), radius(c), c.batch, pbar()),
+        lambda c, pbar: find_peaks_batch(
+            data(cfg, pbar), radius(c), c.batch, pbar.session("find"),
+        ),
         cfg,
         cfg.find,
+        pbar,
     )
 
 
 def reduce(cfg, pbar=None):
     return autoload(
-        lambda c: reduce_peaks_block(find(cfg), c.rmin, c.rmax, c.thr, c.block_size),
+        lambda c, pbar: reduce_peaks_block(
+            find(cfg, pbar), c.rmin, c.rmax, c.thr, c.block_size
+        ),
         cfg,
         cfg.reduce,
+        pbar,
     )
 
 
 def make(cfg, pbar=None):
     return autoload(
-        lambda c: make_segment_batch(data(cfg), reduce(cfg), c.batch, pbar()),
+        lambda c, pbar: make_segment_batch(
+            data(cfg, pbar), reduce(cfg, pbar), c.batch, pbar.session("make"),
+        ),
         cfg,
         cfg.make,
+        pbar,
     )
 
 
-def spike(cfg, stage, pbar=None):
-    def prepare(c):
+def spike_prepare(cfg, stage, pbar=None):
+    def prepare(c, pbar):
         return gen_factor(
             "temporal",
-            make(cfg) if stage == 0 else footprint(cfg, stage),
-            data(cfg),
+            make(cfg, pbar) if stage == 0 else footprint_clean(cfg, stage, pbar)[0],
+            data(cfg, pbar),
             dynamics(cfg),
             penalty(cfg, cfg.temporal.penalty),
             c.batch,
-            pbar and pbar(desc=f"{stage}spike prepare"),
+            pbar.session(f"{stage}spike prepare"),
         )
 
-    def optimize(c):
+    return autoload(prepare, cfg, cfg.temporal.prepare, pbar, stage)
+
+
+def spike_optimize(cfg, stage, pbar=None):
+    def optimize(c, pbar):
         optimizer = gen_optimizer(
             "temporal",
-            factor,
+            spike_prepare(cfg, stage, pbar),
             dynamics(cfg),
             penalty(cfg, cfg.temporal.penalty),
             c.lr,
@@ -176,7 +224,7 @@ def spike(cfg, stage, pbar=None):
             c.n_epoch,
             c.n_step,
             c.early_stop.tol,
-            pbar and pbar(desc=f"{stage}spike optimize"),
+            pbar.session(f"{stage}spike optimize"),
             c.prox.num_devices,
         )
         spike = optimizer.val[0]
@@ -184,28 +232,31 @@ def spike(cfg, stage, pbar=None):
         tifffile.imwrite(f"spike{stage}.tif", normalize)
         return spike
 
-    factor = autoload(prepare, cfg, cfg.temporal.prepare, stage)
-    return autoload(optimize, cfg, cfg.temporal.optimize, stage)
+    return autoload(optimize, cfg, cfg.temporal.optimize, pbar, stage)
 
 
-def footprint(cfg, stage, pbar=None):
-    def prepare(c):
-        spk = spike(cfg, stage - 1)
+def footprint_prepare(cfg, stage, pbar=None):
+    def prepare(c, pbar):
+        spk = spike_optimize(cfg, stage - 1, pbar)
         spk /= spk.max(axis=1, keepdims=True)
         return gen_factor(
             "spatial",
             spk,
-            data(cfg),
+            data(cfg, pbar),
             dynamics(cfg),
             penalty(cfg, cfg.spatial.penalty),
             c.batch,
-            pbar and pbar(desc=f"{stage}footprint prepare"),
+            pbar.session(f"{stage}footprint prepare"),
         )
 
-    def optimize(c):
+    return autoload(prepare, cfg, cfg.spatial.prepare, pbar, stage)
+
+
+def footprint_optimize(cfg, stage, pbar=None):
+    def optimize(c, pbar):
         optimizer = gen_optimizer(
             "spatial",
-            factor,
+            footprint_prepare(cfg, stage, pbar),
             dynamics(cfg),
             penalty(cfg, cfg.spatial.penalty),
             c.lr,
@@ -216,17 +267,20 @@ def footprint(cfg, stage, pbar=None):
             c.n_epoch,
             c.n_step,
             c.early_stop.tol,
-            pbar and pbar(desc=f"{stage}footprint optimize"),
+            pbar.session(f"{stage}footprint optimize"),
             c.prox.num_devices,
         )
         return optimizer.val[0]
 
-    def clean(c):
+    return autoload(optimize, cfg, cfg.spatial.optimize, pbar, stage)
+
+
+def footprint_clean(cfg, stage, pbar=None):
+    def clean(c, pbar):
         imgs, mask = load_imgs(cfg.data)
-        val = footprint
+        val = footprint_optimize(cfg, stage, pbar)
         val /= val.max(axis=1, keepdims=True)
         nk, h, w = val.shape[0], *imgs.shape[1:]
-        _radius = radius(c)
         if mask is None:
             fimgs = val.reshape(nk, h, w)
         else:
@@ -235,19 +289,15 @@ def footprint(cfg, stage, pbar=None):
         cimgs, peaks = clean_segment_batch(
             fimgs,
             mask,
-            _radius,
+            radius(c),
             c.batch,
-            pbar and pbar(desc=f"{stage}footprint clean"),
+            pbar.session(f"{stage}footprint clean"),
         )
-        tifffile.imwrite(f"footprint{stage}.tif", cimgs.max(axis=0))
-        pd.DataFrame(peaks._asdict()).to_csv(f"peaks{stage}.csv")
         cimgs = cimgs[peaks.r > 0]
         if mask is None:
             cimgs = cimgs.reshape(-1, h * w)
         else:
             cimgs = cimgs[:, mask]
-        return cimgs
+        return cimgs, pd.DataFrame(peaks._asdict())
 
-    factor = autoload(prepare, cfg, cfg.spatial.prepare, stage)
-    footprint = autoload(optimize, cfg, cfg.spatial.optimize, stage)
-    return autoload(clean, cfg, cfg.clean, stage)
+    return autoload(clean, cfg, cfg.clean, pbar, stage)

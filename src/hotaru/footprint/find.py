@@ -1,7 +1,5 @@
 from collections import namedtuple
-from functools import partial
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -88,9 +86,7 @@ def find_peaks_batch(data, radius, batch=(1, 100), pbar=None):
     gx, gy = np.meshgrid(np.arange(w), np.arange(h))
 
     radius = tuple(radius)
-    nr = len(radius)
 
     if pbar is not None:
-        pbar.reset(total=nt)
-        pbar.set_description("find")
+        pbar.set_count(nt)
     return mapped_imgs(nt, prepare, apply, aggregate, init, append, finish, batch, pbar)

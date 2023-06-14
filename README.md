@@ -17,8 +17,8 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ## Install
 
 ### Require
-- python >=3.8,<3.11
-- tensorflow >=2.7,<2.10
+- python >=3.10,<3.11
+- jax >= 0.4
 
 ### Install Procedure (using venv)
 - Create venv environment for hotaru
@@ -37,74 +37,8 @@ pip install hotaru
 
 ### Demonstration
 ```shell
-hotaru sample --outdir mysample
-cd mysample
-hotaru config
-# edit hotaru.ini if you need
-hotaru trial
-# see hotar/figure/ and tune hotaru.ini if you need
-hotaru auto
-# see hotaru/figure/ and hotaru/output/
-hotaru mpeg --has-truth
+cd sample
+hotaru
 ```
 
 [Sample Video](https://drive.google.com/file/d/12jl1YTZDuNAq94ciJ-_Cj5tBcKmCqgRH)
-
-
-## Usage
-
-### Config and Prepare
-- Move to your workspace
-```shell
-cd work
-```
-- Edit config file `hotaru.ini`
-``` hotaru.ini
-[DEFAULT]
-imgs_path = imgs.tif
-mask_type = 0.pad
-hz = 20.0
-tau_rise = 0.08
-tau_fall = 0.16
-
-[main]
-tag = r20
-
-[r20]
-radius_max = 20.0
-```
-
-### Check Cell Radius Stats
-- Trial
-```shell
-hotaru trial
-```
-- Check peaks stats
-  [see hotaru/figure/r20_trial.pdf]
-- Change `radius_max` if need
-``` hotaru.ini
-[DEFAULT]
-imgs_path = imgs.tif
-mask_type = 0.pad
-hz = 20.0
-tau_rise = 0.08
-tau_fall = 0.16
-
-[main]
-tag = r10
-
-[r10]
-radius_max = 10.0
-
-[r20]
-radius_max = 20.0
-```
-
-### Apply
-- Run
-```shell
-hotaru auto
-```
-  
-### Check Resutls
-- see `hotaru/figure/r10_curr.pdf` and `hotaru/output` directory

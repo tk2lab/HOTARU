@@ -19,16 +19,20 @@ classifiers = [
 ]
 
 [build-system]
-requires = ["poetry-core>=1.2.0"]
+requires = ["poetry-core>=1.5.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-jax = { extras = ["cuda11-cudnn86"], version = "^0.4.7" }
+jax = "^0.4"
+jaxlib = [
+    { version = "^0.4", platform = "linux", source = "jax-cuda" },
+    { version = "^0.4", platform = "darwin", source = "jax" },
+]
 
 tifffile = "^2022.8"
 pandas = "^1.5"
-av = "^10.0.0"
+av = "^10.0"
 
 setuptools = "^67.6.1"
 hydra-core = "^1.3"
@@ -42,10 +46,18 @@ diskcache = "^5.6.1"
 hotaru = "hotaru.main:main"
 
 [[tool.poetry.source]]
+name = "PyPI"
+priority = "primary"
+
+[[tool.poetry.source]]
 name = "jax"
+url = "https://storage.googleapis.com/jax-releases/jax_releases.html"
+priority = "supplemental"
+
+[[tool.poetry.source]]
+name = "jax-cuda"
 url = "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
-default = false
-secondary = true
+priority = "supplemental"
 
 [tool.isort]
 profile = "black"
@@ -91,13 +103,13 @@ commands =
     black src
     pflake8 src
 
+[testenv:py{310,311}]
+changedir = sample
+commands =
+    hotaru
+
 [testenv:app]
 basepython = python3.10
 commands =
     {envpython} -m {posargs}
-
-[testenv:py{310,311}]
-changedir = sample
-commands =
-    python -m hotaru
 """

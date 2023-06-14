@@ -41,6 +41,7 @@ def _reduce_peaks(args):
 
 def reduce_peaks_block(peakval, rmin, rmax, thr_distance, block_size):
     radius, ts, rs, vs = peakval
+    radius = np.array(radius)
     rmin = radius[rmin]
     rmax = radius[rmax]
     h, w = vs.shape
@@ -70,6 +71,9 @@ def reduce_peaks_block(peakval, rmin, rmax, thr_distance, block_size):
     t = ts[y, x]
     r = rs[y, x]
     v = vs[y, x]
+    print(radius)
+    print(r)
+    r = radius[r]
     return (
         pd.DataFrame(dict(t=t, r=r, y=y, x=x, v=v))
         .sort_values("v", ascending=False)

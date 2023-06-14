@@ -11,7 +11,18 @@ Prepare = namedtuple("Prepare", "nt nx nk pena a b c")
 
 
 def gen_factor(kind, yval, data, dynamics, penalty, batch, pbar=None):
+    nt, h, w = data.imgs.shape
+    if data.mask is None:
+        nx = h * w
+    else:
+        nx = np.count_nonzero(data.mask)
+    nk = yval.shape[0]
+
     if kind == "temporal":
+        if data.mask is None:
+            yval = yval.reshape(nk, nx)
+        else:
+            yval = yval[:, mask]
         bx = penalty.bt
         by = penalty.bx
         trans = True
@@ -32,13 +43,6 @@ def gen_factor(kind, yval, data, dynamics, penalty, batch, pbar=None):
     a = -2 * ycor
     b = ycov - cx * yout
     c = yout - cy * ycov
-
-    nt, h, w = data.imgs.shape
-    if data.mask is None:
-        nx = h * w
-    else:
-        nx = np.count_nonzero(data.mask)
-    nk = yval.shape[0]
 
     return Prepare(nt, nx, nk, pena, a, b, c)
 

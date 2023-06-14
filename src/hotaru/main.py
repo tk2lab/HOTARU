@@ -175,7 +175,7 @@ def find(cfg, pbar=None):
 def reduce(cfg, pbar=None):
     return autoload(
         lambda c, pbar: reduce_peaks_block(
-            find(cfg, pbar), c.rmin, c.rmax, c.thr, c.block_size
+            find(cfg, pbar), c.rmin, c.rmax, c.thr, c.block_size,
         ),
         cfg,
         cfg.reduce,
@@ -294,10 +294,6 @@ def footprint_clean(cfg, stage, pbar=None):
             pbar.session(f"{stage}footprint clean"),
         )
         cimgs = cimgs[peaks.r > 0]
-        if mask is None:
-            cimgs = cimgs.reshape(-1, h * w)
-        else:
-            cimgs = cimgs[:, mask]
         return cimgs, pd.DataFrame(peaks._asdict())
 
     return autoload(clean, cfg, cfg.clean, pbar, stage)

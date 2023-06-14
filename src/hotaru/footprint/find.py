@@ -11,10 +11,18 @@ from ..filter.pool import max_pool
 PeakVal = namedtuple("PeakVal", ["radius", "t", "r", "v"])
 
 
-def simple_peaks(img, gauss, maxpool):
+def simple_peaks(img, gauss, maxpool, pbar=None):
+    if pbar is not None:
+        pbar.set_count(3)
     g = gaussian(img[None, ...], gauss)[0]
+    if pbar is not None:
+        pbar.update(1)
     m = max_pool(g, (maxpool, maxpool), (1, 1), "same")
+    if pbar is not None:
+        pbar.update(1)
     y, x = jnp.where(g == m)
+    if pbar is not None:
+        pbar.update(1)
     return np.array(y), np.array(x)
 
 
@@ -80,6 +88,8 @@ def find_peaks_batch(data, radius, batch=(1, 100), pbar=None):
 
     def finish(out):
         return PeakVal(radius, *(np.array(o) for o in out))
+
+    print(radius)
 
     imgs, mask, avgx, avgt, std0 = data
     nt, h, w = imgs.shape

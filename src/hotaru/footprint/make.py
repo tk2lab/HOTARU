@@ -59,8 +59,4 @@ def make_segment_batch(data, peaks, batch=100, pbar=None):
         )
         for i, oi in zip(idx, o):
             out[i] = oi
-    if mask is None:
-        out = out.reshape(-1, h * w)
-    else:
-        out = out[:, mask]
     return out

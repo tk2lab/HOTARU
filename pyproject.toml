@@ -22,6 +22,20 @@ classifiers = [
 requires = ["poetry-core>=1.5.0"]
 build-backend = "poetry.core.masonry.api"
 
+[[tool.poetry.source]]
+name = "PyPI"
+priority = "primary"
+
+[[tool.poetry.source]]
+name = "jax"
+url = "https://storage.googleapis.com/jax-releases/jax_releases.html"
+priority = "explicit"
+
+[[tool.poetry.source]]
+name = "jax-cuda"
+url = "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
+priority = "explicit"
+
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
 jax = "^0.4"
@@ -42,22 +56,14 @@ dash = "^2.8.1"
 dash-bootstrap-components = "^1.4.1"
 diskcache = "^5.6.1"
 
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+isort = "^5.12.0"
+flake8 = "^6.0.0"
+pyproject-flake8 = "^6.0.0.post1"
+
 [tool.poetry.scripts]
 hotaru = "hotaru.main:main"
-
-[[tool.poetry.source]]
-name = "PyPI"
-priority = "primary"
-
-[[tool.poetry.source]]
-name = "jax"
-url = "https://storage.googleapis.com/jax-releases/jax_releases.html"
-priority = "supplemental"
-
-[[tool.poetry.source]]
-name = "jax-cuda"
-url = "https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
-priority = "supplemental"
 
 [tool.isort]
 profile = "black"
@@ -81,7 +87,6 @@ legacy_tox_ini = """
 [tox]
 min_version = 4.0
 envlist =
-    lint
     py311
 isolated_build = True
 
@@ -89,19 +94,6 @@ isolated_build = True
 python =
     3.10: py310
     3.11: py311
-
-[testenv:lint]
-basepython = python3.10
-skip_install = True
-deps =
-    isort
-    black
-    flake8
-    pyproject-flake8
-commands =
-    isort src
-    black src
-    pflake8 src
 
 [testenv:py{310,311}]
 changedir = sample

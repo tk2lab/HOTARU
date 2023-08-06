@@ -1,0 +1,57 @@
+temporal:
+  force: ${force}
+  prepare:
+    outfile: "prepare_temporal.npz"
+    force: ${temporal.force}
+    args:
+      dynamics: ${dynamics}
+      penalty: ${penalty}
+      batch:
+        - ${num_devices}
+        - ${batch_frame}
+  optimize:
+    outfile: "temporal.npy"
+    force: ${temporal.force}
+    args:
+      dynamics: ${dynamics}
+      penalty: ${penalty}
+      lr: 0.005
+      scale: 20
+      num_devices: ${num_devices}
+      steps:
+        n_epoch: 100
+        n_step: 100
+        tol: 1e-5
+
+spatial:
+  force: ${force}
+  prepare:
+    outfile: "prepare_spatial.npz"
+    force: ${spatial.force}
+    args:
+      dynamics: ${dynamics}
+      penalty: ${penalty}
+      batch:
+        - ${num_devices}
+        - ${batch_frame}
+  optimize:
+    outfile: "spatial.npy"
+    force: ${spatial.force}
+    args:
+      dynamics: ${dynamics}
+      penalty: ${penalty}
+      lr: 0.005
+      scale: 20.0
+      num_devices: ${num_devices}
+      steps:
+        n_epoch: 100
+        n_step: 100
+        tol: 1e-5
+  clean:
+    outfile: "footprint.npz"
+    force: ${spatial.force}
+    args:
+      radius: ${radius}
+      batch:
+        - ${num_devices}
+        - ${batch_frame}

@@ -1,6 +1,13 @@
 import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
+import hydra
+
+
+def get_dynamics(dynamics):
+    if isinstance(dynamics, SpikeToCalcium):
+        return dynamics
+    return hydra.utils.instantiate(dynamics)
 
 
 class SpikeToCalcium:

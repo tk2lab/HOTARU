@@ -1,9 +1,0 @@
-label: masked
-dir: ${srcdir}
-imgs:
-  type: tif
-  file: imgs.tif
-mask:
-  type: tif
-  file: mask.tif
-hz: 20.0

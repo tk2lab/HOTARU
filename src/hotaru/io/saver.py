@@ -1,4 +1,5 @@
 from collections import namedtuple
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -9,24 +10,29 @@ def save(path, obj):
         for p, o in zip(path, obj):
             save(p, o)
     else:
+        path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        if path.suffix == ".npz":
-            np.savez(path, **obj._asdict())
-        elif path.suffix == ".npy":
-            np.save(path, obj)
-        elif path.suffix == ".csv":
-            obj.to_csv(path)
+        match path.suffix:
+            case ".npz":
+                np.savez(path, **obj._asdict())
+            case ".npy":
+                np.save(path, obj)
+            case ".csv":
+                obj.to_csv(path)
 
 
-def load(path):
-    if isinstance(path, (list, tuple)):
-        return tuple(load(p) for p in path)
-    else:
-        suffix = path.suffix
-        if suffix == ".npz":
-            with np.load(path) as npz:
-                return namedtuple("LoadedData", npz.files)(**dict(npz.items()))
-        elif suffix == ".npy":
-            return np.load(path)
-        elif suffix == ".csv":
-            return pd.read_csv(path, index_col=0)
+def try_load(path):
+    path = Path(path)
+    try:
+        match path.suffix:
+            case ".npz":
+                with np.load(path) as npz:
+                    return namedtuple("LoadedData", npz.files)(**dict(npz.items()))
+            case ".npy":
+                return np.load(path)
+            case ".csv":
+                return pd.read_csv(path, index_col=0)
+            case _:
+                return
+    except Exception:
+        return

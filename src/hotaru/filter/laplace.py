@@ -6,14 +6,14 @@ import jax.numpy as jnp
 import numpy as np
 
 
-@partial(jax.jit, static_argnames=["r"])
-def gaussian_laplace(imgs, r):
-    return _gaussian_laplace(imgs, r, 4 * np.ceil(r))
-
-
 @partial(jax.jit, static_argnames=["rs", "axis"])
-def gaussian_laplace_multi(imgs, rs, axis=-1):
-    return jnp.stack([gaussian_laplace(imgs, r) for r in rs], axis=axis)
+def gaussian_laplace(imgs, rs, axis=-1):
+    return jnp.stack([gaussian_laplace_single(imgs, r) for r in rs], axis=axis)
+
+
+@partial(jax.jit, static_argnames=["r"])
+def gaussian_laplace_single(imgs, r):
+    return _gaussian_laplace(imgs, r, 4 * np.ceil(r))
 
 
 def _gaussian_laplace(imgs, r, nd):
@@ -22,8 +22,10 @@ def _gaussian_laplace(imgs, r, nd):
     r2 = jnp.square(r)
     o0 = jnp.exp(-d / r2 / 2) / r / sqrt_2pi
     o2 = (1 - d / r2) * o0
-    gl1 = lax.conv(imgs[..., None, :, :], o2[None, None, :, None], (1, 1), "same")
-    gl1 = lax.conv(gl1, o0[None, None, None, :], (1, 1), "same")
-    gl2 = lax.conv(imgs[..., None, :, :], o2[None, None, None, :], (1, 1), "same")
-    gl2 = lax.conv(gl2, o0[None, None, :, None], (1, 1), "same")
+    o0 = jnp.expand_dims(o0, (0, 1))
+    o2 = jnp.expand_dims(o2, (0, 1))
+    gl1 = lax.conv(jnp.expand_dims(imgs, -3), jnp.expand_dims(o2, -1), (1, 1), "same")
+    gl1 = lax.conv(gl1, jnp.expand_dims(o0, -2), (1, 1), "same")
+    gl2 = lax.conv(jnp.expand_dims(imgs, -3), jnp.expand_dims(o2, -2), (1, 1), "same")
+    gl2 = lax.conv(gl2, jnp.expand_dims(o0, -1), (1, 1), "same")
     return (gl1 + gl2)[..., 0, :, :]

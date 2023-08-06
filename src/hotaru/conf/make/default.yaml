@@ -1,7 +1,0 @@
-label: ${reduce.label}
-outfile:
-  - ${make.label}/0_2footprint.npy
-batch:
-  - ${env.num_devices}
-  - 100
-force: ${force}

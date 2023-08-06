@@ -4,10 +4,8 @@ import dash.dcc as dcc
 import dash.html as html
 import dash_bootstrap_components as dbc
 from dash import (
-    Dash,
     Input,
     Output,
-    Patch,
     State,
     callback,
     ctx,

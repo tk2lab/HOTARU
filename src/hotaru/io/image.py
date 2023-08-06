@@ -1,4 +1,4 @@
-import pathlib
+from pathlib import Path
 
 import numpy as np
 from tifffile import (
@@ -8,18 +8,16 @@ from tifffile import (
 )
 
 
-def load_imgs(cfg):
-    path = pathlib.Path(cfg.dir)
-
-    imgsfile = path / cfg.imgs.file
-    match cfg.imgs.type:
+def load_imgs(**cfg):
+    match cfg["type"]:
         case "npy":
-            imgs = np.load(path, mmap_mode="r")
+            imgs = np.load(cfg["file"], mmap_mode="r")
         case "raw":
-            dtype = np.dtype(cfg.data.imgs.dtype).newbyteorder(cfg.data.imgs.endian)
-            data = np.memmap(path, dtype, "r")
-            imgs = data.reshape(-1, cfg.imgs.height, cfg.imgs.width)
+            dtype = np.dtype(cfg["dtype"]).newbyteorder(cfg["endian"])
+            data = np.memmap(cfg["file"], dtype, "r")
+            imgs = data.reshape(-1, cfg["height"], cfg["width"])
         case "tif":
+            imgsfile = Path(cfg["file"])
             imgsfile_fix = imgsfile.with_stem(f"{imgsfile.stem}_fix")
             if imgsfile_fix.exists():
                 imgsfile = imgsfile_fix
@@ -33,14 +31,17 @@ def load_imgs(cfg):
                     imgs = imgs.asarray(out="memmap")
         case _:
             raise RuntimeError(f"{imgsfile} is not imgs file")
+    return imgs, cfg["hz"]
 
-    match cfg.mask.type:
+
+def apply_mask(imgs, **cfg):
+    match cfg["type"]:
         case "nomask":
             mask = None
         case "tif":
-            mask = imread(path / cfg.mask.file)
+            mask = imread(cfg["file"])
         case "npy":
-            mask = np.load(path / cfg.mask.file)
+            mask = np.load(cfg["file"])
         case _:
             raise RuntimeError("bad file type: {maskfile}")
 

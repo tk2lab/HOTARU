@@ -1,8 +1,6 @@
-label: nomask
-dir: ${srcdir}
 imgs:
   type: tif
   file: imgs.tif
+  hz: 20
 mask:
   type: nomask
-hz: 20.0

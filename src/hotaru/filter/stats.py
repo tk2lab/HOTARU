@@ -68,7 +68,7 @@ def calc_stats(imgs, mask=None, env=None, factor=100):
     nt, h, w = imgs.shape
     batch = get_gpu_env(env).batch(float(factor) * h * w, nt)
 
-    logger.info(f"stats: {batch}")
+    logger.info("stats: %s %d", imgs.shape, -1 if mask is None else mask.sum())
     dataset = tf.data.Dataset.from_generator(
         lambda: zip(range(nt), imgs),
         output_signature=(
@@ -82,10 +82,4 @@ def calc_stats(imgs, mask=None, env=None, factor=100):
     logger.info("%s: %s %s %d", "pbar", "start", "stats", nt)
     stats, simgs = finish(*mapped_imgs(dataset, nt, calc, types, init, batch))
     logger.info("%s: %s", "pbar", "close")
-
-    logger.info(f"min: {stats.min0}")
-    logger.info(f"max: {stats.max0}")
-    logger.info(f"std: {stats.std0}")
-    logger.info(f"normalized min: {stats.min1}")
-    logger.info(f"normalized max: {stats.max1}")
     return stats, simgs

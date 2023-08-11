@@ -17,21 +17,23 @@ logger = getLogger(__name__)
 
 
 def spatial(data, x, dynamics, penalty, env, factor, lr, scale, n_epoch, n_step, tol):
+    logger.info("spatial:")
     common = dynamics, penalty, env
     mat = prepare("spatial", data, x, *common, factor)
-    logger.info("mat: %d %d %d %f %s %s %s", *mat[:4], *(m.shape for m in mat[4:]))
-    logger.info("opt: %f %f %d %d %f", lr, scale, n_epoch, n_step, tol)
+    logger.debug("mat: %d %d %d %f %s %s %s", *mat[:4], *(m.shape for m in mat[4:]))
+    logger.debug("opt: %f %f %d %d %f", lr, scale, n_epoch, n_step, tol)
     optimizer = get_optimizer("spatial", mat, *common, lr, scale)
-    logger.info("opt: %s", optimizer)
+    logger.debug("opt: %s", optimizer)
     log = optimizer.fit(n_epoch, n_step, tol)
-    logger.info("opt: %s", log)
+    logger.debug("opt: %s", log)
     return optimizer.val[0]
 
 
 def temporal(data, x, dynamics, penalty, env, factor, lr, scale, n_epoch, n_step, tol):
+    logger.info("temporal:")
     common = dynamics, penalty, env
     mat = prepare("temporal", data, x, *common, factor)
-    logger.info("mat: %d %d %d %f %s %s %s", *mat[:4], *(m.shape for m in mat[4:]))
+    logger.debug("mat: %d %d %d %f %s %s %s", *mat[:4], *(m.shape for m in mat[4:]))
     optimizer = get_optimizer("temporal", mat, *common, lr, scale)
     optimizer.fit(n_epoch, n_step, tol)
     return optimizer.val[0]
@@ -85,7 +87,7 @@ def get_optimizer(kind, factor, dynamics, penalty, env, lr, scale):
             pena = [penalty.lu]
         case _:
             raise ValueError("kind must be temporal or spatial")
-    logger.info("init: %s", init[0].shape)
+    logger.debug("init: %s", init[0].shape)
 
     opt = ProxOptimizer(loss_fn, init, pena, env.num_devices, f"{kind} optimize")
     opt.set_params(lr / b.diagonal().max(), scale, nm)

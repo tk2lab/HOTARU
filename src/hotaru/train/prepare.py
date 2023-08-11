@@ -36,7 +36,7 @@ def prepare(kind, data, yval, dynamics, penalty, env, factor=10):
             trans = False
             pena = penalty.lu(yval)
             yval = dynamics(yval)
-            logger.info("yval: %s %s", yval.min(axis=1), yval.max(axis=1))
+            logger.debug("yval: %s %s", yval.min(axis=1), yval.max(axis=1))
             yval /= yval.max(axis=1, keepdims=True)
         case  "temporal":
             bx = penalty.bt
@@ -59,8 +59,8 @@ def prepare(kind, data, yval, dynamics, penalty, env, factor=10):
     b = ycov - cx * yout
     c = yout - cy * ycov
 
-    logger.info("ycor %s", ycor)
-    logger.info("ycov %s", ycov)
-    logger.info("yout %s", yout)
-    logger.info("c %f %f", cx, cy)
+    logger.debug("ycor %s", ycor)
+    logger.debug("ycov %s", ycov)
+    logger.debug("yout %s", yout)
+    logger.debug("c %f %f", cx, cy)
     return Prepare(nt, nx, nk, pena, a, b, c)

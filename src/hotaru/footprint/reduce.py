@@ -11,7 +11,7 @@ def reduce_peaks(peakval, min_distance_ratio, block_size, **args):
     radius, ts, rs, vs = peakval
     h, w = vs.shape
     margin = int(np.ceil(min_distance_ratio * rs.max()))
-    logger.debug(f"reduce_peaks: {radius} {min_distance_ratio} {block_size}")
+    logger.info(f"reduce_peaks: {radius} {min_distance_ratio} {block_size}")
     args = []
     for xs in range(0, w - margin, block_size):
         x0 = max(xs - margin, 0)

@@ -47,7 +47,6 @@ def clean(old_peaks, vals, shape, mask, radius, env, factor):
         for key in ["cell", "background", "remove"]
     ]
     peaks = pd.concat([cell, bg, removed], axis=0)
-    logger.info("%s", peaks)
     segments = segments[peaks[peaks.kind != "remove"].index]
     return segments, peaks
 

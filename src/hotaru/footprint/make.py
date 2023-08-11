@@ -19,6 +19,7 @@ def make_footprints(data, peaks, env=None, factor=10):
     def _calc(imgs, y, x, index, r):
         return make_segments_simple(imgs, y, x, r), index
 
+    logger.info("make: %s", peaks.shape[0])
     h, w = data.shape
     ts, ys, xs, rs = (np.array(v) for v in (peaks.t, peaks.y, peaks.x, peaks.radius))
 

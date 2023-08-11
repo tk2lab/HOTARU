@@ -3,6 +3,7 @@ stats:
   dir: ${data.label}
   files:
     - stats.npz
+    - simgs.npz
 find:
   dir: ${data.label}${radius.label}
   files:
@@ -25,3 +26,5 @@ temporal:
   dir: ${data.label}${radius.label}${density.label}${model.label}
   files:
     - "{stage:03d}spike.npy"
+figs:
+  dir: figs

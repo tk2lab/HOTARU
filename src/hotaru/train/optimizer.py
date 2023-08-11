@@ -1,12 +1,14 @@
 from functools import partial
+from logging import getLogger
 
 import jax
 import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
 
-from ..utils import get_progress
 from .common import mask_fn
+
+logger = getLogger(__name__)
 
 
 class ProxOptimizer:
@@ -32,22 +34,22 @@ class ProxOptimizer:
         penalty = sum(ri(xi) for xi, ri in zip(self.x, self.regularizers))
         return loss + penalty / self.loss_scale
 
-    def fit(self, n_epoch, n_step, tol=None, pbar=None):
+    def fit(self, n_epoch, n_step, tol=None):
         loss = self.loss()
         diff = np.inf
         history = [loss]
-        pbar = get_progress(pbar)
-        if self._name:
-            pbar.session(self._name)
-        pbar.set_count(n_epoch, f"loss={loss:.4f}, diff= nan")
+        postfix = f"loss={loss:.4f}, diff= nan"
+        logger.info("%s: %s %s %d %s", "pbar", "start", self._name, n_epoch, postfix)
         for i in range(n_epoch):
             self.step(n_step)
             old_loss, loss = loss, self.loss()
             diff = np.log10((old_loss - loss) / tol)
             history.append(loss)
-            pbar.update(1, f"loss={loss:.4f}, diff={diff:.2f}")
+            postfix = f"loss={loss:.4f}, diff={diff:.2f}"
+            logger.info("%s: %s %d %s", "pbar", "update", 1, postfix)
             if diff < 0.0:
                 break
+        logger.info("%s: %s", "pbar", "close")
         return history
 
     def step(self, n_step):

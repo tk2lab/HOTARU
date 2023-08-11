@@ -1,13 +1,16 @@
 import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
-import hydra
 
 
 def get_dynamics(dynamics):
-    if isinstance(dynamics, SpikeToCalcium):
-        return dynamics
-    return hydra.utils.instantiate(dynamics)
+    match dynamics:
+        case SpikeToCalcium():
+            return dynamics
+        case {"type": "double_exp", **args}:
+            return SpikeToCalcium.double_exp(**args)
+        case _:
+            raise ValueError("invalid dynamics type")
 
 
 class SpikeToCalcium:

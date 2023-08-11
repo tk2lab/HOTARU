@@ -1,0 +1,29 @@
+version: 1
+filters:
+  droppbar:
+    class: hotaru.utils.logging.DropPbarFilter
+formatters:
+  simple:
+    format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
+  brief:
+    format: '%(message)s'
+handlers:
+  hotaru:
+    class: hotaru.utils.logging.StreamHandler
+    formatter: brief
+    stream: ext://sys.stdout
+  logfile:
+    class: logging.FileHandler
+    filters: [droppbar]
+    formatter: simple
+    filename: ${hydra.runtime.output_dir}/${now:%Y-%m-%dT%H:%M:%S}.log
+loggers:
+  hotaru:
+    level: INFO
+    handlers: [hotaru]
+  jax:
+    level: DEBUG
+root:
+  level: DEBUG
+  handlers: [logfile]
+disable_existing_loggers: true

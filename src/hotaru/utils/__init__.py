@@ -1,13 +1,15 @@
 from .data import Data
-from .progress import get_progress
-from .logging import (
-    LoggingHandler,
-    logger,
+from .gpu import (
+    get_gpu_env,
+    get_gpu_info,
+    get_gpu_used,
 )
+from .progress import get_progress
 
 __all__ = [
     "Data",
-    "LoggingHandler",
     "get_progress",
-    "logger",
+    "get_gpu_env",
+    "get_gpu_info",
+    "get_gpu_used",
 ]

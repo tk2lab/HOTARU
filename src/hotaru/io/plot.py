@@ -8,7 +8,7 @@ from hotaru.footprint import get_radius
 pio.kaleido.scope.mathjax = None
 
 
-def plot_simgs(simgs, scale=1, margin=30):
+def plot_simgs(simgs, scale=1, margin=30, label=None):
     simgs = np.stack(simgs)
     h, w = simgs[0].shape
     smin = simgs.min(axis=(1, 2), keepdims=True)
@@ -25,8 +25,8 @@ def plot_simgs(simgs, scale=1, margin=30):
     return plot_clip(simgs, h + 1, w + 1, scale, margin, **kwargs)
 
 
-def plot_gl(data, idx, scale=1, margin=30, **radius):
-    radius = get_radius(**radius)
+def plot_gl(data, radius, idx, scale=1, margin=30, label=""):
+    radius = get_radius(radius)
     gl = gaussian_laplace(data.select(idx), radius, -2)
     gl = np.pad(gl, ((0, 0), (0, 1), (0, 0), (0, 1)))
     nt, h, nr, w = gl.shape
@@ -42,31 +42,41 @@ def plot_gl(data, idx, scale=1, margin=30, **radius):
     return plot_clip(gl, h, w, scale, margin, **kwargs)
 
 
-def plot_peak_stats(peakval, peaks):
+def plot_peak_stats(peaks, peakval=None, label=""):
     def jitter(r):
+        radius = np.sort(np.unique(r))
+        dscale = np.log((radius[1:] / radius[:-1]).min())
         jitter = np.exp(0.2 * dscale * np.random.randn(r.size))
         return r * jitter
 
-    dscale = np.log(peakval.radius[1] / peakval.radius[0])
-    r = peakval.radius[peakval.r.ravel()]
-    v = peakval.v.ravel()
-    fig = go.Figure(
-        data=[
+    data = []
+    if peakval is None:
+        intensity = "firmness"
+        vmax = peaks[intensity].max()
+    else:
+        intensity = "intensity"
+        vmax = peakval.v.max()
+        data.append(
             go.Scattergl(
-                x=jitter(r),
-                y=v,
+                x=jitter(peakval.radius[peakval.r.ravel()]),
+                y=peakval.v.ravel(),
                 mode="markers",
                 marker_opacity=0.1,
                 name="all pixels",
-            ),
-            go.Scattergl(
-                x=jitter(peaks.r),
-                y=peaks.v,
-                mode="markers",
-                marker=dict(size=10, symbol="star", opacity=0.5),
-                name="select",
-            ),
-        ],
+            )
+        )
+    data.append(
+        go.Scattergl(
+            x=jitter(peaks.radius),
+            y=peaks[intensity],
+            mode="markers",
+            marker=dict(size=10, symbol="star", opacity=0.5),
+            name="select",
+        )
+    )
+
+    fig = go.Figure(
+        data=data,
         layout=go.Layout(
             template="none",
             width=1000,
@@ -77,7 +87,6 @@ def plot_peak_stats(peakval, peaks):
                 xanchor="left",
                 yanchor="top",
             ),
-
         ),
     )
     fig.update_xaxes(
@@ -85,13 +94,13 @@ def plot_peak_stats(peakval, peaks):
         type="log",
     )
     fig.update_yaxes(
-        title="intensity",
-        range=(0, 1.05 * v.max()),
+        title=intensity,
+        range=(0, 1.05 * vmax),
     )
     return fig
 
 
-def plot_seg_max(seg, scale=1, margin=30):
+def plot_seg_max(seg, scale=1, margin=30, label=""):
     segmax = seg.max(axis=0)
     h, w = segmax.shape
     segmax = np.pad(segmax, ((1, 1), (1, 1)))
@@ -103,7 +112,7 @@ def plot_seg_max(seg, scale=1, margin=30):
     return plot_clip(segmax, h + 1, w + 1, scale, margin, **kwargs)
 
 
-def plot_seg(peaks, seg, mx=None, hsize=20, scale=1, margin=30):
+def plot_seg(peaks, seg, mx=None, hsize=20, scale=1, margin=30, label=""):
     def s(i):
         return 1 + i * (size + 1)
 
@@ -117,10 +126,12 @@ def plot_seg(peaks, seg, mx=None, hsize=20, scale=1, margin=30):
     my = (n + mx - 1) // mx
     seg = np.pad(seg, ((0, 0), (hsize, hsize), (hsize, hsize)))
     clip = np.zeros((my * size + (my + 1), mx * size + (mx + 1)), np.float32)
-    for i in range(n):
+
+    peaks = peaks[peaks.kind == "cell"]
+    ys = np.array(peaks.y)
+    xs = np.array(peaks.x)
+    for i, (y, x) in enumerate(zip(ys, xs)):
         j, k = divmod(i, mx)
-        y = peaks.y[i]
-        x = peaks.x[i]
         clip[s(j) : e(j), s(k) : e(k)] = seg[i, y : y + size, x : x + size]
 
     kwargs = dict(
@@ -131,11 +142,12 @@ def plot_seg(peaks, seg, mx=None, hsize=20, scale=1, margin=30):
     return plot_clip(clip, size + 1, size + 1, scale, margin, **kwargs)
 
 
-def plot_calcium(trace, seg, hz, scale=0.3):
+def plot_calcium(trace, seg, hz, scale=0.3, margin=30, label=""):
     nk, nt = trace.shape
     trace = trace / seg.sum(axis=(1, 2))[:, np.newaxis]
     trace *= -scale
     trace += np.arange(nk)[:, np.newaxis]
+    margin = dict(t=margin, b=60 + margin, l=50 + margin, r=margin)
     fig = go.Figure(
         data=[
             go.Scatter(
@@ -148,8 +160,9 @@ def plot_calcium(trace, seg, hz, scale=0.3):
         ],
         layout=go.Layout(
             template="none",
-            width=nt,
-            height=nk * 5,
+            width=nt + margin["l"] + margin["r"],
+            height=nk * 3 + margin["t"] + margin["b"],
+            margin=margin | dict(autoexpand=False),
             showlegend=False,
         ),
     )
@@ -160,17 +173,17 @@ def plot_calcium(trace, seg, hz, scale=0.3):
     fig.update_yaxes(
         title="cell ID",
         autorange="reversed",
-        tickmode="linear",
-        tick0=1,
-        dtick=100,
+        tickmode = 'array',
+        tickvals = [1] + list(range(100, nk, 100)) + [nk],
         zeroline=False,
     )
     return fig
 
 
-def plot_spike(spike, hz, scale=1, margin=30):
+def plot_spike(spike, hz, scale=1, margin=30, label=""):
     nk, nt = spike.shape
     spike = spike / spike.max(axis=1, keepdims=True)
+    margin = dict(t=margin, b=60 + margin, l=50 + margin, r=margin)
     fig = go.Figure(
         data=go.Heatmap(
             x=np.arange(nt) / hz,
@@ -178,7 +191,14 @@ def plot_spike(spike, hz, scale=1, margin=30):
             z=spike,
             colorscale="Reds",
             showscale=False,
-        )
+        ),
+        layout=go.Layout(
+            template="none",
+            width=nt + margin["l"] + margin["r"],
+            height=nk * 3 + margin["t"] + margin["b"],
+            margin=margin | dict(autoexpand=False),
+            showlegend=False,
+        ),
     )
     fig.update_xaxes(
         title="time (sec)",
@@ -187,9 +207,8 @@ def plot_spike(spike, hz, scale=1, margin=30):
     fig.update_yaxes(
         title="cell ID",
         autorange="reversed",
-        tickmode="linear",
-        tick0=1,
-        dtick=100,
+        tickmode = 'array',
+        tickvals = [1] + list(range(100, nk, 100)) + [nk],
         zeroline=False,
     )
     return fig
@@ -221,7 +240,7 @@ def ygrid_data(h, w, size):
     ]
 
 
-def plot_clip(clip, xsize, ysize, scale, margin, **kwargs):
+def plot_clip(clip, ysize, xsize, scale, margin, **kwargs):
     h, w = clip.shape
     fig = go.Figure(
         data=[

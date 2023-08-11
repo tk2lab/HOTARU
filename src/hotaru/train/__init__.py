@@ -6,18 +6,14 @@ from .penalty import (
     Penalty,
     get_penalty,
 )
-from .prepare import (
-    prepare_spatial,
-    prepare_temporal,
-)
 from .regularizer import (
     MaxNormNonNegativeL1,
     NonNegativeL1,
     Regularizer,
 )
 from .train import (
-    optimize_spatial,
-    optimize_temporal,
+    spatial,
+    temporal,
 )
 
 __all__ = [
@@ -28,8 +24,6 @@ __all__ = [
     "SpikeToCalcium",
     "get_dynamics",
     "get_penalty",
-    "prepare_spatial",
-    "prepare_temporal",
-    "optimize_spatial",
-    "optimize_temporal",
+    "spatial",
+    "temporal",
 ]

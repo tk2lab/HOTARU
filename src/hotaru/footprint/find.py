@@ -1,7 +1,9 @@
 from collections import namedtuple
+from logging import getLogger
 
 import jax.numpy as jnp
 import numpy as np
+import tensorflow as tf
 
 from ..filter import (
     gaussian,
@@ -9,41 +11,44 @@ from ..filter import (
     mapped_imgs,
     max_pool,
 )
-from ..utils import get_progress
+from ..utils import get_gpu_env
 from .radius import get_radius
+
+logger = getLogger(__name__)
 
 PeakVal = namedtuple("PeakVal", ["radius", "t", "r", "v"])
 
 
-def find_peaks(data, radius, batch=(1, 100), pbar=None):
-    def prepare(start, end):
-        return (
-            jnp.arange(start, end),
-            jnp.array(imgs[start:end], jnp.float32),
-            jnp.array(avgt[start:end], jnp.float32),
-        )
-
-    def calc(ts, imgs, avgt):
-        imgs = (imgs - avgx - avgt[:, jnp.newaxis, jnp.newaxis]) / std0
-        g, t, r = _find_peaks(imgs, mask, radius)
+def find_peaks(data, radius, env=None, factor=100):
+    def calc(ts, imgs):
+        t, r, g = _find_peaks(imgs, mask, radius)
         t = ts[t]
-        return g, t, r
+        return t, r, g
 
-    types = [
-        ("argmax", jnp.float32),
-        ("argmax", jnp.int32),
-        ("argmax", jnp.int32),
+    nt, h, w = data.imgs.shape
+    mask = data.mask
+
+    radius = get_radius(radius)
+    batch = get_gpu_env(env).batch(float(factor) * h * w * len(radius), nt)
+
+    logger.info(f"find: {radius} {batch}")
+    dataset = tf.data.Dataset.from_generator(
+        lambda: enumerate(data.data(mask_type=False)),
+        output_signature=(
+            tf.TensorSpec((), tf.int32),
+            tf.TensorSpec((h, w), tf.float32),
+        ),
+    )
+    types = [("argmax", -1), ("argmax", -1), "max"]
+    init = [
+        jnp.full((h, w), -1, jnp.int32),
+        jnp.full((h, w), -1, jnp.int32),
+        jnp.full((h, w), -jnp.inf),
     ]
-
-    imgs, mask, _, avgx, avgt, std0, *_ = data
-    nt, h, w = imgs.shape
-    radius = get_radius(**radius)
-
-    pbar = get_progress(pbar)
-    pbar.session("find")
-    pbar.set_count(nt)
-    out = mapped_imgs(nt, prepare, calc, types, batch, pbar)
-    return PeakVal(*(np.array(o) for o in (radius,) + out))
+    logger.info("%s: %s %s %d", "pbar", "start", "find", nt)
+    jnp_out = mapped_imgs(dataset, nt, calc, types, init, batch)
+    logger.info("%s: %s", "pbar", "close")
+    return PeakVal(np.array(radius, np.float32), *map(np.array, jnp_out))
 
 
 def simple_peaks(img, gauss, maxpool, pbar=None):
@@ -62,7 +67,7 @@ def simple_peaks(img, gauss, maxpool, pbar=None):
 
 
 def simple_find(imgs, mask, radius):
-    v, t, r = (np.array(o) for o in _find_peaks(imgs, mask, get_radius(**radius)))
+    t, r, v = (np.array(o) for o in _find_peaks(imgs, mask, get_radius(**radius)))
     idx = jnp.where(np.isfinite(v))
     return t[idx], idx[:, 0], idx[:, 1], r[idx], v[idx]
 
@@ -77,4 +82,4 @@ def _find_peaks(imgs, mask, radius):
     gl_peak_val = jnp.where(gl_peak, gl, -jnp.inf)
     idx = jnp.argmax(gl_peak_val.reshape(-1, h, w), axis=0)
     t, r = jnp.divmod(idx, len(radius))
-    return gl_peak_val.max(axis=(0, 1)), t, r
+    return t, r, gl_peak_val.max(axis=(0, 1))

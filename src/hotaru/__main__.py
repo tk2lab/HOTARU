@@ -1,28 +1,18 @@
-import os
+import logging
 import webbrowser
 
 import hydra
 
-from .app.cui import HotaruCUI
-from .app.gui import HotaruGUI
+from .cui import cui_main
 
 
 @hydra.main(version_base=None, config_path="pkg://hotaru.conf", config_name="config")
 def main(cfg):
-    print(cfg)
-    print(os.getcwd())
-    print(hydra.utils.get_original_cwd())
-    print(hydra.utils.to_absolute_path("conf"))
-    print(hydra.utils.to_absolute_path("/etc"))
-    match cfg.interface:
-        case "GUI":
-            app = HotaruGUI(cfg)
-            app.run_server(**cfg.server)
-            if cfg.server.open_brower:
-                webbrowser.open_new(f"http://{cfg.server.host}:{cfg.server.port}")
-        case "CUI":
-            HotaruCUI(cfg)
-
-
-if __name__ == "__main__":
-    main()
+    if cfg.gui.use:
+        pass
+        # app = gui(cfg)
+        # app.run_server(**cfg.gui.server)
+        if cfg.gui.open_brower:
+            webbrowser.open_new(f"http://{cfg.gui.userver.host}:{cfg.gpu.server.port}")
+    else:
+        cui_main(cfg)

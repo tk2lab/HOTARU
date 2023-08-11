@@ -1,0 +1,17 @@
+label: ""
+dynamics:
+  type: double_exp
+  tau1: 0.08
+  tau2: 0.16
+  duration: 1.0
+  hz: ${data.imgs.hz}
+penalty:
+  _target_: hotaru.train.Penalty
+  bx: 0.1
+  bt: 0.1
+  la:
+    _target_: hotaru.train.MaxNormNonNegativeL1
+    fac: 20.0
+  lu:
+    _target_: hotaru.train.MaxNormNonNegativeL1
+    fac: 30.0

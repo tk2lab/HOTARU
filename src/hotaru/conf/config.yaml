@@ -1,38 +1,33 @@
 defaults:
   - _self_
-  - data: nomask20
-  - radius: log_2_16
-  - density: min2
-  - dynamics: double_exp_0.08_0.16
-  - penalty: 20_30_0.1_0.1
-  - init
-  - train
-  - hotaru
+  - data: default
+  - radius: default
+  - density: default
+  - model: default
+  - cmd: default
+  - outputs: default
+  - gpu: default
+  - override hydra/output: hotaru
+  - override hydra/job_logging: hotaru
 
-thr_distance: 2
 max_train_step: 10
-batch_frame: 100
-block_size: 100
+early_stop: true
+force_from:
+  - 100
+  - spatial
+trace: false
 
-num_devices: 1
-force: false
+gui:
+  use: false
+  server:
+    host: localhost
+    port: 8080
+  browser:
+    open: true
 
 hydra:
   job:
     name: hotaru
-  searchpath: 
-    - file://.
-  job_logging:
-    formatters:
-      brief:
-        format: '%(message)s'
-    handlers:
-      hotaru:
-        class: hotaru.utils.LoggingHandler
-        level: INFO
-        formatter: brief
-        stream: ext://sys.stdout
-    root:
-      handlers:
-      - file
-      - hotaru
+    env_set:
+      TF_CPP_MIN_LOG_LEVEL: 1
+      JAX_PLATFORMS: cuda

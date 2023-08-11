@@ -1,21 +1,23 @@
 from collections import namedtuple
+from logging import getLogger
 
 import jax.numpy as jnp
 import numpy as np
+import tensorflow as tf
 
-from ..utils import get_progress
+from ..utils import get_gpu_env
 from .map import mapped_imgs
 from .neighbor import neighbor
 
-Stats = namedtuple("Stats", "avgx avgt std0 min0 max0 min1 max1 imax istd icor")
+logger = getLogger(__name__)
+
+Stats = namedtuple("Stats", "avgx avgt std0 min0 max0 min1 max1")
+StatsImages = namedtuple("StatsImages", "imax istd icor")
 
 
-def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
-
-    def prepare(start, end):
-        return jnp.array(imgs[start:end], jnp.float32)
-
-    def calc(imgs):
+def calc_stats(imgs, mask=None, env=None, factor=100):
+    def calc(index, imgs):
+        imgs = imgs.astype(jnp.float32)
         if mask is None:
             masked = imgs.reshape(-1, h * w)
         else:
@@ -32,9 +34,10 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
         sqi = jnp.nansum(jnp.square(diff), axis=0)
         sqn = jnp.nansum(jnp.square(neig), axis=0)
         cor = jnp.nansum(diff * neig, axis=0)
-        return min0, max0, imin, imax, avgt, sumi, sumn, sqi, sqn, cor
+        return avgt, min0, max0, imin, imax, sumi, sumn, sqi, sqn, cor, index
 
-    def finish(min0, max0, imin, imax, avgt, sumi, sumn, sqi, sqn, cor):
+    def finish(avgt, min0, max0, imin, imax, sumi, sumn, sqi, sqn, cor):
+        avgt = avgt[:-1]
         avgx = sumi / nt
         avgn = sumn / nt
         varx = sqi / nt - jnp.square(avgx)
@@ -60,25 +63,29 @@ def calc_stats(imgs, mask=None, batch=(1, 100), pbar=None):
 
         stats = avgx, avgt, std0, min0.min(), max0.max(), imin.min(), imax.max()
         simgs = imax, istd, icor
-        stats = Stats(*map(np.array, stats + simgs))
-        return stats
+        return Stats(*map(np.array, stats)), StatsImages(*map(np.array, simgs))
 
-    types = [
-        ("min", jnp.int32),
-        ("max", jnp.int32),
-        ("min", jnp.float32),
-        ("max", jnp.float32),
-        ("stack", jnp.float32),
-        ("add", jnp.float32),
-        ("add", jnp.float32),
-        ("add", jnp.float32),
-        ("add", jnp.float32),
-        ("add", jnp.float32),
-    ]
     nt, h, w = imgs.shape
+    batch = get_gpu_env(env).batch(float(factor) * h * w, nt)
 
-    pbar = get_progress(pbar)
-    pbar.session("stats")
-    pbar.set_count(nt)
-    out = mapped_imgs(nt, prepare, calc, types, batch, pbar)
-    return finish(*out)
+    logger.info(f"stats: {batch}")
+    dataset = tf.data.Dataset.from_generator(
+        lambda: zip(range(nt), imgs),
+        output_signature=(
+            tf.TensorSpec((), tf.int32),
+            tf.TensorSpec((h, w), imgs.dtype),
+        ),
+    )
+    types = [("stack", -1)] + ["min", "max"] * 2 + ["add"] * 5
+    init = [jnp.empty((nt + 1,))] + [jnp.zeros((h, w))] * 9
+
+    logger.info("%s: %s %s %d", "pbar", "start", "stats", nt)
+    stats, simgs = finish(*mapped_imgs(dataset, nt, calc, types, init, batch))
+    logger.info("%s: %s", "pbar", "close")
+
+    logger.info(f"min: {stats.min0}")
+    logger.info(f"max: {stats.max0}")
+    logger.info(f"std: {stats.std0}")
+    logger.info(f"normalized min: {stats.min1}")
+    logger.info(f"normalized max: {stats.max1}")
+    return stats, simgs

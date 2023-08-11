@@ -1,8 +1,12 @@
+from logging import getLogger
+
+import tensorflow as tf
 import jax.numpy as jnp
 import numpy as np
 
 from ..filter.map import mapped_imgs
-from ..utils import get_progress
+
+logger = getLogger(__name__)
 
 
 def mask_fn(x, num_devices):
@@ -22,47 +26,38 @@ def calc_cov_out(x0, i=0, num_devices=1):
     return xval, xcov, xout
 
 
-def matmul_batch(x, y, trans, batch, pbar=None):
-    imgs, mask, _, avgx, avgt, std0, *_ = y
+def matmul_batch(data, x, trans, batch):
+    logger.info("matmul: %s %s %s", batch, data.imgs.shape, x.shape)
+    nt = data.nt
+    nx = data.nx
+    nk = x.shape[0]
 
     if trans:
-
-        def prepare(start, end):
-            return (
-                jnp.array(imgs[start:end], jnp.float32),
-                jnp.array(avgt[start:end], jnp.float32),
-            )
-
-        def calc(imgs, avgt):
-            if mask is None:
-                y = ((imgs - avgx).reshape(-1, h * w) - avgt[:, jnp.newaxis]) / std0
-            else:
-                y = ((imgs - avgx)[:, mask] - avgt[:, None]) / std0
-            return jnp.matmul(y, x.T)
-
-        types = [("stack", jnp.float32)]
-
+        dataset = tf.data.Dataset.from_generator(
+            lambda: enumerate(data.data(mask_type=True)),
+            output_signature=(
+                tf.TensorSpec((), tf.int32),
+                tf.TensorSpec((nx,), tf.float32),
+            ),
+        )
+        types = [("stack", -1)]
+        init = [jnp.empty((nt + 1, nk))]
+        def calc(index, y):
+            return jnp.matmul(y, x.T), index
     else:
+        dataset = tf.data.Dataset.from_generator(
+            lambda: zip(data.data(mask_type=True), x.T),
+            output_signature=(
+                tf.TensorSpec((nx,), tf.float32),
+                tf.TensorSpec((nk,), tf.float32),
+            ),
+        )
+        types = ["add"]
+        init = [jnp.zeros((nx, nk))]
+        def calc(y, x):
+            return jnp.matmul(y.T, x),
 
-        def prepare(start, end):
-            return (
-                jnp.array(x.T[start:end], jnp.float32),
-                jnp.array(imgs[start:end], jnp.float32),
-                jnp.array(avgt[start:end], jnp.float32),
-            )
-
-        def calc(x, imgs, avgt):
-            if mask is None:
-                y = ((imgs - avgx).reshape(-1, h * w) - avgt[:, None]) / std0
-            else:
-                y = ((imgs - avgx)[:, mask] - avgt[:, None]) / std0
-            return jnp.matmul(y.T, x)
-
-        types = [("add", jnp.float32)]
-
-    nt, h, w = imgs.shape
-
-    pbar = get_progress(pbar)
-    pbar.set_count(nt)
-    out, = mapped_imgs(nt, prepare, calc, types, batch, pbar)
+    out, = mapped_imgs(dataset, nt, calc, types, init, batch, jnp.zeros(()))
+    if trans:
+        out = out[:-1]
     return np.array(out.T)

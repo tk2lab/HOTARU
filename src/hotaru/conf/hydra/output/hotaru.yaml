@@ -1,0 +1,7 @@
+# @package hydra
+
+run:
+  dir: ${outputs.dir}/logs
+sweep:
+  dir: ${outputs.dir}/logs
+  subdir: ${hydra.job.num}

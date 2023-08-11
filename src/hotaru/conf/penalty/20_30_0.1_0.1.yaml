@@ -1,9 +1,0 @@
-_target_: hotaru.train.Penalty
-la:
-  _target_: hotaru.train.MaxNormNonNegativeL1
-  fac: 20.0
-lu:
-  _target_: hotaru.train.MaxNormNonNegativeL1
-  fac: 30.0
-bx: 0.1
-bt: 0.1

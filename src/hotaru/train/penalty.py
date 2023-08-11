@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import hydra
 
-Penalty = namedtuple("Penalty", "la lu bx bt")
+Penalty = namedtuple("Penalty", "bx bt la lu")
 
 
 def get_penalty(penalty):

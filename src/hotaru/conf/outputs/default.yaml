@@ -1,0 +1,27 @@
+dir: outputs
+stats:
+  dir: ${data.label}
+  files:
+    - stats.npz
+find:
+  dir: ${data.label}${radius.label}
+  files:
+    - find.npz
+make:
+  dir: ${data.label}${radius.label}${density.label}
+  files:
+    - "{stage:03d}footprint.npy"
+    - "{stage:03d}peaks.npy"
+clean:
+  dir: ${data.label}${radius.label}${density.label}${model.label}
+  files:
+    - "{stage:03d}footprint.npy"
+    - "{stage:03d}peaks.npy"
+spatial:
+  dir: ${data.label}${radius.label}${density.label}${model.label}
+  files:
+    - "{stage:03d}segment.npy"
+temporal:
+  dir: ${data.label}${radius.label}${density.label}${model.label}
+  files:
+    - "{stage:03d}spike.npy"

@@ -1,16 +1,17 @@
 import multiprocessing as mp
+from logging import getLogger
 
 import numpy as np
 import pandas as pd
 
+logger = getLogger(__name__)
 
-def reduce_peaks(peakval, rmin, rmax, thr_distance, block_size):
+
+def reduce_peaks(peakval, min_distance_ratio, block_size, **args):
     radius, ts, rs, vs = peakval
-    radius = np.array(radius)
-    if rmax < 0:
-        rmax = radius.size - rmax
     h, w = vs.shape
-    margin = int(np.ceil(thr_distance * rs.max()))
+    margin = int(np.ceil(min_distance_ratio * rs.max()))
+    logger.debug(f"reduce_peaks: {radius} {min_distance_ratio} {block_size}")
     args = []
     for xs in range(0, w - margin, block_size):
         x0 = max(xs - margin, 0)
@@ -23,57 +24,76 @@ def reduce_peaks(peakval, rmin, rmax, thr_distance, block_size):
             t = ts[y0:y1, x0:x1]
             r = rs[y0:y1, x0:x1]
             v = vs[y0:y1, x0:x1]
-            args.append(((y0, x0, ys, xs, ye, xe), (t, r, v, rmin, rmax, thr_distance)))
+            args.append(
+                (
+                    (y0, x0, ys, xs, ye, xe),
+                    (t, r, v, radius, min_distance_ratio),
+                )
+            )
 
-    y, x = [], []
+    out = []
     with mp.Pool() as pool:
-        for yi, xi in pool.imap_unordered(_reduce_peaks, args):
-            y.append(yi)
-            x.append(xi)
+        for o in pool.imap_unordered(_reduce_peaks, args):
+            out.append(o)
+    celly, cellx, bgy, bgx = [np.concatenate(v, axis=0) for v in zip(*out)]
 
-    y = np.concatenate(y, axis=0)
-    x = np.concatenate(x, axis=0)
-    t = ts[y, x]
-    r = rs[y, x]
-    v = vs[y, x]
-    r = radius[r]
-    return (
-        pd.DataFrame(dict(t=t, r=r, y=y, x=x, v=v))
-        .sort_values("v", ascending=False)
-        .reset_index(drop=True)
-    )
+    def make_dataframe(y, x):
+        df = pd.DataFrame(
+            dict(
+                y=y,
+                x=x,
+                t=ts[y, x],
+                radius=radius[rs[y, x]],
+                intensity=vs[y, x],
+            )
+        )
+        return df.sort_values("intensity", ascending=False)
+    cell = make_dataframe(celly, cellx)
+    cell["kind"] = "cell"
+    bg = make_dataframe(bgy, bgx)
+    bg["kind"] = "background"
+    peaks = pd.concat([cell, bg], axis=0)
+    peaks = peaks.reset_index(drop=True)
+    peaks.insert(0, "uid", peaks.index)
+    return peaks
 
 
-def reduce_peaks_simple(ts, rs, vs, rmin, rmax, thr_distance):
+def reduce_peaks_simple(ts, rs, vs, radius, min_distance_ratio):
     h, w = vs.shape
     n = np.count_nonzero(np.isfinite(vs))
+    nr = len(radius)
     idx = np.argsort(vs.ravel())[::-1][:n]
     ys, xs = np.divmod(idx, w)
     ts = ts[ys, xs]
     rs = rs[ys, xs]
     flg = np.arange(idx.size)
-    out = []
+    cell = []
+    bg = []
     while flg.size > 0:
         i, j = flg[0], flg[1:]
         y0, x0 = ys[i], xs[i]
         y1, x1 = ys[j], xs[j]
-        yo, xo = ys[out], xs[out]
-        thr = thr_distance * rs[i]
-        if (rmin <= rs[i] <= rmax) and (
-            not out or np.all(np.hypot(xo - x0, yo - y0) >= thr)
-        ):
+        yo, xo = ys[cell], xs[cell]
+        thr = min_distance_ratio * radius[rs[i]]
+        flg = j
+        if rs[i] == 0:
+            pass
+        elif rs[i] == nr - 1:
+            bg.append(i)
+        elif not cell or np.all(np.hypot(xo - x0, yo - y0) >= thr):
             cond = np.hypot(x1 - x0, y1 - y0) >= thr
-            flg = j[cond]
-            out.append(i)
-        else:
-            flg = j
-    return ys[out], xs[out]
+            flg = flg[cond]
+            cell.append(i)
+    return ys[cell], xs[cell], ys[bg], xs[bg]
 
 
 def _reduce_peaks(args):
+    def fix(y, x):
+        y += y0
+        x += x0
+        cond = (ys <= y) & (y < ye) & (xs <= x) & (x < xe)
+        return y[cond], x[cond]
+
     y0, x0, ys, xs, ye, xe = args[0]
-    y, x = reduce_peaks_simple(*args[1])
-    y += y0
-    x += x0
-    cond = (ys <= y) & (y < ye) & (xs <= x) & (x < xe)
-    return y[cond], x[cond]
+    celly, cellx, bgy, bgx = reduce_peaks_simple(*args[1])
+    return *fix(celly, cellx), *fix(bgy, bgx)

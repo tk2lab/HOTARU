@@ -22,17 +22,20 @@ def save(path, obj):
 
 
 def try_load(path):
-    path = Path(path)
-    try:
-        match path.suffix:
-            case ".npz":
-                with np.load(path) as npz:
-                    return namedtuple("LoadedData", npz.files)(**dict(npz.items()))
-            case ".npy":
-                return np.load(path)
-            case ".csv":
-                return pd.read_csv(path, index_col=0)
-            case _:
-                return
-    except Exception:
-        return
+    if isinstance(path, (list, tuple)):
+        return [try_load(p) for p in path]
+    else:
+        path = Path(path)
+        try:
+            match path.suffix:
+                case ".npz":
+                    with np.load(path) as npz:
+                        return namedtuple("LoadedData", npz.files)(**dict(npz.items()))
+                case ".npy":
+                    return np.load(path)
+                case ".csv":
+                    return pd.read_csv(path, index_col=0)
+                case _:
+                    return
+        except Exception:
+            return

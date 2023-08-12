@@ -63,24 +63,25 @@ def reduce_peaks_simple(ys, xs, rs, vs, density, **args):
     min_distance_ratio = density.min_distance_ratio
 
     n = np.count_nonzero(np.isfinite(vs))
-    idx = np.argsort(vs)[::-1][:n]
-    flg = np.arange(idx.size)
+    flg = np.argsort(vs)[::-1][:n]
     cell = []
     bg = []
     while flg.size > 0:
-        i, j = flg[0], flg[1:]
-        y0, x0, r0 = ys[i], xs[i], rs[i]
-        y1, x1 = ys[j], xs[j]
-        yo, xo = ys[cell], xs[cell]
-        thr = min_distance_ratio * r0
-        flg = j
+        i, flg = flg[0], flg[1:]
+        r0 = rs[i]
         if r0 >= min_radius:
-            if not cell or np.all(np.hypot(xo - x0, yo - y0) >= thr):
-                cond = np.hypot(x1 - x0, y1 - y0) >= thr
-                flg = flg[cond]
-                if r0 <= max_radius:
+            y0, x0 = ys[i], xs[i]
+            thr = min_distance_ratio * r0
+            if r0 <= max_radius:
+                yc, xc = ys[cell], xs[cell]
+                if not cell or np.all(np.hypot(xc - x0, yc - y0) >= thr):
+                    y1, x1 = ys[flg], xs[flg]
+                    cond = np.hypot(x1 - x0, y1 - y0) >= thr
+                    flg = flg[cond]
                     cell.append(i)
-                else:
+            else:
+                yb, xb = ys[bg], xs[bg]
+                if not bg or np.all(np.hypot(xb - x0, yb - y0) >= thr):
                     bg.append(i)
     return cell, bg
 

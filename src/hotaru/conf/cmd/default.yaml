@@ -1,15 +1,15 @@
 stats:
-  factor: 100.0
+  factor: 500.0
 find:
   factor: 500.0
 reduce:
   block_size: 100
 make:
-  factor: 100.0
+  factor: 1000.0
 clean:
   factor: 1000.0
 spatial:
-  factor: 100.0
+  factor: 10.0
   lr: 0.005
   scale: 20
   n_epoch: 100

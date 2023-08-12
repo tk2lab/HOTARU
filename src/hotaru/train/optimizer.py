@@ -1,4 +1,3 @@
-from functools import partial
 from logging import getLogger
 
 import jax
@@ -35,6 +34,7 @@ class ProxOptimizer:
         return loss + penalty / self.loss_scale
 
     def fit(self, n_epoch, n_step, tol=None):
+        self._grad_loss_fn = jax.grad(self.loss_fn, argnums=range(len(self.x)))
         loss = self.loss()
         diff = np.inf
         history = [loss]
@@ -54,18 +54,15 @@ class ProxOptimizer:
 
     def step(self, n_step):
         x = self.x
-        y = tuple(jnp.array(xi) for xi in x)
-        update = partial(self._update)
-        x, _ = lax.fori_loop(0, n_step, update, (x, y))
+        x, _ = lax.fori_loop(0, n_step, self._update, (x, x))
         self.x = tuple(xi.block_until_ready() for xi in x)
 
     def _update(self, i, xy):
+        x, y = xy
         scale = self.scale
         t0 = (scale + i) / scale
         t1 = (scale + 1) / (scale + i + 1)
-        x, y = xy
-        grad_loss_fn = jax.grad(self.loss_fn, argnums=range(len(y)))
-        grady = grad_loss_fn(*y)
+        grady = self._grad_loss_fn(*y)
         xy = [
             self._prox_update(xi, yi, gi, ri.prox, t0, t1)
             for ri, xi, yi, gi in zip(self.regularizers, x, y, grady)

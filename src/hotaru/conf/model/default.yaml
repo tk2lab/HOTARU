@@ -6,12 +6,15 @@ dynamics:
   duration: 1.0
   hz: ${data.imgs.hz}
 penalty:
-  _target_: hotaru.train.Penalty
+  la:
+    type: MaxNormNonNegativeL1
+    factor: 20.0
+  lu:
+    type: MaxNormNonNegativeL1
+    factor: 30.0
+  lt:
+    type: NoPenalty
+  lx:
+    type: NoPenalty
   bx: 0.1
   bt: 0.1
-  la:
-    _target_: hotaru.train.MaxNormNonNegativeL1
-    fac: 20.0
-  lu:
-    _target_: hotaru.train.MaxNormNonNegativeL1
-    fac: 30.0

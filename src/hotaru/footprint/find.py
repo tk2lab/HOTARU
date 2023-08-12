@@ -31,7 +31,7 @@ def find_peaks(data, radius, env=None, factor=100):
     radius = get_radius(radius)
     batch = get_gpu_env(env).batch(float(factor) * h * w * len(radius), nt)
 
-    logger.info(f"find: {radius} {batch}")
+    logger.info("find: %d %d %d %f %f", nt, h, w, radius[0], radius[-1])
     dataset = tf.data.Dataset.from_generator(
         lambda: enumerate(data.data(mask_type=False)),
         output_signature=(
@@ -48,6 +48,8 @@ def find_peaks(data, radius, env=None, factor=100):
     logger.info("%s: %s %s %d", "pbar", "start", "find", nt)
     jnp_out = mapped_imgs(dataset, nt, calc, types, init, batch)
     logger.info("%s: %s", "pbar", "close")
+    for i, r in enumerate(radius):
+        logger.info("%f %d", r, (jnp_out[1] == i).sum())
     return PeakVal(np.array(radius, np.float32), *map(np.array, jnp_out))
 
 

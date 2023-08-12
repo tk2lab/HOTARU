@@ -14,31 +14,31 @@ from ..filter import (
 from ..utils import get_gpu_env
 from .radius import get_radius
 from .segment import get_segment_mask
+from .reduce import reduce_peaks_simple
 
 logger = getLogger(__name__)
 
-Footprint = namedtuple("Footprint", "foootprit y x r intensity")
+Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 
-def clean(old_peaks, vals, shape, mask, radius, env, factor):
-    args = vals, shape, mask, radius, env, factor
-    segments, y, x, r, firmness = clean_footprints(*args)
+def clean(old_peaks, vals, shape, mask, radius, density, env, factor):
     old_peaks = old_peaks[old_peaks.kind != "remove"]
-    nr = len(radius)
-    kind = old_peaks.kind.to_numpy()
-    kind[r == 0] = "remove"
-    kind[r == nr - 1] = "background"
+    args = vals, shape, mask, radius, env, factor
+    segments, y, x, radius, firmness = clean_footprints(*args)
+    cell, bg = reduce_peaks_simple(y, x, radius, firmness, density)
 
     peaks = pd.DataFrame(
         dict(
             uid=old_peaks.uid.to_numpy(),
             y=y,
             x=x,
-            radius=np.array(radius)[r],
+            radius=radius,
             firmness=firmness,
-            kind=kind,
         )
     )
+    peaks["kind"] = "remove"
+    peaks.loc[cell, "kind"] = "cell"
+    peaks.loc[bg, "kind"] = "background"
     peaks["sum"] = segments.sum(axis=(1, 2))
     peaks["area"] = np.count_nonzero(segments > 0, axis=(1, 2))
 
@@ -46,9 +46,11 @@ def clean(old_peaks, vals, shape, mask, radius, env, factor):
         peaks[peaks.kind == key].sort_values("firmness", ascending=False)
         for key in ["cell", "background", "remove"]
     ]
+    nk = cell.shape[0]
     peaks = pd.concat([cell, bg, removed], axis=0)
+
     segments = segments[peaks[peaks.kind != "remove"].index]
-    return segments, peaks
+    return segments[:nk], segments[nk:], peaks
 
 
 def clean_footprints(vals, shape, mask, radius, env, factor):
@@ -97,5 +99,6 @@ def clean_footprints(vals, shape, mask, radius, env, factor):
     logger.info("clean: %s %s", (factor, h, w), batch)
     logger.info("%s: %s %s %d", "pbar", "start", "clean", nk)
     imgs, r, y, x, firmness = mapped_imgs(dataset, nk, calc, types, init, batch)
+    radius = np.array(radius)[r]
     logger.info("%s: %s", "pbar", "close")
-    return Footprint(*(np.array(v[:-1]) for v in (imgs, y, x, r, firmness)))
+    return Footprint(*(np.array(v[:-1]) for v in (imgs, y, x, radius, firmness)))

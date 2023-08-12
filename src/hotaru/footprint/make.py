@@ -27,8 +27,8 @@ def make_footprints(data, peaks, env=None, factor=10):
     out = jnp.empty((rs.size + 1, h, w))
     for r in np.unique(rs):
         index = np.where(rs == r)[0]
+        #logger.info("make: %f %d", r, index.size)
         batch = get_gpu_env(env).batch(float(factor) * h * w, index.size)
-        logger.info("make: %f %s", r, batch)
         dataset = tf.data.Dataset.from_generator(
             lambda: zip(data.data(ts[index]), ys[index], xs[index], index),
             output_signature=(

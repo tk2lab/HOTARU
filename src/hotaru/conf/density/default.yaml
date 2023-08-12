@@ -1,4 +1,4 @@
 label: ""
-min_radius: 3
-max_radius: 11
+min_radius: 2.5
+max_radius: 10
 min_distance_ratio: 2

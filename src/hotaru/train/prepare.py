@@ -27,7 +27,6 @@ def prepare(kind, data, y1, y2, dynamics, penalty, env, factor=10):
 
     dynamics = get_dynamics(dynamics)
     penalty = get_penalty(penalty)
-    batch = get_gpu_env(env).batch(float(factor) * (nk + nb) * nx, nt)
 
     y1 = jnp.array(y1, jnp.float32)
     y2 = jnp.array(y2, jnp.float32)
@@ -50,6 +49,7 @@ def prepare(kind, data, y1, y2, dynamics, penalty, env, factor=10):
         case _:
             raise ValueError()
 
+    batch = get_gpu_env(env).batch(float(factor) * (nk + nb) * nx, nt)
     logger.info("%s: %s %s %d", "pbar", "start", f"{kind} prepare", nt)
     ycor = matmul_batch(data, yval, trans, batch)
     logger.info("%s: %s", "pbar", "close")

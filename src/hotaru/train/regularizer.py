@@ -14,7 +14,8 @@ class NonNegativeL1:
         self.fac = fac
 
     def __call__(self, x):
-        return self.fac * jnp.maximum(0, x).sum()
+        #x = jnp.maximum(0, x)
+        return self.fac * x.sum()
 
     def prox(self, y, eta):
         return jnp.maximum(0, y - self.fac * eta)
@@ -25,7 +26,7 @@ class MaxNormNonNegativeL1:
         self.fac = fac
 
     def __call__(self, x):
-        x = jnp.maximum(0, x)
+        #x = jnp.maximum(0, x)
         s = x.sum(axis=-1)
         m = x.max(axis=-1)
         cond = m > 0

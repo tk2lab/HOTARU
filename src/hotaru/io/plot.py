@@ -22,7 +22,8 @@ def plot_simgs(simgs, scale=1, margin=30, label=None):
         showscale=False,
     )
     margin = dict(t=margin, b=margin, l=margin, r=margin)
-    return plot_clip(simgs, h + 1, w + 1, scale, margin, **kwargs)
+    data = [go.Heatmap(z=simgs, **kwargs)]
+    return plot_clip(data, simgs.shape, h + 1, w + 1, scale, margin)
 
 
 def plot_gl(data, radius, idx, scale=1, margin=30, label=""):
@@ -39,16 +40,17 @@ def plot_gl(data, radius, idx, scale=1, margin=30, label=""):
         zmax=1,
     )
     margin = dict(t=margin, b=margin, l=margin, r=margin + 40)
-    return plot_clip(gl, h, w, scale, margin, **kwargs)
+    data = [go.Heatmap(z=gl, **kwargs)]
+    return plot_clip(data, gl.shape, h, w, scale, margin)
 
 
 def plot_peak_stats(peaks, peakval=None, label=""):
     def jitter(r):
-        radius = np.sort(np.unique(r))
-        dscale = np.log((radius[1:] / radius[:-1]).min())
         jitter = np.exp(0.2 * dscale * np.random.randn(r.size))
         return r * jitter
 
+    radius = np.sort(np.unique(peaks.radius))
+    dscale = np.log((radius[1:] / radius[:-1]).min())
     data = []
     if peakval is None:
         intensity = "firmness"
@@ -61,19 +63,28 @@ def plot_peak_stats(peaks, peakval=None, label=""):
                 x=jitter(peakval.radius[peakval.r.ravel()]),
                 y=peakval.v.ravel(),
                 mode="markers",
-                marker_opacity=0.1,
+                marker=dict(opacity=0.01, color="blue"),
                 name="all pixels",
             )
         )
-    data.append(
+    cell = peaks[peaks.kind == "cell"]
+    bg = peaks[peaks.kind == "background"]
+    data += [
         go.Scattergl(
-            x=jitter(peaks.radius),
-            y=peaks[intensity],
+            x=jitter(cell.radius),
+            y=cell[intensity],
             mode="markers",
-            marker=dict(size=10, symbol="star", opacity=0.5),
-            name="select",
-        )
-    )
+            marker=dict(size=10, symbol="star", color="lime", opacity=0.5),
+            name="cell",
+        ),
+        go.Scattergl(
+            x=jitter(bg.radius),
+            y=bg[intensity],
+            mode="markers",
+            marker=dict(size=10, symbol="pentagon", color="yellow", opacity=0.5),
+            name="background",
+        ),
+    ]
 
     fig = go.Figure(
         data=data,
@@ -100,16 +111,18 @@ def plot_peak_stats(peaks, peakval=None, label=""):
     return fig
 
 
-def plot_seg_max(seg, scale=1, margin=30, label=""):
+def plot_seg_max(seg, bg, scale=1, margin=30, label=""):
     segmax = seg.max(axis=0)
+    bgmax = bg.max(axis=0)
     h, w = segmax.shape
     segmax = np.pad(segmax, ((1, 1), (1, 1)))
-    kwargs = dict(
-        colorscale="Greens",
-        showscale=False,
-    )
+    bgmax = np.pad(bgmax, ((1, 1), (1, 1)))
     margin = dict(t=margin, b=margin, l=margin, r=margin)
-    return plot_clip(segmax, h + 1, w + 1, scale, margin, **kwargs)
+    data = [
+        go.Heatmap(z=segmax, colorscale="Greens", showscale=False, opacity=0.8),
+        go.Heatmap(z=bgmax, colorscale="Reds", showscale=False, opacity=0.2),
+    ]
+    return plot_clip(data, segmax.shape, h + 1, w + 1, scale, margin)
 
 
 def plot_seg(peaks, seg, mx=None, hsize=20, scale=1, margin=30, label=""):
@@ -139,7 +152,8 @@ def plot_seg(peaks, seg, mx=None, hsize=20, scale=1, margin=30, label=""):
         showscale=False,
     )
     margin = dict(t=margin, b=margin, l=margin, r=margin)
-    return plot_clip(clip, size + 1, size + 1, scale, margin, **kwargs)
+    data = [go.Heatmap(z=clip, **kwargs)]
+    return plot_clip(data, clip.shape, size + 1, size + 1, scale, margin)
 
 
 def plot_calcium(trace, seg, hz, scale=0.3, margin=30, label=""):
@@ -173,8 +187,8 @@ def plot_calcium(trace, seg, hz, scale=0.3, margin=30, label=""):
     fig.update_yaxes(
         title="cell ID",
         autorange="reversed",
-        tickmode = 'array',
-        tickvals = [1] + list(range(100, nk, 100)) + [nk],
+        tickmode="array",
+        tickvals=[1] + list(range(100, nk, 100)) + [nk],
         zeroline=False,
     )
     return fig
@@ -182,7 +196,8 @@ def plot_calcium(trace, seg, hz, scale=0.3, margin=30, label=""):
 
 def plot_spike(spike, hz, scale=1, margin=30, label=""):
     nk, nt = spike.shape
-    spike = spike / spike.max(axis=1, keepdims=True)
+    spmax = spike.max(axis=1, keepdims=True)
+    spike = spike / np.where(spmax > 0, spmax, 1)
     margin = dict(t=margin, b=60 + margin, l=50 + margin, r=margin)
     fig = go.Figure(
         data=go.Heatmap(
@@ -207,8 +222,8 @@ def plot_spike(spike, hz, scale=1, margin=30, label=""):
     fig.update_yaxes(
         title="cell ID",
         autorange="reversed",
-        tickmode = 'array',
-        tickvals = [1] + list(range(100, nk, 100)) + [nk],
+        tickmode="array",
+        tickvals=[1] + list(range(100, nk, 100)) + [nk],
         zeroline=False,
     )
     return fig
@@ -240,17 +255,10 @@ def ygrid_data(h, w, size):
     ]
 
 
-def plot_clip(clip, ysize, xsize, scale, margin, **kwargs):
-    h, w = clip.shape
+def plot_clip(data, shape, ysize, xsize, scale, margin):
+    h, w = shape
     fig = go.Figure(
-        data=[
-            go.Heatmap(
-                z=clip,
-                **kwargs,
-            ),
-        ]
-        + xgrid_data(h, w, xsize)
-        + ygrid_data(h, w, ysize),
+        data + xgrid_data(h, w, xsize) + ygrid_data(h, w, ysize),
         layout=go.Layout(
             legend_visible=False,
             width=scale * w + margin["l"] + margin["r"],

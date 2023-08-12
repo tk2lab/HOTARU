@@ -36,18 +36,19 @@ class ProxOptimizer:
     def fit(self, n_epoch, n_step, tol=None):
         self._grad_loss_fn = jax.grad(self.loss_fn, argnums=range(len(self.x)))
         loss = self.loss()
-        diff = np.inf
+        log_diff = np.inf
         history = [loss]
-        postfix = f"loss={loss:.4f}, diff= nan"
+        postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
         logger.info("%s: %s %s %d %s", "pbar", "start", self._name, n_epoch, postfix)
         for i in range(n_epoch):
             self.step(n_step)
             old_loss, loss = loss, self.loss()
-            diff = np.log10((old_loss - loss) / tol)
+            diff = (old_loss - loss) / tol
+            log_diff = np.log10(diff) if diff > 0 else np.nan
             history.append(loss)
-            postfix = f"loss={loss:.4f}, diff={diff:.2f}"
+            postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
             logger.info("%s: %s %d %s", "pbar", "update", 1, postfix)
-            if diff < 0.0:
+            if log_diff < 0.0:
                 break
         logger.info("%s: %s", "pbar", "close")
         return history

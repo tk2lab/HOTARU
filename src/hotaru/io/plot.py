@@ -57,13 +57,17 @@ def plot_peak_stats(peaks, peakval=None, label=""):
         vmax = peaks[intensity].max()
     else:
         intensity = "intensity"
-        vmax = peakval.v.max()
+        ri = peakval.r
+        cond = ri > 0
+        rs = peakval.radius[ri[cond]]
+        vs = peakval.v[cond]
+        vmax = vs.max()
         data.append(
             go.Scattergl(
-                x=jitter(peakval.radius[peakval.r.ravel()]),
-                y=peakval.v.ravel(),
+                x=jitter(rs),
+                y=vs,
                 mode="markers",
-                marker=dict(opacity=0.01, color="blue"),
+                marker=dict(opacity=0.03, color="blue"),
                 name="all pixels",
             )
         )
@@ -81,7 +85,7 @@ def plot_peak_stats(peaks, peakval=None, label=""):
             x=jitter(bg.radius),
             y=bg[intensity],
             mode="markers",
-            marker=dict(size=10, symbol="pentagon", color="yellow", opacity=0.5),
+            marker=dict(size=10, symbol="pentagon", color="gray", opacity=0.5),
             name="background",
         ),
     ]
@@ -112,16 +116,20 @@ def plot_peak_stats(peaks, peakval=None, label=""):
 
 
 def plot_seg_max(seg, bg, scale=1, margin=30, label=""):
-    segmax = seg.max(axis=0)
-    bgmax = bg.max(axis=0)
-    h, w = segmax.shape
-    segmax = np.pad(segmax, ((1, 1), (1, 1)))
-    bgmax = np.pad(bgmax, ((1, 1), (1, 1)))
     margin = dict(t=margin, b=margin, l=margin, r=margin)
+    nk, h, w = seg.shape
+
+    segmax = seg.max(axis=0)
+    segmax = np.pad(segmax, ((1, 1), (1, 1)))
     data = [
         go.Heatmap(z=segmax, colorscale="Greens", showscale=False, opacity=0.8),
-        go.Heatmap(z=bgmax, colorscale="Reds", showscale=False, opacity=0.2),
     ]
+    if bg.shape[0] > 0:
+        bgmax = bg.max(axis=0)
+        bgmax = np.pad(bgmax, ((1, 1), (1, 1)))
+        data += [
+            go.Heatmap(z=bgmax, colorscale="Reds", showscale=False, opacity=0.2),
+        ]
     return plot_clip(data, segmax.shape, h + 1, w + 1, scale, margin)
 
 

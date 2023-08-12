@@ -3,9 +3,6 @@ from logging import getLogger
 
 import jax.numpy as jnp
 
-from ..utils import (
-    get_gpu_env,
-)
 from .common import (
     calc_cov_out,
     matmul_batch,
@@ -18,52 +15,51 @@ logger = getLogger(__name__)
 Prepare = namedtuple("Prepare", "nt nx nk nb pena a b c")
 
 
-def prepare(kind, data, y1, y2, dynamics, penalty, env, factor=10):
+def prepare(kind, data, x1, x2, dynamics, penalty, env, factor):
     nt = data.nt
     nx = data.nx
-    nk = y1.shape[0]
-    nb = y2.shape[0]
-    logger.info("prepare: %d %d %s %s", nt, nx, y1.shape, y2.shape)
+    nk = x1.shape[0]
+    nb = x2.shape[0]
+    logger.info("prepare: %d %d %d %d", nt, nx, nk, nb)
 
     dynamics = get_dynamics(dynamics)
     penalty = get_penalty(penalty)
 
-    y1 = jnp.array(y1, jnp.float32)
-    y2 = jnp.array(y2, jnp.float32)
+    x1 = jnp.array(x1, jnp.float32)
+    x2 = jnp.array(x2, jnp.float32)
     match kind:
         case "spatial":
             bx = penalty.bx
             by = penalty.bt
-            trans = False
-            pena = penalty.lu(y1) + penalty.lt(y2)
-            yval = jnp.concatenate([dynamics(y1), y2], axis=0)
-            logger.debug("yval: %s %s", yval.min(axis=1), yval.max(axis=1))
-            yval /= yval.max(axis=1, keepdims=True)
+            pena = penalty.lu(x1) + penalty.lt(x2)
+            xval = jnp.concatenate([dynamics(x1), x2], axis=0)
+            xval /= xval.max(axis=1, keepdims=True)
+            yval = data.data(mask_type=True)
+            num, size = nt, nx
         case  "temporal":
             bx = penalty.bt
             by = penalty.bx
-            trans = True
-            pena = penalty.la(y1) + penalty.lx(y2)
-            yval = jnp.concatenate([y1, y2], axis=0)
-            yval = data.apply_mask(yval, mask_type=True)
+            pena = penalty.la(x1) + penalty.lx(x2)
+            xval = jnp.concatenate([x1, x2], axis=0)
+            xval = data.apply_mask(xval, mask_type=True)
+            yval = data.datax()
+            num, size = nx, nt
         case _:
             raise ValueError()
 
-    batch = get_gpu_env(env).batch(float(factor) * (nk + nb) * nx, nt)
-    logger.info("%s: %s %s %d", "pbar", "start", f"{kind} prepare", nt)
-    ycor = matmul_batch(data, yval, trans, batch)
+    logger.info("%s: %s %s %d", "pbar", "start", f"{kind} cor", num)
+    xcor = matmul_batch(xval, yval, size, env, factor)
     logger.info("%s: %s", "pbar", "close")
-    yval, ycov, yout = calc_cov_out(yval)
+    xcov, xout = calc_cov_out(xval, env, factor)
 
     cx = 1 - jnp.square(bx)
     cy = 1 - jnp.square(by)
 
-    a = ycor
-    b = ycov - cx * yout
-    c = yout - cy * ycov
-
-    logger.debug("ycor %s", ycor)
-    logger.debug("ycov %s", ycov)
-    logger.debug("yout %s", yout)
-    logger.debug("c %f %f", cx, cy)
+    a = xcor
+    b = xcov - cx * xout
+    c = xout - cy * xcov
+    logger.info("%s", a)
+    logger.info("%s", b)
+    logger.info("%s", c)
+    logger.info("%f", pena)
     return Prepare(nt, nx, nk, nb, pena, a, b, c)

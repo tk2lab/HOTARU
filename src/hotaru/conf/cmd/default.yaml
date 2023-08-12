@@ -9,14 +9,18 @@ make:
 clean:
   factor: 1000.0
 spatial:
-  factor: 0.1
+  factor:
+    - 1.0
+    - 1.0
   lr: 0.005
   scale: 20
   n_epoch: 100
   n_step: 100
   tol: 1e-5
 temporal:
-  factor: 10.0
+  factor:
+    - 10.0
+    - 1.0
   lr: 0.005
   scale: 20
   n_epoch: 100

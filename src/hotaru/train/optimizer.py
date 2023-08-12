@@ -5,17 +5,18 @@ import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
 
+from ..utils import get_gpu_env
 from .common import mask_fn
 
 logger = getLogger(__name__)
 
 
 class ProxOptimizer:
-    def __init__(self, loss_fn, x0, regularizers, num_devices=1, name=None):
+    def __init__(self, loss_fn, x0, regularizers, env, name=None):
         self.loss_fn = loss_fn
         self.regularizers = regularizers
         self.x = tuple(jnp.array(x) for x in x0)
-        self._num_devices = num_devices
+        self._env = get_gpu_env(env)
         self._name = name
 
     def set_params(self, lr, scale=20, loss_scale=1):
@@ -83,7 +84,7 @@ class ProxOptimizer:
             grady = mask_fn(grady, num_devices)[i]
             return update(oldx, oldy, grady, prox, t0, t1)
 
-        num_devices = self._num_devices
+        num_devices = self._env.num_devices
         if num_devices == 1:
             return update(oldx, oldy, grady, prox, t0, t1)
         else:

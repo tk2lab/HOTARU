@@ -53,3 +53,17 @@ class Data(namedtuple("Data", "imgs mask hz avgx avgt std0 min0 max0 min1 max1")
             idx = range(self.nt)
         for i in idx:
             yield self.select(i, mask_type)
+
+    def datax(self):
+        data = self.imgs.reshape(self.nt, -1)
+        avgx = self.avgx.ravel()
+        avgt = self.avgt
+        std0 = self.std0
+        if self.mask is None:
+            for d, a in zip(data.T, avgx):
+                yield (d - a - avgt) / std0
+        else:
+            mask = self.mask.ravel()
+            for m, d, a in zip(mask, data.T, avgx):
+                if m:
+                    yield (d - a - avgt) / std0

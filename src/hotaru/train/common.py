@@ -1,10 +1,12 @@
 from logging import getLogger
 
 import tensorflow as tf
+import jax
 import jax.numpy as jnp
 import numpy as np
 
 from ..filter.map import mapped_imgs
+from ..utils import get_gpu_env
 
 logger = getLogger(__name__)
 
@@ -16,48 +18,62 @@ def mask_fn(x, num_devices):
     return xval.reshape(num_devices, (n + d) // num_devices, *shape)
 
 
-def calc_cov_out(x0, i=0, num_devices=1):
-    nx = x0.shape[1]
-    xs = x0.sum(axis=1)
-    xval = mask_fn(x0, num_devices)[i]
-    xsum = mask_fn(xs, num_devices)[i]
-    xcov = xval @ x0.T
-    xout = xsum[:, None] * (xs / nx)
-    return xval, xcov, xout
+def clip(x, start, nd, batch):
+    nk, nz = x.shape
+    if start + nd * batch >= nz:
+        x = jnp.pad(x, ((0, 0), (0, nz - (start + nd * batch))))
+    return x.T[start:start + nd * batch].reshape((nd, batch, nk))
 
 
-def matmul_batch(data, x, trans, batch):
-    logger.info("matmul: %s %s %s", batch, data.imgs.shape, x.shape)
-    nt = data.nt
-    nx = data.nx
-    nk = x.shape[0]
+def calc_cov_out(x, env, factor):
+    @jax.pmap
+    def _calc(x):
+        return x.sum(axis=0), x.T @ x
 
-    if trans:
-        dataset = tf.data.Dataset.from_generator(
-            lambda: enumerate(data.data(mask_type=True)),
-            output_signature=(
-                tf.TensorSpec((), tf.int32),
-                tf.TensorSpec((nx,), tf.float32),
-            ),
-        )
-        types = [("stack", -1)]
-        init = [jnp.empty((nt + 1, nk))]
-        def calc(index, y):
-            return jnp.matmul(y, x.T), index
-    else:
-        dataset = tf.data.Dataset.from_generator(
-            lambda: zip(data.data(mask_type=True), x.T),
-            output_signature=(
-                tf.TensorSpec((nx,), tf.float32),
-                tf.TensorSpec((nk,), tf.float32),
-            ),
-        )
-        types = ["add"]
-        init = [jnp.zeros((nx, nk))]
-        def calc(y, x):
-            return jnp.matmul(y.T, x),
+    nk, nz = x.shape
+    nd, batch = get_gpu_env(env).batch(float(factor) * nk * nk, nz)
+    #logger.info("calc_err: %f %d %d %d %d", factor, nk, nz, nd, batch)
+    xsum = jnp.zeros((nk,))
+    xcov = jnp.zeros((nk, nk))
+    for i in range(0, nz, nd * batch):
+        xsumi, xcovi = _calc(clip(x, i, nd, batch))
+        xsum += xsumi.sum(axis=0)
+        xcov += xcovi.sum(axis=0)
+    return xcov, jnp.outer(xsum, xsum) / nz
 
-    out, = mapped_imgs(dataset, nt, calc, types, init, batch, jnp.zeros(()))
-    if trans:
-        out = out[:-1]
-    return np.array(out.T)
+
+def calc_err(nn, a, b, c, x, env, factor):
+    @jax.pmap
+    def _calc(a, x):
+        return (a * x).sum(), x.sum(axis=0), x.T @ x
+
+    nk, nz = x.shape
+    nd, batch = get_gpu_env(env).batch(float(factor) * nk * nk, nz)
+    #logger.info("calc_err: %f %d %d %d %d", factor, nk, nz, nd, batch)
+    xdot = jnp.zeros(())
+    xsum = jnp.zeros((nk,))
+    xcov = jnp.zeros((nk, nk))
+    for i in range(0, nz, nd * batch):
+        xdoti, xsumi, xcovi = _calc(clip(a, i, nd, batch), clip(x, i, nd, batch))
+        xdot += xdoti.sum()
+        xsum += xsumi.sum(axis=0)
+        xcov += xcovi.sum(axis=0)
+    return nn + (b * xcov).sum() + (xsum @ c @ xsum) / nz - 2 * xdot
+
+
+def matmul_batch(x, y, size, env, factor):
+    nk, num = x.shape
+    batch = get_gpu_env(env).batch(float(factor) * nk * size, num)
+    dataset = tf.data.Dataset.from_generator(
+        lambda: zip(x.T, y),
+        output_signature=(
+            tf.TensorSpec((nk,), tf.float32),
+            tf.TensorSpec((size,), tf.float32),
+        ),
+    )
+    init = [jnp.zeros((nk, size))]
+    types = ["add"]
+    def calc(x, y):
+        return jnp.matmul(x.T, y),
+    out, = mapped_imgs(dataset, num, calc, types, init, batch, jnp.zeros(()))
+    return np.array(out)

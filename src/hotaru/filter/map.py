@@ -25,8 +25,6 @@ def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan):
                     s0, s1, *shape = val[i].shape
                     vali = val[i].reshape([s0 * s1] + shape)
                     out[i] = out[i].at[val[index].ravel()].set(vali)
-                    logger.debug("index %s", val[index].ravel())
-                    logger.debug("stats %s %f %f", vali.shape, vali.min(), vali.max())
                 case ("argmax", index):
                     idx = jnp.argmax(val[-1], axis=0, keepdims=True)
                     val0 = jnp.max(val[k[1]], axis=0)
@@ -39,6 +37,7 @@ def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan):
     value_map = {
         tf.float32: pad_value,
         tf.uint16: tf.constant(0, tf.uint16),
+        tf.int16: tf.constant(0, tf.int16),
         tf.int32: -1,
         tf.int64: -1,
     }
@@ -53,9 +52,9 @@ def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan):
     dataset = dataset.batch(batch[1])
     dataset = dataset.padded_batch(batch[0], shapes, values)
     dataset = dataset.prefetch(1)
-    logger.debug("batch %s", batch)
-    logger.debug("shapes %s", shapes)
-    logger.debug("values %s", values)
+    #logger.debug("batch %s", batch)
+    #logger.debug("shapes %s", shapes)
+    #logger.debug("values %s", values)
 
     end = 0
     out = init
@@ -63,7 +62,7 @@ def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan):
         start, end = end, end + batch_size
         clip = [jnp.array(c) for c in clip]
         val = calc(*clip)
-        logger.debug("val/out %s/%s", [v.shape for v in val], [o.shape for o in out])
+        #logger.debug("val/out %s/%s", [v.shape for v in val], [o.shape for o in out])
         out = aggrigate(val, out)
         n = batch_size if end < nt else nt - start
         logger.info("%s: %s %d", "pbar", "update", n)

@@ -7,7 +7,7 @@ import tensorflow as tf
 logger = getLogger(__name__)
 
 
-def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan):
+def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan, in_axes=0, args=()):
     @jax.jit
     def aggrigate(val, out):
         for i, k in enumerate(types):
@@ -42,7 +42,7 @@ def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan):
         tf.int64: -1,
     }
 
-    calc = jax.pmap(calc)
+    calc = jax.pmap(calc, in_axes=in_axes)
 
     spec = dataset.element_spec
     batch_size = batch[0] * batch[1]
@@ -51,7 +51,7 @@ def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan):
 
     dataset = dataset.batch(batch[1])
     dataset = dataset.padded_batch(batch[0], shapes, values)
-    dataset = dataset.prefetch(1)
+    dataset = dataset.prefetch(10)
     #logger.debug("batch %s", batch)
     #logger.debug("shapes %s", shapes)
     #logger.debug("values %s", values)
@@ -61,7 +61,7 @@ def mapped_imgs(dataset, nt, calc, types, init, batch, pad_value=jnp.nan):
     for clip in dataset.as_numpy_iterator():
         start, end = end, end + batch_size
         clip = [jnp.array(c) for c in clip]
-        val = calc(*clip)
+        val = calc(*clip, *args)
         #logger.debug("val/out %s/%s", [v.shape for v in val], [o.shape for o in out])
         out = aggrigate(val, out)
         n = batch_size if end < nt else nt - start

@@ -60,6 +60,7 @@ dash-bootstrap-components = "^1.4.1"
 dash-mantine-components = "^0.12.1"
 tensorboard-plugin-profile = "^2.13.1"
 tensorflow = "^2.13.0"
+rich = "^13.5.2"
 
 [tool.poetry.scripts]
 hotaru = "hotaru.__main__:main"

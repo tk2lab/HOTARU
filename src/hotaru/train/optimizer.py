@@ -5,18 +5,15 @@ import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
 
-from ..utils import get_gpu_env
-from .common import mask_fn
-
 logger = getLogger(__name__)
 
 
 class ProxOptimizer:
-    def __init__(self, loss_fn, x0, regularizers, env, name=None):
+    def __init__(self, loss_fn, x0, regularizers, sharding, name=None):
         self.loss_fn = loss_fn
         self.regularizers = regularizers
-        self.x = tuple(jnp.array(x) for x in x0)
-        self._env = get_gpu_env(env)
+        self.x = tuple(jax.device_put(x, sharding) for x in x0)
+        self._sharding = sharding
         self._name = name
 
     def set_params(self, lr, scale=20, loss_scale=1):
@@ -60,35 +57,25 @@ class ProxOptimizer:
         self.x = tuple(xi.block_until_ready() for xi in x)
 
     def _update(self, i, xy):
-        x, y = xy
-        scale = self.scale
-        t0 = (scale + i) / scale
-        t1 = (scale + 1) / (scale + i + 1)
-        grady = self._grad_loss_fn(*y)
-        xy = [
-            self._prox_update(xi, yi, gi, ri.prox, t0, t1)
-            for ri, xi, yi, gi in zip(self.regularizers, x, y, grady)
-        ]
-        return tuple(zip(*xy))
-
-    def _prox_update(self, oldx, oldy, grady, prox, t0, t1):
-        def update(oldx, oldy, grady, prox, t0, t1):
+        def prox_update(prox, oldx, oldy, grady):
             newx = prox(oldy - self.scale_lr * grady, self.lr)
             tmpx = (1 - t0) * oldx + t0 * newx
             newy = (1 - t1) * newx + t1 * tmpx
             return newx, newy
 
-        def mask_update(oldx, oldy, grady, i):
-            oldx = mask_fn(oldx, num_devices)[i]
-            oldy = mask_fn(oldy, num_devices)[i]
-            grady = mask_fn(grady, num_devices)[i]
-            return update(oldx, oldy, grady, prox, t0, t1)
+        def sharding(x):
+            return lax.with_sharding_constraint(x, self._sharding)
 
-        num_devices = self._env.num_devices
-        if num_devices == 1:
-            return update(oldx, oldy, grady, prox, t0, t1)
-        else:
-            dev_id = jnp.arange(num_devices)
-            update_pmap = jax.pmap(mask_update, in_axes=(None, None, None, 0))
-            newx, newy = update_pmap(oldx, oldy, grady, dev_id)
-            return jnp.concatenate(newx, axis=0), jnp.concatenate(newy, axis=0)
+        scale = self.scale
+        t0 = (scale + i) / scale
+        t1 = (scale + 1) / (scale + i + 1)
+        x, y = xy
+        x = tuple(sharding(xi) for xi in x)
+        y = tuple(sharding(yi) for yi in y)
+        grady = self._grad_loss_fn(*y)
+        grady = tuple(sharding(gradyi) for gradyi in grady)
+        xy = tuple(
+            prox_update(ri.prox, xi, yi, gi)
+            for ri, xi, yi, gi in zip(self.regularizers, x, y, grady)
+        )
+        return tuple(zip(*xy))

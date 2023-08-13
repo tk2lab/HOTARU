@@ -1,0 +1,5 @@
+# @package hydra
+
+defaults:
+  - override output: hotaru
+  - override job_logging: hotaru

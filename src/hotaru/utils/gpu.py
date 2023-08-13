@@ -23,14 +23,14 @@ class GpuEnv:
         n = self.num_devices
         batch_size = min(size, max(n, int(n * self.memsize / factor)))
         batch = n, (batch_size + n - 1) // n
-        logger.info("batch: %s %s", (n, self.memsize, factor, size), batch)
+        logger.debug("batch: %s %s", (n, self.memsize, factor, size), batch)
         return batch
 
     def batch_sqrt(self, factor, size):
         n = self.num_devices
         batch_size = min(size, max(n, int(n * math.sqrt(self.memsize / factor))))
         batch = n, (batch_size + n - 1) // n
-        logger.info("batch: %s %s", (n, self.memsize, factor, size), batch)
+        logger.debug("batch: %s %s", (n, self.memsize, factor, size), batch)
         return batch
 
 

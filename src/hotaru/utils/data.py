@@ -12,7 +12,7 @@ class Data(namedtuple("Data", "imgs mask hz avgx avgt std0 min0 max0 min1 max1")
         return self.imgs.shape[0]
 
     @property
-    def nx(self):
+    def ns(self):
         match self.mask:
             case None:
                 return self.shape[0] * self.shape[1]

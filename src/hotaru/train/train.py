@@ -24,8 +24,7 @@ def spatial(data, oldx, y1, y2, dynamics, penalty, env, clip, prepare, optimize,
     outi = []
     outx = []
     for cl in clip:
-        cond = model.prepare(cl, **prepare)
-        index = np.where(cond)[0]
+        index = model.prepare(cl, **prepare)
         optimizer = model.optimizer(**optimize)
         x1, x2 = model.initial_data()
         x1, x2 = optimizer.fit((x1, x2), **step)
@@ -82,7 +81,8 @@ class Model:
         self.args = a, b, c, d, e
         self.py = py
 
-        self.lr_scale = 1 #np.abs(a.sum(axis=0)).max() + np.abs(c).max()
+        logger.info("mat scale: %f %f", np.abs(a.sum(axis=0)).max(), np.abs(c).max())
+        self.lr_scale = np.abs(c).max()
         self.loss_scale = nm
 
     def optimizer(self, lr, nesterov_scale):
@@ -132,6 +132,8 @@ class SpatialModel(Model):
         self._y2 = y2
         self._prepare(data, yval, trans, py, bx, by, **kwargs)
 
+        return np.where(cond)[0]
+
     def initial_data(self):
         n1 = self._y1.shape[0]
         n2 = self._y2.shape[0]
@@ -139,8 +141,9 @@ class SpatialModel(Model):
         return jnp.zeros((n1, ns)), jnp.zeros((n2, ns))
 
     def regularizer(self):
+        lb2 = jnp.square(self.penalty.lb)
         y2sum = jnp.square(jnp.array(self._y2)).sum(axis=1)
-        return self.penalty.la, L2(self.penalty.lb * y2sum[:, jnp.newaxis])
+        return self.penalty.la, L2(lb2 * y2sum[:, jnp.newaxis])
 
 
 class TemporalModel(Model):
@@ -187,5 +190,6 @@ class TemporalModel(Model):
         return super().loss_fn(x1, x2)
 
     def regularizer(self):
+        lb2 = jnp.square(self.penalty.lb)
         y2sum = jnp.square(jnp.array(self.y[self.n1:])).sum(axis=(1, 2))
-        return self.penalty.lu, L2(self.penalty.lb * y2sum[:, jnp.newaxis])
+        return self.penalty.lu, L2(lb2 * y2sum[:, jnp.newaxis])

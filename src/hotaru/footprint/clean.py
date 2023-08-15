@@ -1,11 +1,11 @@
 from collections import namedtuple
 from logging import getLogger
 
-import tensorflow as tf
 import jax
 import jax.numpy as jnp
-import pandas as pd
 import numpy as np
+import pandas as pd
+import tensorflow as tf
 
 from ..filter import (
     gaussian_laplace,
@@ -13,30 +13,21 @@ from ..filter import (
 )
 from ..utils import get_gpu_env
 from .radius import get_radius
-from .segment import get_segment_mask
 from .reduce import reduce_peaks_simple
+from .segment import get_segment_mask
 
 logger = getLogger(__name__)
 
 Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 
-def clean(vals, old_peaks, shape, mask, radius, density, env, factor):
-    old_peaks = old_peaks[old_peaks.kind != "remove"]
+def clean(uid, vals, shape, mask, radius, density, env, factor):
     args = shape, mask, radius, env, factor
-    for name, val in vals.items():
-        segments, y, x, radius, firmness = clean_footprints(vals, *args)
-        cell, bg = reduce_peaks_simple(y, x, radius, firmness, density)
+    segments, y, x, radius, firmness = clean_footprints(vals, *args)
 
-    peaks = pd.DataFrame(
-        dict(
-            uid=old_peaks.uid.to_numpy(),
-            y=y,
-            x=x,
-            radius=radius,
-            firmness=firmness,
-        )
-    )
+    cell, bg = reduce_peaks_simple(y, x, radius, firmness, density)
+
+    peaks = pd.DataFrame(dict(uid=uid, y=y, x=x, radius=radius, firmness=firmness))
     peaks["kind"] = "remove"
     peaks.loc[cell, "kind"] = "cell"
     peaks.loc[bg, "kind"] = "background"
@@ -47,11 +38,10 @@ def clean(vals, old_peaks, shape, mask, radius, density, env, factor):
         peaks[peaks.kind == key].sort_values("firmness", ascending=False)
         for key in ["cell", "background", "remove"]
     ]
-    nk = cell.shape[0]
     peaks = pd.concat([cell, bg, removed], axis=0)
 
     segments = segments[peaks[peaks.kind != "remove"].index]
-    return segments[:nk], segments[nk:], peaks
+    return segments, peaks
 
 
 def clean_footprints(vals, shape, mask, radius, env, factor):

@@ -1,85 +1,130 @@
 from collections import namedtuple
 from logging import getLogger
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-from ..utils import get_gpu_env
-from .map import mapped_imgs
+from ..utils import (
+    from_tf,
+    get_gpu_env,
+)
 from .neighbor import neighbor
 
 logger = getLogger(__name__)
 
 Stats = namedtuple("Stats", "avgx avgt std0 min0 max0 min1 max1")
-StatsImages = namedtuple("StatsImages", "imax istd icor")
 
 
-def calc_stats(imgs, mask=None, env=None, factor=100):
-    def calc(index, imgs):
-        imgs = imgs.astype(jnp.float32)
+def calc_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
+    @jax.jit
+    def update(avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax, index, imgs):
         if mask is None:
             masked = imgs.reshape(-1, h * w)
         else:
             masked = imgs[:, mask]
-        min0 = jnp.nanmin(imgs, axis=0)
-        max0 = jnp.nanmax(imgs, axis=0)
-        avgt = jnp.nanmean(masked, axis=1)
-        diff = imgs - avgt[..., None, None]
-        imin = jnp.nanmin(diff, axis=0)
-        imax = jnp.nanmax(diff, axis=0)
+
+        avgti = jnp.nanmean(masked, axis=1)
+        avgt = avgt.at[index].set(avgti)
+
+        diff = imgs - avgti[..., jnp.newaxis, jnp.newaxis]
+        sumi += jnp.nansum(diff, axis=0)
+        sqi += jnp.nansum(jnp.square(diff), axis=0)
+
         neig = neighbor(diff)
-        sumi = jnp.nansum(diff, axis=0)
-        sumn = jnp.nansum(neig, axis=0)
-        sqi = jnp.nansum(jnp.square(diff), axis=0)
-        sqn = jnp.nansum(jnp.square(neig), axis=0)
-        cor = jnp.nansum(diff * neig, axis=0)
-        return avgt, min0, max0, imin, imax, sumi, sumn, sqi, sqn, cor, index
+        sumn += jnp.nansum(neig, axis=0)
+        sqn += jnp.nansum(jnp.square(neig), axis=0)
 
-    def finish(avgt, min0, max0, imin, imax, sumi, sumn, sqi, sqn, cor):
-        avgt = avgt[:-1]
-        avgx = sumi / nt
-        avgn = sumn / nt
-        varx = sqi / nt - jnp.square(avgx)
-        stdx = jnp.sqrt(varx)
-        stdn = jnp.sqrt(sqn / nt - jnp.square(avgn))
-        if mask is None:
-            varx_masked = varx.ravel()
-        else:
-            varx_masked = varx[mask]
-        std0 = jnp.sqrt(varx_masked.mean())
+        cor += jnp.nansum(diff * neig, axis=0)
 
-        imin = (imin - avgx) / std0
-        imax = (imax - avgx) / std0
-        istd = stdx / std0
-        icor = (cor / nt - avgx * avgn) / (stdx * stdn)
+        min0 = jnp.minimum(min0, jnp.nanmin(imgs, axis=0))
+        max0 = jnp.maximum(max0, jnp.nanmax(imgs, axis=0))
+        imin = jnp.minimum(imin, jnp.nanmin(diff, axis=0))
+        imax = jnp.maximum(imax, jnp.nanmax(diff, axis=0))
 
-        if mask is not None:
-            avgx.at[~mask].set(jnp.nan)
-            imin.at[~mask].set(jnp.nan)
-            imax.at[~mask].set(jnp.nan)
-            istd.at[~mask].set(jnp.nan)
-            icor.at[~mask].set(jnp.nan)
+        return avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax
 
-        stats = avgx, avgt, std0, min0.min(), max0.max(), imin.min(), imax.max()
-        simgs = imax, istd, icor
-        return Stats(*map(np.array, stats)), StatsImages(*map(np.array, simgs))
+    nt, h, w = raw_imgs.shape
 
-    nt, h, w = imgs.shape
-    batch = get_gpu_env(env).batch(float(factor) * h * w, nt)
+    env = get_gpu_env(env)
+    nd = env.num_devices
+    batch = env.batch(float(factor) * h * w, nt)
+    sharding = env.sharding((nd, 1))
 
-    logger.info("stats: %s %d", imgs.shape, -1 if mask is None else mask.sum())
+    logger.info("stats batch: %d", batch)
     dataset = tf.data.Dataset.from_generator(
-        lambda: zip(range(nt), imgs),
+        lambda: zip(range(nt), raw_imgs),
         output_signature=(
             tf.TensorSpec((), tf.int32),
-            tf.TensorSpec((h, w), imgs.dtype),
+            tf.TensorSpec((h, w), tf.float32),
         ),
     )
-    types = [("stack", -1)] + ["min", "max"] * 2 + ["add"] * 5
-    init = [jnp.empty((nt + 1,))] + [jnp.zeros((h, w))] * 9
+    dataset = dataset.batch(batch)
+    dataset = dataset.prefetch(prefetch)
+
+    avgt = jnp.empty((nt + 1,))
+
+    sumi = jnp.zeros((h, w))
+    sqi = jnp.zeros((h, w))
+
+    sumn = jnp.zeros((h, w))
+    sqn = jnp.zeros((h, w))
+
+    cor = jnp.zeros((h, w))
+
+    min0 = jnp.full((h, w), jnp.inf)
+    max0 = jnp.full((h, w), -jnp.inf)
+    imin = jnp.full((h, w), jnp.inf)
+    imax = jnp.full((h, w), -jnp.inf)
 
     logger.info("%s: %s %s %d", "pbar", "start", "stats", nt)
-    stats, simgs = finish(*mapped_imgs(dataset, nt, calc, types, init, batch))
+    for index, imgs in dataset:
+        index = from_tf(index)
+        imgs = from_tf(imgs) #.astype(jnp.float32)
+
+        index = jax.device_put(index, sharding)
+        imgs = jax.device_put(imgs, sharding)
+
+        count = index.size
+        diff = batch - count
+        if diff > 0:
+            pad = (0, diff), (0, 0), (0, 0)
+            index = jnp.pad(index, ((0, diff)), constant_values=-1)
+            imgs = jnp.pad(imgs, pad, constant_values=jnp.nan)
+
+        avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax = update(
+            avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax, index, imgs,
+        )
+        logger.info("%s: %s %d", "pbar", "update", count)
     logger.info("%s: %s", "pbar", "close")
-    return stats, simgs
+
+    avgt = avgt[:-1]
+    avgx = sumi / nt
+    varx = sqi / nt - jnp.square(avgx)
+    if mask is None:
+        varx_masked = varx.ravel()
+    else:
+        varx_masked = varx[mask]
+
+    std0 = jnp.sqrt(varx_masked.mean())
+    stdx = jnp.sqrt(varx)
+    istd = stdx / std0
+
+    avgn = sumn / nt
+    stdn = jnp.sqrt(sqn / nt - jnp.square(avgn))
+    icor = (cor / nt - avgx * avgn) / (stdx * stdn)
+
+    imin = (imin - avgx) / std0
+    imax = (imax - avgx) / std0
+
+    if mask is not None:
+        avgx.at[~mask].set(jnp.nan)
+        imin.at[~mask].set(jnp.nan)
+        imax.at[~mask].set(jnp.nan)
+        istd.at[~mask].set(jnp.nan)
+        icor.at[~mask].set(jnp.nan)
+
+    stats = avgx, avgt, std0, min0.min(), max0.max(), imin.min(), imax.max()
+    simgs = imax, istd, icor
+    return Stats(*map(np.array, stats)), *map(np.array, simgs)

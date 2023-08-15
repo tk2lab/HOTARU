@@ -3,7 +3,27 @@ import math
 import subprocess
 from logging import getLogger
 
+import tensorflow as tf
+from jax.experimental.mesh_utils import create_device_mesh
+from jax.sharding import PositionalSharding
+from jax.dlpack import from_dlpack
+
 logger = getLogger(__name__)
+
+
+def from_tf(x_tf):
+    x_dl = tf.experimental.dlpack.to_dlpack(x_tf)
+    return from_dlpack(x_dl)
+
+
+def get_gpu_env(env):
+    match env:
+        case GpuEnv():
+            return env
+        case None:
+            return GpuEnv()
+        case _:
+            return GpuEnv(**env)
 
 
 class GpuEnv:
@@ -21,10 +41,9 @@ class GpuEnv:
 
     def batch(self, factor, size):
         n = self.num_devices
-        batch_size = min(size, max(n, int(n * self.memsize / factor)))
-        batch = n, (batch_size + n - 1) // n
-        logger.debug("batch: %s %s", (n, self.memsize, factor, size), batch)
-        return batch
+        batch_simple = min(size, max(n, int(n * self.memsize / factor)))
+        batch_padded = n * ((batch_simple + n - 1) // n)
+        return batch_padded
 
     def batch_sqrt(self, factor, size):
         n = self.num_devices
@@ -33,13 +52,10 @@ class GpuEnv:
         logger.debug("batch: %s %s", (n, self.memsize, factor, size), batch)
         return batch
 
-
-def get_gpu_env(env):
-    if isinstance(env, GpuEnv):
-        return env
-    if env is None:
-        return GpuEnv()
-    return GpuEnv(**env)
+    def sharding(self, shape):
+        if shape is None:
+            shape = (self.num_devices,)
+        return PositionalSharding(create_device_mesh(shape))
 
 
 def get_gpu_info():

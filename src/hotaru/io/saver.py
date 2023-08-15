@@ -7,8 +7,11 @@ import pandas as pd
 
 def save(path, obj):
     if isinstance(path, (list, tuple)):
-        for p, o in zip(path, obj):
-            save(p, o)
+        if len(path) == 1:
+            save(path[0], obj[0])
+        else:
+            for p, o in zip(path, obj):
+                save(p, o)
     else:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -23,7 +26,10 @@ def save(path, obj):
 
 def try_load(path):
     if isinstance(path, (list, tuple)):
-        return [try_load(p) for p in path]
+        if len(path) == 1:
+            return try_load(path[0])
+        else:
+            return [try_load(p) for p in path]
     else:
         path = Path(path)
         try:

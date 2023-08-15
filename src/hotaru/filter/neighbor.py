@@ -7,5 +7,6 @@ __all__ = [
 
 
 def neighbor(imgs):
-    kernel = jnp.array([[[[1, 1, 1], [1, 0, 1], [1, 1, 1]]]], jnp.float32) / 8
-    return lax.conv(imgs[..., None, :, :], kernel, (1, 1), "same")[..., 0, :, :]
+    kernel = jnp.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], jnp.float32) / 8
+    kernel = jnp.expand_dims(kernel, (0, 1))
+    return lax.conv(jnp.expand_dims(imgs, -3), kernel, (1, 1), "same")[..., 0, :, :]

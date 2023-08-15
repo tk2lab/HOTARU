@@ -19,25 +19,16 @@ class ProxOptimizer:
         self.loss_scale = jnp.array(loss_scale, jnp.float32)
         self._history = []
 
-    @partial(jax.jit, static_argnums=(0,))
-    def _loss(self, *x):
-        loss = self.loss_fn(*x)
-        penalty = sum(ri(xi) for xi, ri in zip(x, self.regularizers))
-        return loss + penalty / self.loss_scale
-
-    def loss(self, x):
-        return np.array(self._loss(*(jnp.array(xi) for xi in x)))
-
     def fit(self, x0, n_epoch, n_step, tol, name="fit"):
         x = tuple(jnp.array(x) for x in x0)
-        loss = self.loss(x)
+        loss = np.array(self._loss(*x))
         log_diff = np.inf
         self._history.append(loss)
         postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
         logger.info("%s: %s %s %d %s", "pbar", "start", name, n_epoch, postfix)
         for i in range(n_epoch):
             x = self.step(x, n_step)
-            old_loss, loss = loss, self.loss(x)
+            old_loss, loss = loss, np.array(self._loss(*x))
             self._history.append(loss)
             diff = (old_loss - loss) / tol
             log_diff = np.log10(diff) if diff > 0 else np.nan
@@ -46,24 +37,37 @@ class ProxOptimizer:
             if log_diff < 0.0:
                 break
         logger.info("%s: %s", "pbar", "close")
-        return x
+        return tuple(np.array(xi) for xi in x)
 
     def step(self, x, n_step):
-        x, _ = lax.fori_loop(0, n_step, self.update, (x, x))
-        return tuple(xi.block_until_ready() for xi in x)
+        x = tuple(jnp.array(xi) for xi in x)
+        x = self._step(x, n_step)
+        x = tuple(np.array(xi) for xi in x)
+        return x
 
-    def update(self, i, xy):
-        x, y = xy
-        g = jax.grad(self.loss_fn, range(len(y)))(*y)
+    def loss(self, *x):
+        return np.array(self._loss(*(jnp.array(xi) for xi in x)))
+
+    @partial(jax.jit, static_argnums=(0, 2))
+    def _step(self, x, n_step):
+        prox = self.prox
         nesterov_scale = self.nesterov_scale
-        t0 = (nesterov_scale + i) / (nesterov_scale)
-        t1 = (nesterov_scale + 1) / (nesterov_scale + i + 1)
         lr = self.lr
         scale_lr = self.loss_scale * lr
-        out = []
-        for prox, oldx, oldy, grady in zip(self.prox, x, y, g):
-            newx = prox(oldy - scale_lr * grady, lr)
-            tmpx = (1 - t0) * oldx + t0 * newx
-            newy = (1 - t1) * newx + t1 * tmpx
-            out.append((newx, newy))
-        return tuple(zip(*out))
+        grad_loss_fn = jax.grad(self.loss_fn, range(len(x)))
+        oldx, oldy = x, x
+        for i in range(n_step):
+            grady = grad_loss_fn(*oldy)
+            t0 = (nesterov_scale + i) / (nesterov_scale)
+            t1 = (nesterov_scale + 1) / (nesterov_scale + i + 1)
+            newx = tuple(p(y - scale_lr * g, lr) for p, y, g in zip(prox, oldy, grady))
+            tmpx = tuple((1 - t0) * xo + t0 * xn for xo, xn in zip(oldx, newx))
+            newy = tuple((1 - t1) * xn + t1 * nt for xn, nt in zip(newx, tmpx))
+            oldx, oldy = newx, newy
+        return newx
+
+    @partial(jax.jit, static_argnums=(0,))
+    def _loss(self, *x):
+        loss = self.loss_fn(*x)
+        penalty = sum(ri(xi) for xi, ri in zip(x, self.regularizers))
+        return loss + penalty / self.loss_scale

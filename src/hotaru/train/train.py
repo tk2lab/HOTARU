@@ -19,14 +19,17 @@ logger = getLogger(__name__)
 def spatial(data, oldx, y1, y2, dynamics, penalty, env, clip, prepare, optimize, step):
     logger.info("spatial:")
     model = SpatialModel(data, oldx, y1, y2, dynamics, penalty, env)
-    out = {}
+    outi = []
+    outx = []
     for cl in clip:
-        model.prepare(cl, **prepare)
+        cond = model.prepare(cl, **prepare)
+        index = np.where(cond)[0]
         optimizer = model.optimizer(**optimize)
         x1, x2 = model.initial_data()
         x1, x2 = optimizer.fit((x1, x2), **step)
-        out[cl] = np.concatenate([np.array(x1), np.array(x2)], axis=0)
-    return out
+        outi.append(index)
+        outx += [np.array(x1), np.array(x2)]
+    return np.concatenate(outi, axis=0), np.concatenate(outx, axis=0)
 
 
 def temporal(data, y, peaks, dynamics, penalty, env, prepare, optimize, step):
@@ -90,16 +93,19 @@ class SpatialModel(Model):
 
     def prepare(self, clip, **kwargs):
         clip = get_clip(clip, self.data.shape)
-        print(clip)
+        logger.info("clip: %s", clip)
 
         data = self.data.clip(clip)
         trans = False
+        self._data = data
 
         oldx = clip(self.oldx)
-        cond = np.any(oldx, axes=(1, 2))
+        cond = np.any(oldx, axis=(1, 2))
         n1 = self.y1.shape[0]
         y1 = jnp.array(self.y1[cond[:n1]])
         y2 = jnp.array(self.y2[cond[n1:]])
+        self._y1 = y1
+        self._y2 = y2
 
         dynamics = self.dynamics
         y1 = dynamics(y1)
@@ -109,14 +115,15 @@ class SpatialModel(Model):
         penalty = self.penalty
         bx = penalty.bs
         by = penalty.bt
-
-        self._prepare(data, yval, trans, bx, by, **kwargs)
         self.py = penalty.lu(y1) + penalty.lt(y2)
 
+        self._prepare(data, yval, trans, bx, by, **kwargs)
+        return cond
+
     def initial_data(self):
-        n1 = self.y1.shape[0]
-        n2 = self.y2.shape[0]
-        ns = self.data.ns
+        n1 = self._y1.shape[0]
+        n2 = self._y2.shape[0]
+        ns = self._data.ns
         return jnp.zeros((n1, ns)), jnp.zeros((n2, ns))
 
     def regularizer(self):
@@ -140,10 +147,10 @@ class TemporalModel(Model):
         bx = penalty.bt
         by = penalty.bs
 
-        self._prepare(data, yval, trans, bx, by, **kwargs)
-
         nk = np.count_nonzero(self.peaks.kind == "cell")
         self.py = penalty.la(yval[:nk]) + penalty.ls(yval[nk:])
+
+        self._prepare(data, yval, trans, bx, by, **kwargs)
 
     def initial_data(self):
         nk = self.y.shape[0]

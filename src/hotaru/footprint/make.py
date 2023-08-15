@@ -1,52 +1,69 @@
 from functools import partial
 from logging import getLogger
 
-import tensorflow as tf
 import jax
 import jax.numpy as jnp
 import numpy as np
+import tensorflow as tf
 
-from ..utils import get_gpu_env
 from ..filter.laplace import gaussian_laplace_single
-from ..filter.map import mapped_imgs
+from ..utils import (
+    from_tf,
+    get_gpu_env,
+)
 from .segment import get_segment_mask
 
 logger = getLogger(__name__)
 
 
-def make_footprints(data, peaks, env=None, factor=10):
-    @partial(jax.jit, static_argnames="r")
-    def _calc(imgs, y, x, index, r):
-        return make_segments_simple(imgs, y, x, r), index
-
+def make_footprints(data, peaks, env=None, factor=1, prefetch=1):
     logger.info("make: %s", peaks.shape[0])
     h, w = data.shape
     ts, ys, xs, rs = (np.array(v) for v in (peaks.t, peaks.y, peaks.x, peaks.radius))
 
+    env = get_gpu_env(env)
+    nd = env.num_devices
+    sharding = env.sharding((nd, 1))
+
     logger.info("%s: %s %s %d", "pbar", "start", "make", ts.size)
-    out = jnp.empty((rs.size + 1, h, w))
+    out = jnp.empty((ts.size, h, w))
     for r in np.unique(rs):
         index = np.where(rs == r)[0]
-        #logger.info("make: %f %d", r, index.size)
-        batch = get_gpu_env(env).batch(float(factor) * h * w, index.size)
+        batch = env.batch(float(factor) * h * w, index.size)
         dataset = tf.data.Dataset.from_generator(
-            lambda: zip(data.data(ts[index]), ys[index], xs[index], index),
+            lambda: zip(index, data.data(ts[index]), ys[index], xs[index]),
             output_signature=(
-                tf.TensorSpec((h, w), tf.float32),
                 tf.TensorSpec((), tf.int32),
+                tf.TensorSpec((h, w), tf.float32),
                 tf.TensorSpec((), tf.int32),
                 tf.TensorSpec((), tf.int32),
             ),
         )
-        types = [("stack", -1)]
-        calc = partial(_calc, r=r)
-        out, = mapped_imgs(dataset, index.size, calc, types, [out], batch)
-    out = out[:-1]
+        dataset = dataset.batch(batch)
+        dataset = dataset.prefetch(prefetch)
+        for d in dataset:
+            d = (from_tf(v) for v in d)
+            idx, imgs, y, x = (jax.device_put(v, sharding) for v in d)
+
+            count = idx.size
+            diff = batch - count
+            if diff > 0:
+                pad = (0, diff), (0, 0), (0, 0)
+                imgs = jnp.pad(imgs, pad, constant_values=jnp.nan)
+                y = jnp.pad(y, ((0, diff)), constant_values=-1)
+                x = jnp.pad(x, ((0, diff)), constant_values=-1)
+            out = out.at[idx].set(_make_segments_simple(imgs, y, x, r)[:count])
+            logger.info("%s: %s %d", "pbar", "update", count)
     logger.info("%s: %s", "pbar", "close")
     return np.array(out)
 
 
 def make_segments_simple(imgs, y, x, r):
+    return np.array(_make_segments_simple(imgs, y, x, r))
+
+
+@partial(jax.jit, static_argnames=("r",))
+def _make_segments_simple(imgs, y, x, r):
     g = gaussian_laplace_single(imgs, r)
     seg = jax.vmap(get_segment_mask)(g, y, x)
     val = jnp.where(seg, g, jnp.nan)

@@ -10,7 +10,6 @@ from ..filter import calc_stats
 from ..footprint import (
     clean,
     find_peaks,
-    get_radius,
     make_footprints,
     reduce_peaks,
 )
@@ -30,15 +29,10 @@ from ..io.plot import (
     plot_spike,
 )
 from ..train import (
-    get_dynamics,
-    get_penalty,
     spatial,
     temporal,
 )
-from ..utils import (
-    Data,
-    get_gpu_env,
-)
+from ..utils import Data
 
 logger = getLogger(__name__)
 
@@ -54,14 +48,57 @@ def make(data, findval, env, cfg):
     return footprints, peaks
 
 
+def spatial_and_clean(data, old_footprints, old_peaks, spikes, background, cfg):
+    index, segments = spatial(
+        data,
+        old_footprints,
+        spikes,
+        background,
+        cfg.model.dynamics,
+        cfg.model.penalty,
+        cfg.env,
+        **cfg.cmd.spatial,
+    )
+    uid = old_peaks.iloc[index].uid.to_numpy()
+    footprints, peaks = clean(
+        uid,
+        segments,
+        data.shape,
+        data.mask,
+        cfg.radius,
+        cfg.density,
+        cfg.env,
+        **cfg.cmd.clean,
+    )
+    return footprints, peaks
+
+
+def temporal_and_eval(data, footprints, peaks, cfg):
+    spikes, background = temporal(
+        data,
+        footprints,
+        peaks,
+        cfg.model.dynamics,
+        cfg.model.penalty,
+        cfg.env,
+        **cfg.cmd.temporal,
+    )
+    peaks["usum"] = pd.Series(
+        spikes.sum(axis=1), index=peaks.query("kind=='cell'").index
+    )
+    peaks["unum"] = pd.Series(
+        np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index
+    )
+    return spikes, background, peaks
+
+
 def cui_main(cfg):
     def load_or_exec(name, command, *args, **kwargs):
         force_dict = dict(
-            stats=["stats"],
+            stats=["stats", "find", "make", "temporal"],
             find=["find", "make", "temporal"],
             make=["make", "temporal"],
-            spatial=["spatial", "clean", "temporal"],
-            clean=["clean", "temporal"],
+            spatial=["spatial", "temporal"],
             temporal=["temporal"],
         )
         force = (stage > cfg.force_from[0]) or (
@@ -71,9 +108,12 @@ def cui_main(cfg):
         path = cfg.outputs[name]
         fdir = odir / path.dir
         files = [fdir / file.format(stage=stage) for file in path.files]
-        out = try_load(files)
-        logger.debug("try_load: %s", out)
-        if force or np.any([o is None for o in out]):
+        if force:
+            out = [None]
+        else:
+            out = try_load(files)
+        if np.any([o is None for o in out]):
+            logger.info("exec: %s", name)
             if cfg.trace:
                 trace_dir = odir / cfg.outputs.trace.dir
                 trace_dir.mkdir(parents=True, exist_ok=True)
@@ -82,13 +122,13 @@ def cui_main(cfg):
                 trace_ctx = nullcontext()
             with trace_ctx:
                 out = command(*args, **kwargs)
-            logger.info("files:" + " %s" * len(files), *files)
             if len(files) == 1:
-                files = files[0]
-            save(files, out)
+                save(files, [out])
+            else:
+                save(files, out)
+            logger.info("saved:" + " %s" * len(files), *files)
         else:
-            if len(files) == 1:
-                out = out[0]
+            logger.info("loaded:" + " %s" * len(files), *files)
         return out
 
     def finish():
@@ -107,12 +147,11 @@ def cui_main(cfg):
     fig_dir = Path(cfg.outputs.dir) / cfg.outputs.figs.dir
     fig_dir.mkdir(parents=True, exist_ok=True)
 
-    stage = -1
-    logger.info("*** prepare ***")
+    stage = 0
+    logger.info("*** stage %s ***", stage)
     imgs, hz = load_imgs(**cfg.data.imgs)
     imgs, mask = apply_mask(imgs, **cfg.data.mask)
-    stats, simgs = load_or_exec(
-        "stats",
+    stats, *simgs = load_or_exec("stats",
         calc_stats,
         imgs,
         mask,
@@ -123,10 +162,8 @@ def cui_main(cfg):
 
     data = Data(imgs, mask, hz, *stats)
     # gen_normalize_movie("test.mp4", data)
-
-    stage = 0
-    logger.info("*** stage %s ***", stage)
     # plot_gl(data, radius, [100, 200, 300], scale=0.3).write_image(fig_dir / "gl.pdf")
+
     findval = load_or_exec(
         "find",
         find_peaks,
@@ -135,84 +172,51 @@ def cui_main(cfg):
         cfg.env,
         **cfg.cmd.find,
     )
-    footprints, peaks = load_or_exec(
-        "make",
-        make,
-        data,
-        findval,
-        cfg.env,
-        cfg,
-    )
+    footprints, peaks = load_or_exec("make", make, data, findval, cfg.env, cfg)
     plot_peak_stats(peaks, findval).write_image(fig_dir / f"{stage:03d}peaks.pdf")
     plot_seg_max(footprints, peaks).write_image(fig_dir / f"{stage:03d}max.pdf")
     plot_seg(footprints, peaks, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
-    spikes, background = load_or_exec(
+
+    spikes, background, peaks = load_or_exec(
         "temporal",
-        temporal,
+        temporal_and_eval,
         data,
         footprints,
         peaks,
-        cfg.model.dynamics,
-        cfg.model.penalty,
-        cfg.env,
-        **cfg.cmd.temporal,
+        cfg,
     )
     plot_spike(spikes[:, :1000], hz).write_image(fig_dir / f"{stage:03d}spike.pdf")
-    peaks["usum"] = pd.Series(
-        spikes.sum(axis=1), index=peaks.query("kind=='cell'").index
-    )
-    peaks["unum"] = pd.Series(
-        np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index
-    )
+
     finish()
 
     for stage in range(1, cfg.max_train_step + 1):
         logger.info("*** stage %s ***", stage)
-        segments = load_or_exec(
+
+        footprints, peaks = load_or_exec(
             "spatial",
-            spatial,
+            spatial_and_clean,
             data,
             footprints,
+            peaks,
             spikes,
             background,
-            cfg.model.dynamics,
-            cfg.model.penalty,
-            cfg.env,
-            **cfg.cmd.spatial,
-        )
-        footprints, background, peaks = load_or_exec(
-            "clean",
-            clean,
-            segments,
-            peaks,
-            data.shape,
-            mask,
-            cfg.radius,
-            cfg.density,
-            cfg.env,
-            **cfg.cmd.clean,
+            cfg,
         )
         plot_peak_stats(peaks).write_image(fig_dir / f"{stage:03d}peaks.pdf")
         plot_seg_max(footprints, background).write_image(
             fig_dir / f"{stage:03d}max.pdf"
         )
         plot_seg(peaks, footprints, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
-        spikes, background = load_or_exec(
+
+        spikes, background, peaks = load_or_exec(
             "temporal",
-            temporal,
+            temporal_and_eval,
             data,
             footprints,
-            cfg.model.dynamics,
-            cfg.model.penalty,
-            cfg.env,
-            **cfg.cmd.temporal,
+            peaks,
+            cfg,
         )
         plot_spike(spikes[:, :1000], hz).write_image(fig_dir / f"{stage:03d}spike.pdf")
-        peaks["usum"] = pd.Series(
-            spikes.sum(axis=1), index=peaks.query("kind=='cell'").index
-        )
-        peaks["unum"] = pd.Series(
-            np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index
-        )
+
         if finish():
             break

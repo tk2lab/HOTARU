@@ -1,13 +1,17 @@
 stats:
-  factor: 500.0
+  factor: 1000.0
+  prefetch: 1
 find:
-  factor: 500.0
+  factor: 1000.0
+  prefetch: 1
 reduce:
   block_size: 100
 make:
   factor: 1000.0
+  prefetch: 1
 clean:
   factor: 1000.0
+  prefetch: 1
 spatial:
   clip:
     - null

@@ -3,10 +3,13 @@ from logging import getLogger
 
 import numpy as np
 
+from .clip import get_clip
+
 logger = getLogger(__name__)
 
 
 class Data(namedtuple("Data", "imgs mask hz avgx avgt std0 min0 max0 min1 max1")):
+
     @property
     def nt(self):
         return self.imgs.shape[0]
@@ -22,6 +25,14 @@ class Data(namedtuple("Data", "imgs mask hz avgx avgt std0 min0 max0 min1 max1")
     @property
     def shape(self):
         return self.imgs.shape[1:]
+
+    def clip(self, clip):
+        clip = get_clip(clip, self.shape)
+        return self._replace(
+            imgs=clip(self.imgs),
+            mask=clip(self.mask),
+            avgx=clip(self.avgx),
+        )
 
     def apply_mask(self, x, mask_type=np.nan):
         match (mask_type, self.mask):

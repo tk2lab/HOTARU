@@ -9,12 +9,14 @@ make:
 clean:
   factor: 1000.0
 spatial:
+  clip:
+    - null
   prepare:
     factor: 1.0
     prefetch: 1
   optimize:
-    lr: 0.005
-    scale: 20
+    lr: 0.001
+    nesterov_scale: 20
   step:
     n_epoch: 100
     n_step: 100
@@ -25,7 +27,7 @@ temporal:
     prefetch: 1
   optimize:
     lr: 0.005
-    scale: 20
+    nesterov_scale: 20
   step:
     n_epoch: 100
     n_step: 100

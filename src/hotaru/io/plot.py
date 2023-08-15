@@ -115,7 +115,11 @@ def plot_peak_stats(peaks, peakval=None, label=""):
     return fig
 
 
-def plot_seg_max(seg, bg, scale=1, margin=30, label=""):
+def plot_seg_max(footprints, peaks, scale=1, margin=30, label=""):
+    nk = np.count_nonzero(peaks.kind == "cell")
+    seg = footprints[:nk]
+    bg = footprints[nk:]
+
     margin = dict(t=margin, b=margin, l=margin, r=margin)
     nk, h, w = seg.shape
 
@@ -133,18 +137,21 @@ def plot_seg_max(seg, bg, scale=1, margin=30, label=""):
     return plot_clip(data, segmax.shape, h + 1, w + 1, scale, margin)
 
 
-def plot_seg(peaks, seg, mx=None, hsize=20, scale=1, margin=30, label=""):
+def plot_seg(seg, peaks, mx=None, hsize=20, scale=1, margin=30, label=""):
     def s(i):
         return 1 + i * (size + 1)
 
     def e(i):
         return (i + 1) * (size + 1)
 
-    n, h, w = seg.shape
+    peaks = peaks[peaks.kind == "cell"]
+    nk = peaks.shape[0]
+    seg = seg[:nk]
+
     size = 2 * hsize + 1
     if mx is None:
-        mx = int(np.floor(np.sqrt(n)))
-    my = (n + mx - 1) // mx
+        mx = int(np.floor(np.sqrt(nk)))
+    my = (nk + mx - 1) // mx
     seg = np.pad(seg, ((0, 0), (hsize, hsize), (hsize, hsize)))
     clip = np.zeros((my * size + (my + 1), mx * size + (mx + 1)), np.float32)
 

@@ -6,7 +6,7 @@ defaults:
   - model: default
   - cmd: default
   - outputs: default
-  - gpu: default
+  - env: default
   - hydra/local
   - hotaru
 

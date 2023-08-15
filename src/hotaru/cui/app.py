@@ -23,13 +23,11 @@ from ..io import (
 
 # from hotaru.io.movie import gen_normalize_movie
 from ..io.plot import (
-    plot_simgs,
-    plot_gl,
-    #plot_calcium,
+    plot_peak_stats,
     plot_seg,
     plot_seg_max,
+    plot_simgs,
     plot_spike,
-    plot_peak_stats,
 )
 from ..train import (
     get_dynamics,
@@ -47,13 +45,13 @@ logger = getLogger(__name__)
 
 def make(data, findval, env, cfg):
     peaks = reduce_peaks(findval, cfg.density, **cfg.cmd.reduce)
-    segments = make_footprints(data, peaks, env, **cfg.cmd.make)
-    peaks["sum"] = segments.sum(axis=(1, 2))
-    peaks["area"] = np.count_nonzero(segments > 0, axis=(1, 2))
+    footprints = make_footprints(data, peaks, env, **cfg.cmd.make)
+    peaks["sum"] = footprints.sum(axis=(1, 2))
+    peaks["area"] = np.count_nonzero(footprints > 0, axis=(1, 2))
     nk = np.count_nonzero(peaks.kind == "cell")
     nb = np.count_nonzero(peaks.kind == "background")
     logger.info("num cell/bg: %d/%d", nk, nb)
-    return segments[:nk], segments[nk:], peaks
+    return footprints, peaks
 
 
 def cui_main(cfg):
@@ -77,7 +75,7 @@ def cui_main(cfg):
         logger.debug("try_load: %s", out)
         if force or np.any([o is None for o in out]):
             if cfg.trace:
-                trace_dir = odir / cfg.outputs.trace
+                trace_dir = odir / cfg.outputs.trace.dir
                 trace_dir.mkdir(parents=True, exist_ok=True)
                 trace_ctx = trace(str(trace_dir))
             else:
@@ -109,11 +107,6 @@ def cui_main(cfg):
     fig_dir = Path(cfg.outputs.dir) / cfg.outputs.figs.dir
     fig_dir.mkdir(parents=True, exist_ok=True)
 
-    radius = get_radius(cfg.radius)
-    dynamics = get_dynamics(cfg.model.dynamics)
-    penalty = get_penalty(cfg.model.penalty)
-    env = get_gpu_env(cfg.gpu)
-
     stage = -1
     logger.info("*** prepare ***")
     imgs, hz = load_imgs(**cfg.data.imgs)
@@ -123,49 +116,54 @@ def cui_main(cfg):
         calc_stats,
         imgs,
         mask,
-        env,
+        cfg.env,
         **cfg.cmd.stats,
     )
     plot_simgs(simgs).write_image(fig_dir / "stats.pdf")
 
     data = Data(imgs, mask, hz, *stats)
-    #gen_normalize_movie("test.mp4", data)
+    # gen_normalize_movie("test.mp4", data)
 
     stage = 0
     logger.info("*** stage %s ***", stage)
-    #plot_gl(data, radius, [100, 200, 300], scale=0.3).write_image(fig_dir / "gl.pdf")
+    # plot_gl(data, radius, [100, 200, 300], scale=0.3).write_image(fig_dir / "gl.pdf")
     findval = load_or_exec(
         "find",
         find_peaks,
         data,
-        radius,
-        env,
+        cfg.radius,
+        cfg.env,
         **cfg.cmd.find,
     )
-    footprints, background, peaks = load_or_exec(
+    footprints, peaks = load_or_exec(
         "make",
         make,
         data,
         findval,
-        env,
+        cfg.env,
         cfg,
     )
     plot_peak_stats(peaks, findval).write_image(fig_dir / f"{stage:03d}peaks.pdf")
-    plot_seg_max(footprints, background).write_image(fig_dir / f"{stage:03d}max.pdf")
-    plot_seg(peaks, footprints, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
+    plot_seg_max(footprints, peaks).write_image(fig_dir / f"{stage:03d}max.pdf")
+    plot_seg(footprints, peaks, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
     spikes, background = load_or_exec(
         "temporal",
         temporal,
         data,
-        (footprints, background),
-        dynamics,
-        penalty,
-        env,
+        footprints,
+        peaks,
+        cfg.model.dynamics,
+        cfg.model.penalty,
+        cfg.env,
         **cfg.cmd.temporal,
     )
     plot_spike(spikes[:, :1000], hz).write_image(fig_dir / f"{stage:03d}spike.pdf")
-    peaks["usum"] = pd.Series(spikes.sum(axis=1), index=peaks.query("kind=='cell'").index)
-    peaks["unum"] = pd.Series(np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index)
+    peaks["usum"] = pd.Series(
+        spikes.sum(axis=1), index=peaks.query("kind=='cell'").index
+    )
+    peaks["unum"] = pd.Series(
+        np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index
+    )
     finish()
 
     for stage in range(1, cfg.max_train_step + 1):
@@ -174,39 +172,47 @@ def cui_main(cfg):
             "spatial",
             spatial,
             data,
-            (spikes, background),
-            dynamics,
-            penalty,
-            env,
+            footprints,
+            spikes,
+            background,
+            cfg.model.dynamics,
+            cfg.model.penalty,
+            cfg.env,
             **cfg.cmd.spatial,
         )
         footprints, background, peaks = load_or_exec(
             "clean",
             clean,
-            peaks,
             segments,
+            peaks,
             data.shape,
             mask,
-            radius,
+            cfg.radius,
             cfg.density,
-            env,
+            cfg.env,
             **cfg.cmd.clean,
         )
         plot_peak_stats(peaks).write_image(fig_dir / f"{stage:03d}peaks.pdf")
-        plot_seg_max(footprints, background).write_image(fig_dir / f"{stage:03d}max.pdf")
+        plot_seg_max(footprints, background).write_image(
+            fig_dir / f"{stage:03d}max.pdf"
+        )
         plot_seg(peaks, footprints, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
         spikes, background = load_or_exec(
             "temporal",
             temporal,
             data,
-            (footprints, background),
-            dynamics,
-            penalty,
-            env,
+            footprints,
+            cfg.model.dynamics,
+            cfg.model.penalty,
+            cfg.env,
             **cfg.cmd.temporal,
         )
         plot_spike(spikes[:, :1000], hz).write_image(fig_dir / f"{stage:03d}spike.pdf")
-        peaks["usum"] = pd.Series(spikes.sum(axis=1), index=peaks.query("kind=='cell'").index)
-        peaks["unum"] = pd.Series(np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index)
+        peaks["usum"] = pd.Series(
+            spikes.sum(axis=1), index=peaks.query("kind=='cell'").index
+        )
+        peaks["unum"] = pd.Series(
+            np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index
+        )
         if finish():
             break

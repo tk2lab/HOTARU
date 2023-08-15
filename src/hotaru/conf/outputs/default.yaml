@@ -12,13 +12,11 @@ make:
   dir: ${data.label}${radius.label}${density.label}
   files:
     - "{stage:03d}footprint.npy"
-    - "{stage:03d}bg_spatial.npy"
     - "{stage:03d}peaks.csv"
 clean:
   dir: ${data.label}${radius.label}${density.label}${model.label}
   files:
     - "{stage:03d}footprint.npy"
-    - "{stage:03d}bg_spatial.npy"
     - "{stage:03d}peaks.csv"
 spatial:
   dir: ${data.label}${radius.label}${density.label}${model.label}
@@ -28,7 +26,7 @@ temporal:
   dir: ${data.label}${radius.label}${density.label}${model.label}
   files:
     - "{stage:03d}spike.npy"
-    - "{stage:03d}bg_temporal.npy"
+    - "{stage:03d}background.npy"
 figs:
   dir: figs
 trace:

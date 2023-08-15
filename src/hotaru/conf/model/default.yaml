@@ -12,9 +12,9 @@ penalty:
   lu:
     type: MaxNormNonNegativeL1
     factor: 30.0
+  ls:
+    type: NoPenalty
   lt:
     type: NoPenalty
-  lx:
-    type: NoPenalty
-  bx: 0.1
+  bs: 0.1
   bt: 0.1

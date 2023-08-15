@@ -1,81 +1,69 @@
 from logging import getLogger
+from functools import partial
 
 import jax
-import jax.lax as lax
 import jax.numpy as jnp
+import jax.lax as lax
 import numpy as np
 
 logger = getLogger(__name__)
 
 
 class ProxOptimizer:
-    def __init__(self, loss_fn, x0, regularizers, sharding, name=None):
+    def __init__(self, loss_fn, regularizers, lr, nesterov_scale=20, loss_scale=1):
         self.loss_fn = loss_fn
+        self.prox = [ri.prox for ri in regularizers]
         self.regularizers = regularizers
-        self.x = tuple(jax.device_put(x, sharding) for x in x0)
-        self._sharding = sharding
-        self._name = name
+        self.nesterov_scale = jnp.array(nesterov_scale, jnp.float32)
+        self.lr = jnp.array(lr, jnp.float32)
+        self.loss_scale = jnp.array(loss_scale, jnp.float32)
+        self._history = []
 
-    def set_params(self, lr, scale=20, loss_scale=1):
-        self.scale = scale
-        self.loss_scale = loss_scale
-        self.lr = lr
-        self.scale_lr = loss_scale * lr
-
-    @property
-    def val(self):
-        return tuple(np.array(x) for x in self.x)
-
-    def loss(self):
-        loss = self.loss_fn(*self.x)
-        penalty = sum(ri(xi) for xi, ri in zip(self.x, self.regularizers))
+    @partial(jax.jit, static_argnums=(0,))
+    def _loss(self, *x):
+        loss = self.loss_fn(*x)
+        penalty = sum(ri(xi) for xi, ri in zip(x, self.regularizers))
         return loss + penalty / self.loss_scale
 
-    def fit(self, n_epoch, n_step, tol=None):
-        self._grad_loss_fn = jax.grad(self.loss_fn, argnums=range(len(self.x)))
-        loss = self.loss()
+    def loss(self, x):
+        return np.array(self._loss(*(jnp.array(xi) for xi in x)))
+
+    def fit(self, x0, n_epoch, n_step, tol, name="fit"):
+        x = tuple(jnp.array(x) for x in x0)
+        loss = self.loss(x)
         log_diff = np.inf
-        history = [loss]
+        self._history.append(loss)
         postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
-        logger.info("%s: %s %s %d %s", "pbar", "start", self._name, n_epoch, postfix)
+        logger.info("%s: %s %s %d %s", "pbar", "start", name, n_epoch, postfix)
         for i in range(n_epoch):
-            self.step(n_step)
-            old_loss, loss = loss, self.loss()
+            x = self.step(x, n_step)
+            old_loss, loss = loss, self.loss(x)
+            self._history.append(loss)
             diff = (old_loss - loss) / tol
             log_diff = np.log10(diff) if diff > 0 else np.nan
-            history.append(loss)
             postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
             logger.info("%s: %s %d %s", "pbar", "update", 1, postfix)
             if log_diff < 0.0:
                 break
         logger.info("%s: %s", "pbar", "close")
-        return history
+        return x
 
-    def step(self, n_step):
-        x = self.x
-        x, _ = lax.fori_loop(0, n_step, self._update, (x, x))
-        self.x = tuple(xi.block_until_ready() for xi in x)
+    def step(self, x, n_step):
+        x, _ = lax.fori_loop(0, n_step, self.update, (x, x))
+        return tuple(xi.block_until_ready() for xi in x)
 
-    def _update(self, i, xy):
-        def prox_update(prox, oldx, oldy, grady):
-            newx = prox(oldy - self.scale_lr * grady, self.lr)
+    def update(self, i, xy):
+        x, y = xy
+        g = jax.grad(self.loss_fn, range(len(y)))(*y)
+        nesterov_scale = self.nesterov_scale
+        t0 = (nesterov_scale + i) / (nesterov_scale)
+        t1 = (nesterov_scale + 1) / (nesterov_scale + i + 1)
+        lr = self.lr
+        scale_lr = self.loss_scale * lr
+        out = []
+        for prox, oldx, oldy, grady in zip(self.prox, x, y, g):
+            newx = prox(oldy - scale_lr * grady, lr)
             tmpx = (1 - t0) * oldx + t0 * newx
             newy = (1 - t1) * newx + t1 * tmpx
-            return newx, newy
-
-        def sharding(x):
-            return lax.with_sharding_constraint(x, self._sharding)
-
-        scale = self.scale
-        t0 = (scale + i) / scale
-        t1 = (scale + 1) / (scale + i + 1)
-        x, y = xy
-        x = tuple(sharding(xi) for xi in x)
-        y = tuple(sharding(yi) for yi in y)
-        grady = self._grad_loss_fn(*y)
-        grady = tuple(sharding(gradyi) for gradyi in grady)
-        xy = tuple(
-            prox_update(ri.prox, xi, yi, gi)
-            for ri, xi, yi, gi in zip(self.regularizers, x, y, grady)
-        )
-        return tuple(zip(*xy))
+            out.append((newx, newy))
+        return tuple(zip(*out))

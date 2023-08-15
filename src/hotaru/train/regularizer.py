@@ -26,13 +26,16 @@ class MaxNormNonNegativeL1:
         self.fac = fac
 
     def __call__(self, x):
-        #x = jnp.maximum(0, x)
         s = x.sum(axis=-1)
         m = x.max(axis=-1)
-        cond = m > 0
-        s = s[cond]
-        m = m[cond]
-        return self.fac * (s / m).sum()
+        if x.ndim > 1:
+            m = jnp.where(m > 0, m, jnp.ones(()))
+            return self.fac * (s / m).sum()
+        else:
+            if m > 0:
+                return self.fac * s / m
+            else:
+                return jnp.zeros(())
 
     def prox(self, y, eta):
         y = jnp.maximum(0, y)

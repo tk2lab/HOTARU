@@ -1,4 +1,5 @@
 from logging import getLogger
+from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -44,7 +45,6 @@ def matmul_batch(x, y, trans, sharding, batch, prefetch):
     dataset = dataset.batch(batch)
     dataset = dataset.prefetch(prefetch)
 
-    x = jax.device_put(x, sharding)
     end = 0
     for data in dataset:
         t, yt = tuple(jax.device_put(from_tf(d), sharding.replicate()) for d in data)
@@ -56,3 +56,13 @@ def matmul_batch(x, y, trans, sharding, batch, prefetch):
     if trans:
         out = out[:, :nt]
     return out
+
+
+def loss_fn(x, nn, nm, a, b, c):
+    nk, nx = x.shape
+    xdot = (a * x).sum()
+    xcov = x @ x.T
+    xsum = x.sum(axis=1)
+    xmean = xsum / nx
+    var = (nn + (b * xcov).sum() + (xsum @ c @ xmean) - 2 * xdot) / nm
+    return jnp.log(var) / 2

@@ -30,10 +30,11 @@ class SpikeToCalcium:
         return cls((e1 - e2) / scale)
 
     def __init__(self, kernel):
-        self.kernel = jnp.array(kernel, jnp.float32)[None, None, ::-1]
+        self.kernel = jnp.array(kernel, jnp.float32)[jnp.newaxis, jnp.newaxis, ::-1]
 
     def __call__(self, spike):
-        return lax.conv(spike[:, None, ...], self.kernel, (1,), "valid")[:, 0, ...]
+        spike = spike[:, jnp.newaxis, ...]
+        return lax.conv(spike, self.kernel, (1,), "valid")[:, 0, ...]
 
     @property
     def size(self):

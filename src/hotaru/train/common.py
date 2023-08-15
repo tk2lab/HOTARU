@@ -54,24 +54,15 @@ def matmul_batch(x, y, trans, sharding, batch, prefetch):
     return out
 
 
-def loss_fwd(xval, a, b, c, d, e):
-    xcov = xval @ xval.T
-    xsum = xval.sum(axis=1)
-    xout = jnp.outer(xsum, xsum)
-    var = (a * xcov).sum() + (b * xout).sum() + (c * xval).sum() + d
-    return e * (jnp.log(var) - jnp.log(e)) / 2, (xval, xsum, var)
-
-
-def loss_bwd(a, b, c, d, e, r, g):
-    xval, xsum, var = r
-    grad_var = 2 * (a @ xval) + 2 * (b @ xsum)[:, jnp.newaxis] + c
-    grad = (e / 2) * (grad_var) / var
-    return g * grad,
-
-
-@partial(jax.custom_vjp, nondiff_argnums=(1, 2, 3, 4, 5))
-def loss_fn(xval, a, b, c, d, e):
-    return loss_fwd(xval, a, b, c, d, e)[0]
-
-
-loss_fn.defvjp(loss_fwd, loss_bwd)
+def loss_fn(x, ycov, yout, ydot, nx, ny, bx, by):
+    nn = nx * ny
+    nm = nn + nx + ny
+    xsum = x.sum(axis=1)
+    xavg = xsum / nx
+    xdif = x - xavg[:, jnp.newaxis]
+    xcov = xdif @ xdif.T
+    xout = jnp.outer(xavg, xavg)
+    diff = (ycov * xcov).sum() - 2 * (ydot * xdif).sum() + nn
+    penalty = bx * (yout * xcov).sum() + by * (ycov * xout).sum()
+    var = diff + penalty
+    return (nm / 2) * (jnp.log(var) - jnp.log(nm))

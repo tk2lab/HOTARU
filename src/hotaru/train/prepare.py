@@ -25,12 +25,14 @@ def prepare_matrix(data, y, trans, env, factor, prefetch):
     y = np.pad(y, ((0, nkmod - nk), (0, 0)))
     yval = jax.device_put(y, sharding)
 
-    ycov = (yval @ yval.T)[:nk, :nk]
-    ysum = yval.sum(axis=1)[:nk]
-    yout = jnp.outer(ysum, ysum) / ny
+    yavg = yval.mean(axis=1)
+    ydif = yval - yavg[:, jnp.newaxis]
+
+    ycov = ydif @ ydif.T
+    yout = jnp.outer(yavg, yavg)
 
     logger.info("%s: %s %s %d", "pbar", "start", "prepare", nt)
-    ycor = matmul_batch(yval, data, trans, sharding, batch, prefetch)
+    ydot = matmul_batch(ydif, data, trans, sharding, batch, prefetch)
     logger.info("%s: %s", "pbar", "close")
 
-    return ycov, yout, ycor
+    return ycov[:nk, :nk], yout[:nk, :nk], ydot[:nk]

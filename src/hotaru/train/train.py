@@ -57,33 +57,21 @@ class Model:
         self.sharding = self.env.sharding((nd, 1))
 
     def _prepare(self, data, y, trans, py, bx, by, **kwargs):
-        ycov, yout, ycor = prepare_matrix(data, y, trans, self.env, **kwargs)
-
         if trans:
             nx, ny = data.nt, data.ns
         else:
             nx, ny = data.ns, data.nt
+        nx = jnp.array(nx)
+        ny = jnp.array(ny)
 
-        nxf = jnp.array(nx, jnp.float32)
-        nyf = jnp.array(ny, jnp.float32)
-        nn = nxf * nyf
-        nm = nn + nxf + nyf
+        ycov, yout, ydot = prepare_matrix(data, y, trans, self.env, **kwargs)
 
-        cx = 1 - jnp.square(bx)
-        cy = 1 - jnp.square(by)
-
-        a = (ycov - cx * yout)
-        b = (yout - cy * ycov) / nxf
-        c = -2 * ycor
-        d = nn
-        e = nm
-
-        self.args = a, b, c, d, e
+        self.args = ycov, yout, ydot, nx, ny, bx, by
         self.py = py
+        self.lr_scale = jnp.diagonal(ycov).max()
+        self.loss_scale = nx * ny + nx + ny
 
-        logger.info("mat scale: %f %f", np.abs(a.sum(axis=0)).max(), np.abs(c).max())
-        self.lr_scale = np.abs(c).max()
-        self.loss_scale = nm
+        logger.info("mat scale: %f", np.array(self.lr_scale))
 
     def optimizer(self, lr, nesterov_scale):
         lr /= self.lr_scale

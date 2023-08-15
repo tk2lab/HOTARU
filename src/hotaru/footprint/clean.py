@@ -21,11 +21,12 @@ logger = getLogger(__name__)
 Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 
-def clean(old_peaks, vals, shape, mask, radius, density, env, factor):
+def clean(vals, old_peaks, shape, mask, radius, density, env, factor):
     old_peaks = old_peaks[old_peaks.kind != "remove"]
-    args = vals, shape, mask, radius, env, factor
-    segments, y, x, radius, firmness = clean_footprints(*args)
-    cell, bg = reduce_peaks_simple(y, x, radius, firmness, density)
+    args = shape, mask, radius, env, factor
+    for name, val in vals.items():
+        segments, y, x, radius, firmness = clean_footprints(vals, *args)
+        cell, bg = reduce_peaks_simple(y, x, radius, firmness, density)
 
     peaks = pd.DataFrame(
         dict(

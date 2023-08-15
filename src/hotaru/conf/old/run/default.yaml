@@ -1,0 +1,41 @@
+- command: imgs
+- command: mask
+- command: stats
+  output:
+    - ${data.label}/stats.npz
+    - ${data.label}/simgs.npz
+- command: find
+  output:
+    - ${data.label}/${radius.label}/peaks.npy
+- command: reduce
+  output:
+    - ${data.label}/${radius.label}/${radius.thr_distance}/peaks.csv
+- command: make
+  output:
+    - ${data.label}/${radius.label}/${radius.thr_distance}/footprint.npy
+- command: temporal.prepare
+  output:
+    - ${data.label}/${radius.label}/${radius.thr_distance}/${penalty.label}/000_2spike.npy
+- command: temporal.optimize
+  output:
+    - ${data.label}/${radius.label}/${radius.thr_distance}/${penalty.label}/000_2spike.npy
+- command: repeat
+  max_repeat: ${max_iter_opt}
+  commands:
+    - command: spatial.prepare
+      output:
+        - ${data.label}/${radius.label}/${penalty.label}/{i}_0seg.npy
+    - command: spatial.optimize
+      output:
+        - ${data.label}/${radius.label}/${penalty.label}/{i}_0seg.npy
+    - command: spatial.clean
+      output:
+        - ${data.label}/${radius.label}/${penalty.label}/{i}_1footprint.npy
+        - ${data.label}/${radius.label}/${penalty.label}/{i}_1peaks.csv
+    - command: temporal.prepare
+      output:
+        - ${data.label}/${radius.label}/${penalty.label}/{i}_2spike.npy
+    - command: temporal.optimize
+      output:
+        - ${data.label}/${radius.label}/${penalty.label}/{i}_2spike.npy
+    - command: validate

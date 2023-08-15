@@ -89,22 +89,27 @@ class SpatialModel(Model):
         super().__init__("spatial", data, *args, **kwargs)
 
     def prepare(self, clip, **kwargs):
-        print(clip)
         clip = get_clip(clip, self.data.shape)
         print(clip)
-        data = self.data.clip(clip)
-        oldx = clip(self.oldx)
-        print(oldx.shape)
 
-        penalty = self.penalty
+        data = self.data.clip(clip)
+        trans = False
+
+        oldx = clip(self.oldx)
+        cond = np.any(oldx, axes=(1, 2))
+        n1 = self.y1.shape[0]
+        y1 = jnp.array(self.y1[cond[:n1]])
+        y2 = jnp.array(self.y2[cond[n1:]])
+
         dynamics = self.dynamics
-        y1 = dynamics(self.y1)
-        y2 = self.y2
+        y1 = dynamics(y1)
         yval = jnp.concatenate([y1, y2], axis=0)
         yval /= yval.max(axis=1, keepdims=True)
-        trans = False
+
+        penalty = self.penalty
         bx = penalty.bs
         by = penalty.bt
+
         self._prepare(data, yval, trans, bx, by, **kwargs)
         self.py = penalty.lu(y1) + penalty.lt(y2)
 
@@ -125,13 +130,17 @@ class TemporalModel(Model):
         super().__init__("temporal", data, *args, **kwargs)
 
     def prepare(self, **kwargs):
-        penalty = self.penalty
         data = self.data
-        yval = data.apply_mask(self.y, mask_type=True)
         trans = True
+
+        y = data.apply_mask(self.y, mask_type=True)
+        yval = jnp.array(y)
+
+        penalty = self.penalty
         bx = penalty.bt
         by = penalty.bs
-        self._prepare(self.data, yval, trans, bx, by, **kwargs)
+
+        self._prepare(data, yval, trans, bx, by, **kwargs)
 
         nk = np.count_nonzero(self.peaks.kind == "cell")
         self.py = penalty.la(yval[:nk]) + penalty.ls(yval[nk:])

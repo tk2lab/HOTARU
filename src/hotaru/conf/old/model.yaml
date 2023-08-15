@@ -1,0 +1,34 @@
+data:
+  imgs:
+    type: tif
+    file: imgs.tif
+    hz: 20
+  mask:
+    type: nomask
+
+radius:
+  type: logscale
+  min: 2
+  max: 16
+  num: 11
+
+density:
+  thr_remove: 1
+  thr_localbg: 1
+  thr_distance: 2
+
+dynamics:
+  type: double_exp
+  tau1: 0.08
+  tau2: 0.16
+  duration: 1.0
+
+penalty:
+  bx: 0.1
+  bt: 0.1
+  la:
+    type: MaxNormNonNegativeL1
+    factor: 20.0
+  lu:
+    type: MaxNormNonNegativeL1
+    factor: 30.0

@@ -9,13 +9,24 @@ class Regularizer:
         return y
 
 
+class L2:
+    def __init__(self, fac):
+        self.fac = fac
+
+    def __call__(self, x):
+        return jnp.square(self.fac * x).sum()
+
+    def prox(self, y, eta):
+        return y / (1 + self.fac * eta)
+
+
 class NonNegativeL1:
     def __init__(self, fac):
         self.fac = fac
 
     def __call__(self, x):
-        #x = jnp.maximum(0, x)
-        return self.fac * x.sum()
+        x = jnp.maximum(0, x)
+        return (self.fac * x).sum()
 
     def prox(self, y, eta):
         return jnp.maximum(0, y - self.fac * eta)
@@ -26,11 +37,14 @@ class MaxNormNonNegativeL1:
         self.fac = fac
 
     def __call__(self, x):
-        s = x.sum(axis=-1)
+        x = jnp.maximum(0, x)
         m = x.max(axis=-1)
+        s = (self.fac * x).sum(axis=-1)
         if x.ndim > 1:
-            m = jnp.where(m > 0, m, jnp.ones(()))
-            return self.fac * (s / m).sum()
+            positive = m > 0
+            m = jnp.where(positive, m, 1)
+            s = jnp.where(positive, s, 0)
+            return (s / m).sum()
         else:
             if m > 0:
                 return self.fac * s / m
@@ -40,4 +54,5 @@ class MaxNormNonNegativeL1:
     def prox(self, y, eta):
         y = jnp.maximum(0, y)
         m = y.max(axis=-1, keepdims=True)
-        return jnp.maximum(0, jnp.where(y == m, y, y - eta * self.fac / m))
+        ym = jnp.where(y == m, y, y - self.fac * eta / m)
+        return jnp.maximum(0, ym)

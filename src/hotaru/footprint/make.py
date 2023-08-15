@@ -17,19 +17,20 @@ logger = getLogger(__name__)
 
 
 def make_footprints(data, peaks, env=None, factor=1, prefetch=1):
-    logger.info("make: %s", peaks.shape[0])
+    nk = peaks.shape[0]
     h, w = data.shape
     ts, ys, xs, rs = (np.array(v) for v in (peaks.t, peaks.y, peaks.x, peaks.radius))
 
     env = get_gpu_env(env)
     nd = env.num_devices
     sharding = env.sharding((nd, 1))
+    batch = env.batch(float(factor) * h * w, nk)
+    logger.info("make: %s %d", peaks.shape[0], batch)
 
     logger.info("%s: %s %s %d", "pbar", "start", "make", ts.size)
-    out = jnp.empty((ts.size, h, w))
+    out = np.empty((nk, h, w))
     for r in np.unique(rs):
         index = np.where(rs == r)[0]
-        batch = env.batch(float(factor) * h * w, index.size)
         dataset = tf.data.Dataset.from_generator(
             lambda: zip(index, data.data(ts[index]), ys[index], xs[index]),
             output_signature=(
@@ -52,10 +53,10 @@ def make_footprints(data, peaks, env=None, factor=1, prefetch=1):
                 imgs = jnp.pad(imgs, pad, constant_values=jnp.nan)
                 y = jnp.pad(y, ((0, diff)), constant_values=-1)
                 x = jnp.pad(x, ((0, diff)), constant_values=-1)
-            out = out.at[idx].set(_make_segments_simple(imgs, y, x, r)[:count])
+            out[idx] = np.array(_make_segments_simple(imgs, y, x, r)[:count])
             logger.info("%s: %s %d", "pbar", "update", count)
     logger.info("%s: %s", "pbar", "close")
-    return np.array(out)
+    return out
 
 
 def make_segments_simple(imgs, y, x, r):

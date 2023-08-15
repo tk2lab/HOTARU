@@ -2,23 +2,29 @@ from collections import namedtuple
 
 from .regularizer import (
     Regularizer,
+    L2,
+    NonNegativeL1,
     MaxNormNonNegativeL1,
 )
 
-Penalty = namedtuple("Penalty", "la lu ls lt bs bt")
+Penalty = namedtuple("Penalty", "la lu lb bs bt")
 
 
 def get_penalty(penalty):
     if isinstance(penalty, Penalty):
         return penalty
     out = []
-    for p in (penalty.la, penalty.lu, penalty.ls, penalty.lt):
+    for p in (penalty.la, penalty.lu):
         match p:
             case {"type": "NoPenalty"}:
                 out.append(Regularizer())
+            case {"type": "L2", "factor": fac}:
+                out.append(L2(fac))
+            case {"type": "NonNegativeL1", "factor": fac}:
+                out.append(NonNegativeL1(fac))
             case {"type": "MaxNormNonNegativeL1", "factor": fac}:
                 out.append(MaxNormNonNegativeL1(fac))
             case _:
                 raise ValueError()
-    out += [penalty.bs, penalty.bt]
+    out += [penalty.lb, penalty.bs, penalty.bt]
     return Penalty(*out)

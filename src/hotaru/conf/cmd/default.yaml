@@ -19,20 +19,22 @@ spatial:
     factor: 1.0
     prefetch: 1
   optimize:
-    lr: 0.001
+    lr: 1e-3
     nesterov_scale: 20
   step:
-    n_epoch: 100
+    n_epoch: 10000
     n_step: 100
     tol: 1e-5
+    patience: 10
 temporal:
   prepare:
     factor: 1.0
     prefetch: 1
   optimize:
-    lr: 0.005
+    lr: 1e-5
     nesterov_scale: 20
   step:
-    n_epoch: 100
+    n_epoch: 10000
     n_step: 100
     tol: 1e-5
+    patience: 10

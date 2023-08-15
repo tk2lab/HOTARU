@@ -83,11 +83,17 @@ def temporal_and_eval(data, footprints, peaks, cfg):
         cfg.env,
         **cfg.cmd.temporal,
     )
-    peaks["usum"] = pd.Series(
-        spikes.sum(axis=1), index=peaks.query("kind=='cell'").index
+    peaks["umax"] = pd.Series(
+        spikes.max(axis=1), index=peaks.query("kind=='cell'").index
     )
     peaks["unum"] = pd.Series(
         np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index
+    )
+    peaks["bmax"] = pd.Series(
+        np.abs(background).max(axis=1), index=peaks.query("kind=='background'").index
+    )
+    peaks["bmean"] = pd.Series(
+        background.mean(axis=1), index=peaks.query("kind=='background'").index
     )
     return spikes, background, peaks
 
@@ -112,7 +118,7 @@ def cui_main(cfg):
             out = [None]
         else:
             out = try_load(files)
-        if np.any([o is None for o in out]):
+        if out is None or np.any([o is None for o in out]):
             logger.info("exec: %s", name)
             if cfg.trace:
                 trace_dir = odir / cfg.outputs.trace.dir
@@ -203,10 +209,10 @@ def cui_main(cfg):
             cfg,
         )
         plot_peak_stats(peaks).write_image(fig_dir / f"{stage:03d}peaks.pdf")
-        plot_seg_max(footprints, background).write_image(
+        plot_seg_max(footprints, peaks).write_image(
             fig_dir / f"{stage:03d}max.pdf"
         )
-        plot_seg(peaks, footprints, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
+        plot_seg(footprints, peaks, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
 
         spikes, background, peaks = load_or_exec(
             "temporal",

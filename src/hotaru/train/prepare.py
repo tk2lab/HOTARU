@@ -19,8 +19,7 @@ def prepare_matrix(data, y, trans, env, factor, prefetch):
     nd = env.num_devices
     sharding = env.sharding((nd, 1))
     batch = env.batch(float(factor) * nk * ns, nt)
-
-    y = jax.device_put(y, sharding)
+    logger.info("prepare: %d %d %d %d", nt, nk, ns, batch)
 
     nkmod = nd * ((nk + nd - 1) // nd)
     y = np.pad(y, ((0, nkmod - nk), (0, 0)))

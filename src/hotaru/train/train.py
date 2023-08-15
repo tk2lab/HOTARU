@@ -1,5 +1,6 @@
 from logging import getLogger
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -7,6 +8,7 @@ from ..utils import (
     get_clip,
     get_gpu_env,
 )
+from .regularizer import L2
 from .common import loss_fn
 from .dynamics import get_dynamics
 from .optimizer import ProxOptimizer
@@ -52,24 +54,35 @@ class Model:
 
         self.data = data
 
-    def _prepare(self, data, y, trans, bx, by, **kwargs):
+        nd = self.env.num_devices
+        self.sharding = self.env.sharding((nd, 1))
+
+    def _prepare(self, data, y, trans, py, bx, by, **kwargs):
         ycov, yout, ycor = prepare_matrix(data, y, trans, self.env, **kwargs)
+
+        if trans:
+            nx, ny = data.nt, data.ns
+        else:
+            nx, ny = data.ns, data.nt
+
+        nxf = jnp.array(nx, jnp.float32)
+        nyf = jnp.array(ny, jnp.float32)
+        nn = nxf * nyf
+        nm = nn + nxf + nyf
 
         cx = 1 - jnp.square(bx)
         cy = 1 - jnp.square(by)
 
-        a = ycor
-        b = ycov - cx * yout
-        c = yout - cy * ycov
+        a = (ycov - cx * yout)
+        b = (yout - cy * ycov) / nxf
+        c = -2 * ycor
+        d = nn
+        e = nm
 
-        nt = data.nt
-        ns = data.ns
-        ntf = jnp.array(nt, jnp.float32)
-        nsf = jnp.array(ns, jnp.float32)
-        nn = ntf * nsf
-        nm = nn + ntf + nsf
-        self.args = nn, nm, a, b, c
-        self.lr_scale = b.diagonal().max()
+        self.args = a, b, c, d, e
+        self.py = py
+
+        self.lr_scale = 1 #np.abs(a.sum(axis=0)).max() + np.abs(c).max()
         self.loss_scale = nm
 
     def optimizer(self, lr, nesterov_scale):
@@ -81,7 +94,7 @@ class Model:
 
     def loss_fn(self, x1, x2):
         x = jnp.concatenate([x1, x2], axis=0)
-        return loss_fn(x, *self.args) + self.py / self.loss_scale
+        return loss_fn(x, *self.args) + self.py
 
 
 class SpatialModel(Model):
@@ -97,28 +110,27 @@ class SpatialModel(Model):
 
         data = self.data.clip(clip)
         trans = False
-        self._data = data
 
         oldx = clip(self.oldx)
-        cond = np.any(oldx, axis=(1, 2))
         n1 = self.y1.shape[0]
-        y1 = jnp.array(self.y1[cond[:n1]])
-        y2 = jnp.array(self.y2[cond[n1:]])
-        self._y1 = y1
-        self._y2 = y2
+
+        cond = np.any(oldx, axis=(1, 2))
+        y1 = jax.device_put(self.y1[cond[:n1]], self.sharding)
+        y2 = jax.device_put(self.y2[cond[n1:]], self.sharding)
 
         dynamics = self.dynamics
         y1 = dynamics(y1)
         yval = jnp.concatenate([y1, y2], axis=0)
         yval /= yval.max(axis=1, keepdims=True)
 
-        penalty = self.penalty
-        bx = penalty.bs
-        by = penalty.bt
-        self.py = penalty.lu(y1) + penalty.lt(y2)
+        py = self.penalty.lu(y1)
+        bx = self.penalty.bs
+        by = self.penalty.bt
 
-        self._prepare(data, yval, trans, bx, by, **kwargs)
-        return cond
+        self._data = data
+        self._y1 = y1
+        self._y2 = y2
+        self._prepare(data, yval, trans, py, bx, by, **kwargs)
 
     def initial_data(self):
         n1 = self._y1.shape[0]
@@ -127,30 +139,38 @@ class SpatialModel(Model):
         return jnp.zeros((n1, ns)), jnp.zeros((n2, ns))
 
     def regularizer(self):
-        return self.penalty.la, self.penalty.ls
+        y2sum = jnp.square(jnp.array(self._y2)).sum(axis=1)
+        return self.penalty.la, L2(self.penalty.lb * y2sum[:, jnp.newaxis])
 
 
 class TemporalModel(Model):
     def __init__(self, data, y, peaks, *args, **kwargs):
+        self.n1 = np.count_nonzero(peaks.kind == "cell")
         self.y = y
         self.peaks = peaks
         super().__init__("temporal", data, *args, **kwargs)
+
+    @property
+    def y1(self):
+        return self.y[:self.n1]
+
+    @property
+    def y2(self):
+        return self.y[self.n1:]
 
     def prepare(self, **kwargs):
         data = self.data
         trans = True
 
         y = data.apply_mask(self.y, mask_type=True)
-        yval = jnp.array(y)
+        yval = jax.device_put(y, self.sharding)
+        y1 = yval[:self.n1]
 
-        penalty = self.penalty
-        bx = penalty.bt
-        by = penalty.bs
+        py = self.penalty.la(y1)
+        bx = self.penalty.bt
+        by = self.penalty.bs
 
-        nk = np.count_nonzero(self.peaks.kind == "cell")
-        self.py = penalty.la(yval[:nk]) + penalty.ls(yval[nk:])
-
-        self._prepare(data, yval, trans, bx, by, **kwargs)
+        self._prepare(data, yval, trans, py, bx, by, **kwargs)
 
     def initial_data(self):
         nk = self.y.shape[0]
@@ -158,11 +178,14 @@ class TemporalModel(Model):
         n2 = nk - n1
         nt = self.data.nt
         nu = nt + self.dynamics.size - 1
-        return jnp.zeros((n1, nu)), jnp.zeros((n2, nt))
+        x1 = jax.device_put(jnp.zeros((n1, nu)), self.sharding)
+        x2 = jax.device_put(jnp.zeros((n2, nt)), self.sharding)
+        return x1, x2
 
     def loss_fn(self, x1, x2):
         x1 = self.dynamics(x1)
         return super().loss_fn(x1, x2)
 
     def regularizer(self):
-        return self.penalty.la, self.penalty.ls
+        y2sum = jnp.square(jnp.array(self.y[self.n1:])).sum(axis=(1, 2))
+        return self.penalty.lu, L2(self.penalty.lb * y2sum[:, jnp.newaxis])

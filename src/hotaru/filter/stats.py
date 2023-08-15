@@ -21,7 +21,7 @@ def calc_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     @jax.jit
     def update(avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax, index, imgs):
         if mask is None:
-            masked = imgs.reshape(-1, h * w)
+            masked = imgs.reshape(batch, h * w)
         else:
             masked = imgs[:, mask]
 
@@ -79,12 +79,9 @@ def calc_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     imax = jnp.full((h, w), -jnp.inf)
 
     logger.info("%s: %s %s %d", "pbar", "start", "stats", nt)
-    for index, imgs in dataset:
-        index = from_tf(index)
-        imgs = from_tf(imgs) #.astype(jnp.float32)
-
-        index = jax.device_put(index, sharding)
-        imgs = jax.device_put(imgs, sharding)
+    for data in dataset:
+        data = (from_tf(v) for v in data)
+        index, imgs = (jax.device_put(v) for v in data)
 
         count = index.size
         diff = batch - count

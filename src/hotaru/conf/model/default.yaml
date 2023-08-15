@@ -8,13 +8,10 @@ dynamics:
 penalty:
   la:
     type: MaxNormNonNegativeL1
-    factor: 20.0
+    factor: 0.0
   lu:
     type: MaxNormNonNegativeL1
-    factor: 30.0
-  ls:
-    type: NoPenalty
-  lt:
-    type: NoPenalty
-  bs: 0.1
-  bt: 0.1
+    factor: 0.0
+  lb: 0.0
+  bs: 0.0
+  bt: 0.0

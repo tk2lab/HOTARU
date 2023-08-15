@@ -1,17 +1,12 @@
 from logging import getLogger
-from functools import partial
 
 import jax
 import jax.numpy as jnp
 import tensorflow as tf
-from jax.dlpack import from_dlpack
+
+from ..utils import from_tf
 
 logger = getLogger(__name__)
-
-
-def from_tf(x_tf):
-    x_dl = tf.experimental.dlpack.to_dlpack(x_tf)
-    return from_dlpack(x_dl)
 
 
 def matmul_batch(x, y, trans, sharding, batch, prefetch):
@@ -58,11 +53,9 @@ def matmul_batch(x, y, trans, sharding, batch, prefetch):
     return out
 
 
-def loss_fn(x, nn, nm, a, b, c):
-    nk, nx = x.shape
-    xdot = (a * x).sum()
-    xcov = x @ x.T
-    xsum = x.sum(axis=1)
-    xmean = xsum / nx
-    var = (nn + (b * xcov).sum() + (xsum @ c @ xmean) - 2 * xdot) / nm
-    return jnp.log(var) / 2
+def loss_fn(xval, a, b, c, d, e):
+    xcov = xval @ xval.T
+    xsum = xval.sum(axis=1)
+    xout = jnp.outer(xsum, xsum)
+    var = (a * xcov).sum() + (b * xout).sum() + (c * xval).sum() + d
+    return e * (jnp.log(var) - jnp.log(e)) / 2

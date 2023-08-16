@@ -30,7 +30,6 @@ class GpuEnv:
     def __init__(self, num_devices=None, memsize=None, label=None):
         if not (num_devices > 0 and memsize > 0):
             gpu_info = get_gpu_info()
-            logger.info("gpu %s", gpu_info)
             if not (num_devices > 0):
                 num_devices = len(gpu_info)
             if not (memsize > 0):

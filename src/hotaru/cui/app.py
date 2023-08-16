@@ -1,7 +1,9 @@
 from contextlib import nullcontext
 from logging import getLogger
 from pathlib import Path
+from psutil import Process
 
+import jax
 import numpy as np
 import pandas as pd
 from jax.profiler import trace
@@ -59,15 +61,10 @@ def spatial_and_clean(data, old_footprints, old_peaks, spikes, background, cfg):
         cfg.env,
         **cfg.cmd.spatial,
     )
-    print(old_peaks)
-    print(index)
-    print(segments.shape)
     uid = old_peaks.iloc[index].uid.to_numpy()
     footprints, peaks = clean(
         uid,
         segments,
-        data.shape,
-        data.mask,
         cfg.radius,
         cfg.density,
         cfg.env,
@@ -123,6 +120,18 @@ def cui_main(cfg):
             out = try_load(files)
         if out is None or np.any([o is None for o in out]):
             logger.info("exec: %s", name)
+            logger.info(
+                "memory: %f MB", Process().memory_info().rss / 1014 / 1014
+            )
+
+            les = jax.lib.xla_bridge.get_backend().live_executables()
+            lbs = jax.lib.xla_bridge.get_backend().live_buffers()
+            logger.info(
+                "live_buffer: %d" + " %s" * len(lbs),
+                len(les),
+                *(lb.shape for lb in lbs),
+            )
+
             if cfg.trace:
                 trace_dir = odir / cfg.outputs.trace.dir
                 trace_dir.mkdir(parents=True, exist_ok=True)
@@ -131,11 +140,19 @@ def cui_main(cfg):
                 trace_ctx = nullcontext()
             with trace_ctx:
                 out = command(*args, **kwargs)
-            if len(files) == 1:
-                save(files, [out])
-            else:
-                save(files, out)
-            logger.info("saved:" + " %s" * len(files), *files)
+                if len(files) == 1:
+                    save(files, [out])
+                else:
+                    save(files, out)
+                logger.info("saved:" + " %s" * len(files), *files)
+
+            les = jax.lib.xla_bridge.get_backend().live_executables()
+            lbs = jax.lib.xla_bridge.get_backend().live_buffers()
+            logger.info(
+                "live_buffer: %d" + " %s" * len(lbs),
+                len(les),
+                *(lb.shape for lb in lbs),
+            )
         else:
             logger.info("loaded:" + " %s" * len(files), *files)
         return out
@@ -160,7 +177,8 @@ def cui_main(cfg):
     logger.info("*** stage %s ***", stage)
     imgs, hz = load_imgs(**cfg.data.imgs)
     imgs, mask = apply_mask(imgs, **cfg.data.mask)
-    stats, *simgs = load_or_exec("stats",
+    stats, *simgs = load_or_exec(
+        "stats",
         calc_stats,
         imgs,
         mask,
@@ -212,9 +230,7 @@ def cui_main(cfg):
             cfg,
         )
         plot_peak_stats(peaks).write_image(fig_dir / f"{stage:03d}peaks.pdf")
-        plot_seg_max(footprints, peaks).write_image(
-            fig_dir / f"{stage:03d}max.pdf"
-        )
+        plot_seg_max(footprints, peaks).write_image(fig_dir / f"{stage:03d}max.pdf")
         plot_seg(footprints, peaks, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
 
         spikes, background, peaks = load_or_exec(

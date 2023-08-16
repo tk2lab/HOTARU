@@ -20,10 +20,11 @@ logger = getLogger(__name__)
 Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 
-def clean(uid, vals, shape, mask, radius, density, env, factor, prefetch):
-    args = shape, mask, radius, env, factor, prefetch
-    segments, y, x, radius, firmness = clean_footprints(vals, *args)
+def clean(uid, imgs, radius, density, env, factor, prefetch):
+    args = radius, env, factor, prefetch
+    segments, y, x, radius, firmness = clean_footprints(imgs, *args)
     cell, bg = reduce_peaks_simple(y, x, radius, firmness, density)
+    logger.info("clean: %d %d %d", segments.shape[0], len(cell), len(bg))
 
     peaks = pd.DataFrame(dict(uid=uid, y=y, x=x, radius=radius, firmness=firmness))
     peaks["kind"] = "remove"
@@ -42,12 +43,10 @@ def clean(uid, vals, shape, mask, radius, density, env, factor, prefetch):
     return segments, peaks
 
 
-def clean_footprints(vals, shape, mask, radius, env=None, factor=1, prefetch=1):
+def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     @jax.jit
     def calc(imgs):
         gl = gaussian_laplace(imgs, radius, -3)
-        if mask is not None:
-            gl.at[:, :, ~mask].set(jnp.nan)
         nk, nr, h, w = gl.shape
         idx = jnp.argmax(gl.reshape(nk, nr * h * w), axis=1)
         k = jnp.arange(nk)
@@ -61,8 +60,7 @@ def clean_footprints(vals, shape, mask, radius, env=None, factor=1, prefetch=1):
         return imgs, y, x, r, g
 
     radius = get_radius(radius)
-    nk, nx = vals.shape
-    h, w = shape
+    nk, h, w = segs.shape
 
     env = get_gpu_env(env)
     nd = env.num_devices
@@ -70,43 +68,36 @@ def clean_footprints(vals, shape, mask, radius, env=None, factor=1, prefetch=1):
     batch = env.batch(float(factor) * h * w * len(radius), nk)
 
     dataset = tf.data.Dataset.from_generator(
-        lambda: zip(range(nk), vals),
+        lambda: zip(range(nk), segs),
         output_signature=(
             tf.TensorSpec((), tf.int32),
-            tf.TensorSpec((nx,), tf.float32),
+            tf.TensorSpec((h, w), tf.float32),
         ),
     )
     dataset = dataset.batch(batch)
     dataset = dataset.prefetch(prefetch)
 
-    seg = jnp.empty((nk + 1, h, w))
+    out = jnp.empty((nk + 1, h, w))
     y = jnp.empty((nk + 1,), jnp.int32)
     x = jnp.empty((nk + 1,), jnp.int32)
     r = jnp.empty((nk + 1,), jnp.int32)
     g = jnp.empty((nk + 1,), jnp.float32)
 
-    mask = None if mask is None else jax.device_put(jnp.array(mask, bool), sharding)
-
     logger.info("clean: %s %s", (factor, h, w), batch)
     logger.info("%s: %s %s %d", "pbar", "start", "clean", nk)
     for data in dataset:
         data = (from_tf(v) for v in data)
-        idx, val = (jax.device_put(v, sharding) for v in data)
+        idx, img = (jax.device_put(v, sharding) for v in data)
 
         count = idx.size
-        if mask is None:
-            img = val.reshape(count, h, w)
-        else:
-            img = jnp.zeros((count, h, w)).at[mask].set(val)
-
         diff = batch - count
         if diff > 0:
             pad = (0, diff), (0, 0), (0, 0)
             idx = jnp.pad(idx, pad[:1], constant_values=-1)
             img = jnp.pad(img, pad, constant_values=jnp.nan)
 
-        segi, yi, xi, ri, gi = calc(img)
-        seg = seg.at[idx].set(segi)
+        outi, yi, xi, ri, gi = calc(img)
+        out = out.at[idx].set(outi)
         y = y.at[idx].set(yi)
         x = x.at[idx].set(xi)
         r = r.at[idx].set(ri)
@@ -114,6 +105,6 @@ def clean_footprints(vals, shape, mask, radius, env=None, factor=1, prefetch=1):
         logger.info("%s: %s %d", "pbar", "update", count)
     logger.info("%s: %s", "pbar", "close")
 
-    seg, y, x, r, g = (np.array(v[:-1]) for v in (seg, y, x, r, g))
+    out, y, x, r, g = (np.array(v[:-1]) for v in (out, y, x, r, g))
     r = np.array(radius)[r]
-    return Footprint(seg, y, x, r, g)
+    return Footprint(out, y, x, r, g)

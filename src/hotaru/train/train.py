@@ -2,6 +2,7 @@ from logging import getLogger
 
 import jax
 import jax.numpy as jnp
+import pandas as pd
 import numpy as np
 
 from ..utils import (
@@ -21,16 +22,18 @@ logger = getLogger(__name__)
 def spatial(data, oldx, y1, y2, dynamics, penalty, env, clip, prepare, optimize, step):
     logger.info("spatial:")
     model = SpatialModel(data, oldx, y1, y2, dynamics, penalty, env)
-    outi = []
-    outx = []
+    out = []
+    clip = get_clip(data.shape, *clip)
     for cl in clip:
         index = model.prepare(cl, **prepare)
         optimizer = model.optimizer(**optimize)
         x1, x2 = model.initial_data()
         x1, x2 = optimizer.fit((x1, x2), **step)
-        outi.append(index)
-        outx += [np.array(x1), np.array(x2)]
-    return np.concatenate(outi, axis=0), np.concatenate(outx, axis=0)
+        out.append((index, model.unclip(x1, x2)))
+    index, x = zip(*out)
+    index = np.concatenate(index, axis=0)
+    x = np.concatenate(x, axis=0)
+    return index, x
 
 
 def temporal(data, y, peaks, dynamics, penalty, env, prepare, optimize, step):
@@ -68,7 +71,7 @@ class Model:
 
         self.args = ycov, yout, ydot, nx, ny, bx, by
         self.py = py
-        self.lr_scale = jnp.diagonal(ycov).max()
+        self.lr_scale = jnp.diagonal(ycov + bx * yout).max()
         self.loss_scale = nx * ny + nx + ny
 
         logger.info("mat scale: %f", np.array(self.lr_scale))
@@ -93,7 +96,6 @@ class SpatialModel(Model):
         super().__init__("spatial", data, *args, **kwargs)
 
     def prepare(self, clip, **kwargs):
-        clip = get_clip(clip, self.data.shape)
         logger.info("clip: %s", clip)
 
         data = self.data.clip(clip)
@@ -116,11 +118,32 @@ class SpatialModel(Model):
         by = self.penalty.bt
 
         self._data = data
+        self._clip = clip
         self._y1 = y1
         self._y2 = y2
         self._prepare(data, yval, trans, py, bx, by, **kwargs)
 
         return np.where(cond)[0]
+
+    def unclip(self, x1, x2):
+        clip = self._clip
+        mask = self._data.mask
+        x = np.concatenate([np.array(x1), np.array(x2)], axis=0)
+        nk = x.shape[0]
+        h, w = self.data.shape
+        y0 = 0 if clip.y0 is None else clip.y0
+        x0 = 0 if clip.x0 is None else clip.x0
+        y1 = h if clip.y1 is None else clip.y1
+        x1 = w if clip.x1 is None else clip.x1
+        if mask is None:
+            tmp = x.reshape(nk, y1 - y0, x1 - x0)
+        else:
+            tmp = np.zeros((nk, y1 - y0, x1 - x0))
+            tmp[mask] = x
+        out = np.zeros((nk, h, w))
+        print(tmp.shape, out.shape, y0, y1, x0, x1)
+        out[:, y0:y1, x0:x1] = tmp
+        return out
 
     def initial_data(self):
         n1 = self._y1.shape[0]

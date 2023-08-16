@@ -33,3 +33,4 @@ hydra:
     env_set:
       TF_CPP_MIN_LOG_LEVEL: 2
       JAX_PLATFORMS: cuda
+      JLA_PYTHON_CLIENT_PREALLOCATE: false

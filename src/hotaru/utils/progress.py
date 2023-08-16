@@ -40,7 +40,7 @@ class ConsoleProgress(Progress):
         self._setter((self._name, "", "", ""))
         print("set_count", total, status)
         self._status = status
-        self._total = total
+        self._total = total if total > 0 else None
         self._n = 0
         self._setter((self._name, str(self._n), str(self._total), str(self._status)))
 

@@ -1,5 +1,4 @@
 from logging import getLogger
-from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -19,18 +18,21 @@ class ProxOptimizer:
         self.loss_scale = loss_scale
         self._history = []
 
-    def fit(self, x, n_epoch, n_step, tol, patience, name="fit"):
+    def fit(self, x, max_epoch, steps_par_epoch, tol, patience, name="fit"):
+        loss_fn = jax.jit(self._loss)
+        step_fn = jax.jit(self._step, static_argnames=("n_step",))
+
         x = tuple(jnp.array(xi) for xi in x)
-        loss = np.array(self._loss(*x))
+        loss = np.array(loss_fn(*x))
         log_diff = np.inf
         self._history.append(loss)
         postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
-        logger.info("%s: %s %s %d %s", "pbar", "start", name, n_epoch, postfix)
+        logger.info("%s: %s %s %d %s", "pbar", "start", name, -1, postfix)
         min_loss = np.inf
         patience_count = 0
-        for i in range(n_epoch):
-            x = self.step(x, n_step)
-            old_loss, loss = loss, np.array(self._loss(*x))
+        for i in range(max_epoch):
+            x = step_fn(x, steps_par_epoch)
+            old_loss, loss = loss, np.array(loss_fn(*x))
             self._history.append(loss)
             diff = (old_loss - loss) / tol
             log_diff = np.log10(diff) if diff > 0 else np.nan
@@ -53,9 +55,8 @@ class ProxOptimizer:
         return x
 
     def loss(self, *x):
-        return np.array(self._loss(*(jnp.array(xi) for xi in x)))
+        return np.array(jax.jit(self._loss)(*(jnp.array(xi) for xi in x)))
 
-    @partial(jax.jit, static_argnums=(0, 2))
     def _step(self, x, n_step):
         prox = self.prox
         nesterov_scale = self.nesterov_scale
@@ -72,7 +73,6 @@ class ProxOptimizer:
             oldx, oldy = newx, newy
         return newx
 
-    @partial(jax.jit, static_argnums=(0,))
     def _loss(self, *x):
         loss = self.loss_fn(*x)
         penalty = sum(ri(xi) for xi, ri in zip(x, self.regularizers))

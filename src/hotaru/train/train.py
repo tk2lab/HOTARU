@@ -2,7 +2,6 @@ from logging import getLogger
 
 import jax
 import jax.numpy as jnp
-import pandas as pd
 import numpy as np
 
 from ..utils import (
@@ -19,35 +18,39 @@ from .prepare import prepare_matrix
 logger = getLogger(__name__)
 
 
-def spatial(data, oldx, y1, y2, dynamics, penalty, env, clip, prepare, optimize, step):
+def spatial(data, oldx, peaks, y1, y2, model, env, clip, prepare, optimize, step):
     logger.info("spatial:")
-    model = SpatialModel(data, oldx, y1, y2, dynamics, penalty, env)
-    out = []
+    target = SpatialModel(data, oldx, peaks, y1, y2, **model, env=env)
     clip = get_clip(data.shape, *clip)
+    out = []
     for cl in clip:
-        index = model.prepare(cl, **prepare)
-        optimizer = model.optimizer(**optimize)
-        x1, x2 = model.initial_data()
+        target.prepare(cl, **prepare)
+        optimizer = target.optimizer(**optimize)
+        x1, x2 = target.initial_data()
         x1, x2 = optimizer.fit((x1, x2), **step)
-        out.append((index, model.unclip(x1, x2)))
+        index, x = target.finalize(x1, x2)
+        out.append((index, x))
     index, x = zip(*out)
     index = np.concatenate(index, axis=0)
     x = np.concatenate(x, axis=0)
-    return index, x
+    rev_index = np.empty_like(index)
+    for i, j in enumerate(index):
+        rev_index[j] = i
+    return x[rev_index]
 
 
-def temporal(data, y, peaks, dynamics, penalty, env, prepare, optimize, step):
+def temporal(data, y, peaks, model, env, prepare, optimize, step):
     logger.info("temporal:")
-    model = TemporalModel(data, y, peaks, dynamics, penalty, env)
-    model.prepare(**prepare)
-    optimizer = model.optimizer(**optimize)
-    x1, x2 = model.initial_data()
+    target = TemporalModel(data, y, peaks, **model, env=env)
+    target.prepare(**prepare)
+    optimizer = target.optimizer(**optimize)
+    x1, x2 = target.initial_data()
     x1, x2 = optimizer.fit((x1, x2), **step)
     return np.array(x1), np.array(x2)
 
 
 class Model:
-    def __init__(self, kind, data, dynamics, penalty, env):
+    def __init__(self, kind, data, dynamics, penalty, env, label="model"):
         self.kind = kind
 
         self.dynamics = get_dynamics(dynamics)
@@ -89,7 +92,8 @@ class Model:
 
 
 class SpatialModel(Model):
-    def __init__(self, data, oldx, y1, y2, *args, **kwargs):
+    def __init__(self, data, oldx, peaks, y1, y2, *args, **kwargs):
+        self.peaks = peaks
         self.oldx = oldx
         self.y1 = y1
         self.y2 = y2
@@ -98,15 +102,15 @@ class SpatialModel(Model):
     def prepare(self, clip, **kwargs):
         logger.info("clip: %s", clip)
 
-        data = self.data.clip(clip)
+        data = self.data.clip(clip.clip)
         trans = False
 
-        oldx = clip(self.oldx)
-        n1 = self.y1.shape[0]
+        oldx = clip.clip(self.oldx)
+        active = np.any(oldx, axis=(1, 2))
 
-        cond = np.any(oldx, axis=(1, 2))
-        y1 = jax.device_put(self.y1[cond[:n1]], self.sharding)
-        y2 = jax.device_put(self.y2[cond[n1:]], self.sharding)
+        n1 = self.y1.shape[0]
+        y1 = jax.device_put(self.y1[active[:n1]], self.sharding)
+        y2 = jax.device_put(self.y2[active[n1:]], self.sharding)
 
         dynamics = self.dynamics
         y1 = dynamics(y1)
@@ -121,29 +125,20 @@ class SpatialModel(Model):
         self._clip = clip
         self._y1 = y1
         self._y2 = y2
+        self._active = active
         self._prepare(data, yval, trans, py, bx, by, **kwargs)
 
-        return np.where(cond)[0]
-
-    def unclip(self, x1, x2):
+    def finalize(self, x1, x2):
+        shape = self.data.shape
         clip = self._clip
         mask = self._data.mask
-        x = np.concatenate([np.array(x1), np.array(x2)], axis=0)
-        nk = x.shape[0]
-        h, w = self.data.shape
-        y0 = 0 if clip.y0 is None else clip.y0
-        x0 = 0 if clip.x0 is None else clip.x0
-        y1 = h if clip.y1 is None else clip.y1
-        x1 = w if clip.x1 is None else clip.x1
-        if mask is None:
-            tmp = x.reshape(nk, y1 - y0, x1 - x0)
-        else:
-            tmp = np.zeros((nk, y1 - y0, x1 - x0))
-            tmp[mask] = x
-        out = np.zeros((nk, h, w))
-        print(tmp.shape, out.shape, y0, y1, x0, x1)
-        out[:, y0:y1, x0:x1] = tmp
-        return out
+
+        p = self.peaks[self._active]
+        select = clip.is_active(p.y, p.x)
+
+        x = np.concatenate([np.array(x1), np.array(x2)], axis=0)[select]
+        x = clip.unclip(x, mask, shape)
+        return p[select].index, x
 
     def initial_data(self):
         n1 = self._y1.shape[0]

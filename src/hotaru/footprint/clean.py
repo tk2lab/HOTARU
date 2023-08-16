@@ -26,6 +26,7 @@ def clean(uid, imgs, radius, density, env, factor, prefetch):
     cell, bg = reduce_peaks_simple(y, x, radius, firmness, density)
     logger.info("clean: %d %d %d", segments.shape[0], len(cell), len(bg))
 
+    print(uid.size, y.size, x.size, radius.size, firmness.size)
     peaks = pd.DataFrame(dict(uid=uid, y=y, x=x, radius=radius, firmness=firmness))
     peaks["kind"] = "remove"
     peaks.loc[cell, "kind"] = "cell"

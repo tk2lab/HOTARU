@@ -51,17 +51,18 @@ def make(data, findval, env, cfg):
 
 
 def spatial_and_clean(data, old_footprints, old_peaks, spikes, background, cfg):
-    index, segments = spatial(
+    old_peaks = old_peaks[old_peaks.kind!="remove"]
+    segments = spatial(
         data,
         old_footprints,
+        old_peaks,
         spikes,
         background,
-        cfg.model.dynamics,
-        cfg.model.penalty,
+        cfg.model,
         cfg.env,
         **cfg.cmd.spatial,
     )
-    uid = old_peaks.iloc[index].uid.to_numpy()
+    uid = old_peaks.uid.to_numpy()
     footprints, peaks = clean(
         uid,
         segments,
@@ -72,14 +73,12 @@ def spatial_and_clean(data, old_footprints, old_peaks, spikes, background, cfg):
     )
     return footprints, peaks
 
-
 def temporal_and_eval(data, footprints, peaks, cfg):
     spikes, background = temporal(
         data,
         footprints,
         peaks,
-        cfg.model.dynamics,
-        cfg.model.penalty,
+        cfg.model,
         cfg.env,
         **cfg.cmd.temporal,
     )

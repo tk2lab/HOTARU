@@ -27,7 +27,7 @@ def get_gpu_env(env):
 
 
 class GpuEnv:
-    def __init__(self, num_devices=None, memsize=None, label=None):
+    def __init__(self, num_devices=-1, memsize=-1, label="gpu"):
         if not (num_devices > 0 and memsize > 0):
             gpu_info = get_gpu_info()
             if not (num_devices > 0):

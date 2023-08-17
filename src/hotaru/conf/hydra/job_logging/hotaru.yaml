@@ -22,8 +22,7 @@ handlers:
 loggers:
   hotaru:
     handlers: [hotaru, logfile]
-  jax:
-    handlers: [logfile]
+    propagate: false
 root:
   level: DEBUG
   handlers: [logfile]

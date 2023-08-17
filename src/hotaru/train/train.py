@@ -18,27 +18,35 @@ logger = getLogger(__name__)
 
 
 class Model:
-    def __init__(self, kind, data, dynamics, penalty, env, label="model"):
-        self.kind = kind
-
+    def __init__(self, data, trans, peaks, dynamics, penalty, env, label="model"):
         self.dynamics = get_dynamics(dynamics)
         self.penalty = get_penalty(penalty)
         self.env = get_gpu_env(env)
 
         self.data = data
+        self.trans = trans
+        self.peaks = peaks
 
         nd = self.env.num_devices
         self.sharding = self.env.sharding((nd, 1))
 
-    def _prepare(self, data, y, trans, py, bx, by, **kwargs):
-        if trans:
+    def _prepare(self, clip, clipped, data, yval, py, **kwargs):
+        logger.info("clip: %s", clip)
+        ycov, yout, ydot = prepare_matrix(data, yval, self.trans, self.env, **kwargs)
+
+        penalty = self.penalty
+        if self.trans:
             nx, ny = data.nt, data.ns
+            bx, by = penalty.bt, penalty.bs
         else:
             nx, ny = data.ns, data.nt
-        nx = jnp.array(nx, jnp.float32)
-        ny = jnp.array(ny, jnp.float32)
+            bx, by = penalty.bs, penalty.bt
+        nx, ny, bx, by = (jnp.array(v, jnp.float32) for v in (nx, ny, bx, by))
 
-        ycov, yout, ydot = prepare_matrix(data, y, trans, self.env, **kwargs)
+        self._clip = clip
+        self._clipped = clipped
+        self._data = data
+        self._yval = yval
 
         self.args = ycov, yout, ydot, nx, ny, bx, by
         self.py = py
@@ -46,6 +54,34 @@ class Model:
         self.loss_scale = nx * ny + nx + ny
 
         logger.info("mat scale: %f", np.array(self.lr_scale))
+
+    @property
+    def _n1(self):
+        return np.count_nonzero(self._clipped[: self.n1])
+
+    @property
+    def _n2(self):
+        return np.count_nonzero(self._clipped[self.n1 :])
+
+    def initial_data(self):
+        n1, n2 = self._n1, self._n2
+        nx1, nx2 = self._shape
+        x1 = jax.device_put(jnp.zeros((n1, nx1)), self.sharding)
+        x2 = jax.device_put(jnp.zeros((n2, nx2)), self.sharding)
+        return x1, x2
+
+    def finalize(self, x1, x2):
+        n1 = self._n1
+        clipped = self.peaks[self._clipped]
+        clipped1 = clipped[:n1]
+        clipped2 = clipped[n1:]
+        active1 = self._clip.in_clipping_area(clipped1.y, clipped1.x)
+        active2 = self._clip.in_clipping_area(clipped2.y, clipped2.x)
+        active_index1 = clipped1[active1].index
+        active_index2 = clipped2[active2].index - self.n1
+        active_x1 = np.array(x1[active1])
+        active_x2 = np.array(x2[active2])
+        return active_index1, active_index2, active_x1, active_x2
 
     def optimizer(self, lr, nesterov_scale):
         lr /= self.lr_scale
@@ -58,114 +94,99 @@ class Model:
         x = jnp.concatenate([x1, x2], axis=0)
         return loss_fn(x, *self.args) + self.py
 
+    def regularizer(self):
+        y2 = self._yval[self._n1 :]
+        lb2 = jnp.square(self.penalty.lb)
+        y2sum = jnp.square(y2).sum(axis=1)
+        return self.x1_regularizer, L2(lb2 * y2sum[:, jnp.newaxis])
+
 
 class SpatialModel(Model):
     def __init__(self, data, oldx, peaks, y1, y2, *args, **kwargs):
-        self.peaks = peaks
+        super().__init__(data, False, peaks, *args, **kwargs)
         self.oldx = oldx
         self.y1 = y1
         self.y2 = y2
-        super().__init__("spatial", data, *args, **kwargs)
+
+    @property
+    def x1_regularizer(self):
+        return self.penalty.la
+
+    @property
+    def n1(self):
+        return self.y1.shape[0]
+
+    @property
+    def n2(self):
+        return self.y2.shape[0]
 
     def prepare(self, clip, **kwargs):
-        logger.info("clip: %s", clip)
-
         data = self.data.clip(clip.clip)
-        trans = False
-
         oldx = clip.clip(self.oldx)
-        active = np.any(oldx, axis=(1, 2))
+        clipped = np.any(oldx, axis=(1, 2))
 
         n1 = self.y1.shape[0]
-        y1 = jax.device_put(self.y1[active[:n1]], self.sharding)
-        y2 = jax.device_put(self.y2[active[n1:]], self.sharding)
+        y1 = jax.device_put(self.y1[clipped[:n1]], self.sharding)
+        y2 = jax.device_put(self.y2[clipped[n1:]], self.sharding)
+        py = self.penalty.lu(y1)
 
-        dynamics = self.dynamics
-        y1 = dynamics(y1)
+        y1 = self.dynamics(y1)
         yval = jnp.concatenate([y1, y2], axis=0)
         yval /= yval.max(axis=1, keepdims=True)
 
-        py = self.penalty.lu(y1)
-        bx = self.penalty.bs
-        by = self.penalty.bt
+        self._prepare(clip, clipped, data, yval, py, **kwargs)
 
-        self._data = data
-        self._clip = clip
-        self._y1 = y1
-        self._y2 = y2
-        self._active = active
-        self._prepare(data, yval, trans, py, bx, by, **kwargs)
+    @property
+    def _shape(self):
+        return self._data.ns, self._data.ns
 
     def finalize(self, x1, x2):
-        shape = self.data.shape
-        clip = self._clip
+        index1, index2, x1, x2 = super().finalize(x1, x2)
+        index = np.concatenate([index1, index2], axis=0)
+        x = np.concatenate([x1, x2], axis=0)
+
         mask = self._data.mask
-
-        stats = self.peaks[self._active]
-        select = clip.in_clipping_area(stats.y, stats.x)
-        select_stats = stats[select]
-
-        x = np.concatenate([np.array(x1), np.array(x2)], axis=0)
-        select_x = x[select]
-        select_x = clip.unclip(select_x, mask, shape)
-        return select_stats.index, select_x
-
-    def initial_data(self):
-        n1 = self._y1.shape[0]
-        n2 = self._y2.shape[0]
-        ns = self._data.ns
-        return jnp.zeros((n1, ns)), jnp.zeros((n2, ns))
-
-    def regularizer(self):
-        lb2 = jnp.square(self.penalty.lb)
-        y2sum = jnp.square(jnp.array(self._y2)).sum(axis=1)
-        return self.penalty.la, L2(lb2 * y2sum[:, jnp.newaxis])
+        shape = self.data.shape
+        x = self._clip.unclip(x, mask, shape)
+        return index, x
 
 
 class TemporalModel(Model):
     def __init__(self, data, y, peaks, *args, **kwargs):
-        self.n1 = np.count_nonzero(peaks.kind == "cell")
+        super().__init__(data, True, peaks, *args, **kwargs)
         self.y = y
-        self.peaks = peaks
-        super().__init__("temporal", data, *args, **kwargs)
 
     @property
-    def y1(self):
-        return self.y[: self.n1]
+    def x1_regularizer(self):
+        return self.penalty.lu
 
     @property
-    def y2(self):
-        return self.y[self.n1 :]
+    def n1(self):
+        return np.count_nonzero(self.peaks.kind == "cell")
 
-    def prepare(self, **kwargs):
-        data = self.data
-        trans = True
+    @property
+    def n2(self):
+        return np.count_nonzero(self.peaks.kind == "background")
 
-        y = data.apply_mask(self.y, mask_type=True)
-        yval = jax.device_put(y, self.sharding)
-        y1 = yval[: self.n1]
+    def prepare(self, clip, **kwargs):
+        data = self.data.clip(clip.clip)
+        y = clip.clip(self.y)
 
-        py = self.penalty.la(y1)
-        bx = self.penalty.bt
-        by = self.penalty.bs
+        clipped = np.any(y, axis=(1, 2))
+        yval = data.apply_mask(y[clipped], mask_type=True)
+        yval = jax.device_put(yval, self.sharding)
 
-        self._prepare(data, yval, trans, py, bx, by, **kwargs)
+        n1 = np.count_nonzero(clipped[: self.n1])
+        py = self.penalty.la(yval[:n1])
 
-    def initial_data(self):
-        nk = self.y.shape[0]
-        n1 = np.count_nonzero(self.peaks.kind == "cell")
-        n2 = nk - n1
+        self._prepare(clip, clipped, data, yval, py, **kwargs)
+
+    @property
+    def _shape(self):
         nt = self.data.nt
         nu = nt + self.dynamics.size - 1
-        x1 = jax.device_put(jnp.zeros((n1, nu)), self.sharding)
-        x2 = jax.device_put(jnp.zeros((n2, nt)), self.sharding)
-        return x1, x2
+        return nu, nt
 
     def loss_fn(self, x1, x2):
         x1 = self.dynamics(x1)
         return super().loss_fn(x1, x2)
-
-    def regularizer(self):
-        lb2 = jnp.square(self.penalty.lb)
-        y2sum = jnp.square(jnp.array(self.y[self.n1 :])).sum(axis=(1, 2))
-        return self.penalty.lu, L2(lb2 * y2sum[:, jnp.newaxis])

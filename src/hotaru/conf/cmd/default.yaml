@@ -30,6 +30,11 @@ spatial:
     tol: 1e-5
     patience: 10
 temporal:
+  clip:
+    type: Div
+    ynum: 1
+    xnum: 1
+    margin: 0
   prepare:
     factor: 10.0
     prefetch: 1

@@ -28,6 +28,13 @@ def make(data, findval, env, cfg):
     return footprints, peaks
 
 
+def rev(index):
+    rev_index = np.empty_like(index)
+    for i, j in enumerate(index):
+        rev_index[j] = i
+    return rev_index
+
+
 def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step):
     logger.info("spatial:")
     target = SpatialModel(data, oldx, stats, y1, y2, **model, env=env)
@@ -39,26 +46,25 @@ def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step
         optimizer = target.optimizer(**optimize)
         x1, x2 = target.initial_data()
         x1, x2 = optimizer.fit((x1, x2), **step)
-        index, x = target.finalize(x1, x2)
-        out.append((index, x))
-    index, x = zip(*out)
-    index = np.concatenate(index, axis=0)
-    x = np.concatenate(x, axis=0)
-
-    rev_index = np.empty_like(index)
-    for i, j in enumerate(index):
-        rev_index[j] = i
-    return x[rev_index]
+        out.append(target.finalize(x1, x2))
+    index, x = (np.concatenate(v, axis=0) for v in zip(*out))
+    return x[rev(index)]
 
 
-def temporal(data, y, peaks, model, env, prepare, optimize, step):
+def temporal(data, y, stats, model, env, clip, prepare, optimize, step):
     logger.info("temporal:")
-    target = TemporalModel(data, y, peaks, **model, env=env)
-    target.prepare(**prepare)
-    optimizer = target.optimizer(**optimize)
-    x1, x2 = target.initial_data()
-    x1, x2 = optimizer.fit((x1, x2), **step)
-    return np.array(x1), np.array(x2)
+    target = TemporalModel(data, y, stats, **model, env=env)
+
+    clip = get_clip(data.shape, clip)
+    out = []
+    for cl in clip:
+        target.prepare(cl, **prepare)
+        optimizer = target.optimizer(**optimize)
+        x1, x2 = target.initial_data()
+        x1, x2 = optimizer.fit((x1, x2), **step)
+        out.append(target.finalize(x1, x2))
+    index1, index2, x1, x2 = (np.concatenate(v, axis=0) for v in zip(*out))
+    return np.array(x1[rev(index1)]), np.array(x2[rev(index2)])
 
 
 def spatial_and_clean(data, old_footprints, old_peaks, spikes, background, cfg):

@@ -14,9 +14,12 @@ clean:
   prefetch: 1
 spatial:
   clip:
-    - null
+    type: Div
+    ynum: 1
+    xnum: 1
+    margin: 0
   prepare:
-    factor: 1.0
+    factor: 10.0
     prefetch: 1
   optimize:
     lr: 0.01
@@ -28,7 +31,7 @@ spatial:
     patience: 10
 temporal:
   prepare:
-    factor: 1.0
+    factor: 10.0
     prefetch: 1
   optimize:
     lr: 0.01

@@ -3,18 +3,20 @@ from collections import namedtuple
 import numpy as np
 
 
-def get_clip(shape, *clip):
+def get_clip(shape, clip):
     h, w = shape
     match clip:
-        case (None,):
+        case [Clip(), *_]:
+            return clip
+        case None:
             return [Clip(0, h, 0, w, 0)]
-        case ("Div", numy, numx, margin):
-            dy = (h + numy - 1) // numy
-            dx = (w + numx - 1) // numx
+        case {"type": "Div", "ynum": ynum, "xnum": xnum, "margin": margin}:
+            dy = (h + ynum - 1) // ynum
+            dx = (w + xnum - 1) // xnum
             return [
                 Clip(py * dy, (py + 1) * dy, px * dx, (px + 1) * dx, margin)
-                for py in range(numy)
-                for px in range(numx)
+                for py in range(ynum)
+                for px in range(xnum)
             ]
         case _:
             raise ValueError()
@@ -49,5 +51,5 @@ class Clip(namedtuple("Clip", "y0 y1 x0 x1 margin")):
         out[:, y0:y1, x0:x1] = tmp
         return out
 
-    def is_active(self, y, x):
+    def in_clipping_area(self, y, x):
         return (self.y0 <= y) & (y < self.y1) & (self.x0 <= x) & (x < self.x1)

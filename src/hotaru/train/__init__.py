@@ -12,8 +12,8 @@ from .regularizer import (
     Regularizer,
 )
 from .train import (
-    spatial,
-    temporal,
+    SpatialModel,
+    TemporalModel,
 )
 
 __all__ = [
@@ -24,6 +24,6 @@ __all__ = [
     "SpikeToCalcium",
     "get_dynamics",
     "get_penalty",
-    "spatial",
-    "temporal",
+    "SpatialModel",
+    "TemporalModel",
 ]

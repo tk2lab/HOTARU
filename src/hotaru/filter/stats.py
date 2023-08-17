@@ -48,8 +48,8 @@ def calc_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     nt, h, w = raw_imgs.shape
 
     env = get_gpu_env(env)
-    nd = env.num_devices
     batch = env.batch(float(factor) * h * w, nt)
+    nd = env.num_devices
     sharding = env.sharding((nd, 1))
 
     logger.info("stats batch: %d", batch)
@@ -78,6 +78,12 @@ def calc_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     imin = jnp.full((h, w), jnp.inf)
     imax = jnp.full((h, w), -jnp.inf)
 
+    avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax = (
+        jax.device_put(v, sharding) for v in [
+            avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax,
+        ]
+    )
+
     logger.info("%s: %s %s %d", "pbar", "start", "stats", nt)
     for data in dataset:
         data = (from_tf(v) for v in data)
@@ -89,6 +95,9 @@ def calc_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
             pad = (0, diff), (0, 0), (0, 0)
             index = jnp.pad(index, ((0, diff)), constant_values=-1)
             imgs = jnp.pad(imgs, pad, constant_values=jnp.nan)
+
+        index = jax.device_put(index, sharding)
+        imgs = jax.device_put(imgs, sharding)
 
         avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax = update(
             avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax, index, imgs,

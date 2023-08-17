@@ -10,15 +10,20 @@ defaults:
   - hydra/local
   - hotaru
 
-max_train_step: 10
+mode: run
+
+max_train_step: 100
 early_stop: true
 force_from:
   - 100
   - spatial
 trace: false
 
+plot:
+  stage: ${max_train_step}
+  time: null
+
 gui:
-  use: false
   server:
     host: localhost
     port: 8080

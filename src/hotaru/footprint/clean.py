@@ -21,12 +21,17 @@ Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 
 def clean(uid, imgs, radius, density, env, factor, prefetch):
+    density = (
+        density.min_radius,
+        density.max_radius,
+        density.min_distance_ratio.clean,
+    )
+
     args = radius, env, factor, prefetch
     segments, y, x, radius, firmness = clean_footprints(imgs, *args)
-    cell, bg = reduce_peaks_simple(y, x, radius, firmness, density)
+    cell, bg = reduce_peaks_simple(y, x, radius, firmness, *density)
     logger.info("clean: %d %d %d", segments.shape[0], len(cell), len(bg))
 
-    print(uid.size, y.size, x.size, radius.size, firmness.size)
     peaks = pd.DataFrame(dict(uid=uid, y=y, x=x, radius=radius, firmness=firmness))
     peaks["kind"] = "remove"
     peaks.loc[cell, "kind"] = "cell"
@@ -41,6 +46,9 @@ def clean(uid, imgs, radius, density, env, factor, prefetch):
     peaks = pd.concat([cell, bg, removed], axis=0)
 
     segments = segments[peaks[peaks.kind != "remove"].index]
+    peaks = peaks.reset_index(drop=True)
+
+    logger.info("segments shape: %s", segments.shape)
     return segments, peaks
 
 

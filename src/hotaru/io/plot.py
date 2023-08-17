@@ -79,7 +79,7 @@ def plot_peak_stats(peaks, peakval=None, label=""):
             y=cell[intensity],
             mode="markers",
             marker=dict(size=10, symbol="star", color="lime", opacity=0.5),
-            name="cell",
+           name="cell",
         ),
         go.Scattergl(
             x=jitter(bg.radius),
@@ -209,14 +209,20 @@ def plot_calcium(trace, seg, hz, scale=0.3, margin=30, label=""):
     return fig
 
 
-def plot_spike(spike, hz, scale=1, margin=30, label=""):
-    nk, nt = spike.shape
+def plot_spike(spike, hz, diff, time, scale=1, margin=30, label=""):
+    if time is not None:
+        spike = spike[:, slice(*time)]
     spmax = spike.max(axis=1, keepdims=True)
     spike = spike / np.where(spmax > 0, spmax, 1)
+    nk, nt = spike.shape
     margin = dict(t=margin, b=60 + margin, l=50 + margin, r=margin)
+    if time is None:
+        time = np.arange(nt)
+    else:
+        time = np.arange(*time)
     fig = go.Figure(
         data=go.Heatmap(
-            x=np.arange(nt) / hz,
+            x=(time - diff) / hz,
             y=np.arange(nk) + 1,
             z=spike,
             colorscale="Reds",

@@ -4,49 +4,17 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ..utils import (
-    get_clip,
-    get_gpu_env,
+from ..utils import get_gpu_env
+from .common import (
+    loss_fn,
+    prepare_matrix,
 )
-from .regularizer import L2
-from .common import loss_fn
 from .dynamics import get_dynamics
 from .optimizer import ProxOptimizer
 from .penalty import get_penalty
-from .prepare import prepare_matrix
+from .regularizer import L2
 
 logger = getLogger(__name__)
-
-
-def spatial(data, oldx, peaks, y1, y2, model, env, clip, prepare, optimize, step):
-    logger.info("spatial:")
-    target = SpatialModel(data, oldx, peaks, y1, y2, **model, env=env)
-    clip = get_clip(data.shape, *clip)
-    out = []
-    for cl in clip:
-        target.prepare(cl, **prepare)
-        optimizer = target.optimizer(**optimize)
-        x1, x2 = target.initial_data()
-        x1, x2 = optimizer.fit((x1, x2), **step)
-        index, x = target.finalize(x1, x2)
-        out.append((index, x))
-    index, x = zip(*out)
-    index = np.concatenate(index, axis=0)
-    x = np.concatenate(x, axis=0)
-    rev_index = np.empty_like(index)
-    for i, j in enumerate(index):
-        rev_index[j] = i
-    return x[rev_index]
-
-
-def temporal(data, y, peaks, model, env, prepare, optimize, step):
-    logger.info("temporal:")
-    target = TemporalModel(data, y, peaks, **model, env=env)
-    target.prepare(**prepare)
-    optimizer = target.optimizer(**optimize)
-    x1, x2 = target.initial_data()
-    x1, x2 = optimizer.fit((x1, x2), **step)
-    return np.array(x1), np.array(x2)
 
 
 class Model:
@@ -67,8 +35,8 @@ class Model:
             nx, ny = data.nt, data.ns
         else:
             nx, ny = data.ns, data.nt
-        nx = jnp.array(nx)
-        ny = jnp.array(ny)
+        nx = jnp.array(nx, jnp.float32)
+        ny = jnp.array(ny, jnp.float32)
 
         ycov, yout, ydot = prepare_matrix(data, y, trans, self.env, **kwargs)
 
@@ -133,12 +101,14 @@ class SpatialModel(Model):
         clip = self._clip
         mask = self._data.mask
 
-        p = self.peaks[self._active]
-        select = clip.is_active(p.y, p.x)
+        stats = self.peaks[self._active]
+        select = clip.in_clipping_area(stats.y, stats.x)
+        select_stats = stats[select]
 
-        x = np.concatenate([np.array(x1), np.array(x2)], axis=0)[select]
-        x = clip.unclip(x, mask, shape)
-        return p[select].index, x
+        x = np.concatenate([np.array(x1), np.array(x2)], axis=0)
+        select_x = x[select]
+        select_x = clip.unclip(select_x, mask, shape)
+        return select_stats.index, select_x
 
     def initial_data(self):
         n1 = self._y1.shape[0]
@@ -161,11 +131,11 @@ class TemporalModel(Model):
 
     @property
     def y1(self):
-        return self.y[:self.n1]
+        return self.y[: self.n1]
 
     @property
     def y2(self):
-        return self.y[self.n1:]
+        return self.y[self.n1 :]
 
     def prepare(self, **kwargs):
         data = self.data
@@ -173,7 +143,7 @@ class TemporalModel(Model):
 
         y = data.apply_mask(self.y, mask_type=True)
         yval = jax.device_put(y, self.sharding)
-        y1 = yval[:self.n1]
+        y1 = yval[: self.n1]
 
         py = self.penalty.la(y1)
         bx = self.penalty.bt
@@ -197,5 +167,5 @@ class TemporalModel(Model):
 
     def regularizer(self):
         lb2 = jnp.square(self.penalty.lb)
-        y2sum = jnp.square(jnp.array(self.y[self.n1:])).sum(axis=(1, 2))
+        y2sum = jnp.square(jnp.array(self.y[self.n1 :])).sum(axis=(1, 2))
         return self.penalty.lu, L2(lb2 * y2sum[:, jnp.newaxis])

@@ -7,7 +7,14 @@ import pandas as pd
 logger = getLogger(__name__)
 
 
-def reduce_peaks_simple(ys, xs, rs, vs, min_radius, max_radius, min_distance_ratio):
+def reduce_peaks_simple(ys, xs, rs, vs, old_bg=None, **args):
+    min_radius = args.get("min_radius")
+    max_radius = args.get("max_radius")
+    min_distance_ratio = args.get("min_distance_ratio")
+
+    if old_bg is None:
+        old_bg = []
+
     n = np.count_nonzero(np.isfinite(vs))
     flg = np.argsort(vs)[::-1][:n]
     cell = []
@@ -18,17 +25,17 @@ def reduce_peaks_simple(ys, xs, rs, vs, min_radius, max_radius, min_distance_rat
         if r0 >= min_radius:
             y0, x0 = ys[i], xs[i]
             thr = min_distance_ratio * r0
-            if r0 <= max_radius:
+            if i in old_bg or r0 > max_radius:
+                yb, xb = ys[bg], xs[bg]
+                if not bg or np.all(np.hypot(xb - x0, yb - y0) >= thr):
+                    bg.append(i)
+            else:
                 yc, xc = ys[cell], xs[cell]
                 if not cell or np.all(np.hypot(xc - x0, yc - y0) >= thr):
                     y1, x1 = ys[flg], xs[flg]
                     cond = np.hypot(x1 - x0, y1 - y0) >= thr
                     flg = flg[cond]
                     cell.append(i)
-            else:
-                yb, xb = ys[bg], xs[bg]
-                if not bg or np.all(np.hypot(xb - x0, yb - y0) >= thr):
-                    bg.append(i)
     return cell, bg
 
 
@@ -40,19 +47,18 @@ def reduce_peaks_mesh(rs, vs, *args, **kwargs):
     return ys[cell], xs[cell], ys[bg], xs[bg]
 
 
-def reduce_peaks(peakval, density, block_size):
-    logger.info("reduce_peaks: %s %d", density, block_size)
+def reduce_peaks(peakval, select, block_size):
+    static_args = dict(
+        min_radius=select.min_radius,
+        max_radius=select.max_radius,
+        min_distance_ratio=select.min_distance_ratio.reduce,
+    )
+    logger.info("reduce_peaks: %s %d", static_args, block_size)
 
     radius, ts, ri, vs = peakval
     rs = radius[ri]
     h, w = rs.shape
-    margin = int(np.ceil(density.min_distance_ratio.reduce * rs.max()))
-
-    static_args = (
-        density.min_radius,
-        density.max_radius,
-        density.min_distance_ratio.reduce,
-    )
+    margin = int(np.ceil(select.min_distance_ratio.reduce * rs.max()))
 
     args = []
     for xs in range(0, w - margin, block_size):
@@ -65,7 +71,7 @@ def reduce_peaks(peakval, density, block_size):
             y1 = min(ye + margin, h)
             r = rs[y0:y1, x0:x1]
             v = vs[y0:y1, x0:x1]
-            args.append(((y0, x0, ys, xs, ye, xe), (r, v, *static_args)))
+            args.append(((y0, x0, ys, xs, ye, xe), dict(rs=r, vs=v, **static_args)))
 
     out = []
     with mp.Pool() as pool:
@@ -105,5 +111,5 @@ def _reduce_peaks(args):
         return y[cond], x[cond]
 
     y0, x0, ys, xs, ye, xe = args[0]
-    celly, cellx, bgy, bgx = reduce_peaks_mesh(*args[1])
+    celly, cellx, bgy, bgx = reduce_peaks_mesh(**args[1])
     return *fix(celly, cellx), *fix(bgy, bgx)

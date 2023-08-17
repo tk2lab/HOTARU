@@ -20,17 +20,14 @@ logger = getLogger(__name__)
 Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 
-def clean(uid, imgs, radius, density, env, factor, prefetch):
-    density = (
-        density.min_radius,
-        density.max_radius,
-        density.min_distance_ratio.clean,
-    )
+def clean(oldstats, segs, radius, select, env, factor, prefetch):
+    uid = oldstats.uid.to_numpy()
+    bg = (oldstats.kind == "background") | (oldstats.udense > select.max_dense)
+    bg = list(np.where(bg)[0])
 
     args = radius, env, factor, prefetch
-    segments, y, x, radius, firmness = clean_footprints(imgs, *args)
-    cell, bg = reduce_peaks_simple(y, x, radius, firmness, *density)
-    logger.info("clean: %d %d %d", segments.shape[0], len(cell), len(bg))
+    segments, y, x, radius, firmness = clean_footprints(segs, *args)
+    cell, bg = reduce_peaks_simple(y, x, radius, firmness, bg, **select)
 
     peaks = pd.DataFrame(dict(uid=uid, y=y, x=x, radius=radius, firmness=firmness))
     peaks["kind"] = "remove"
@@ -43,13 +40,11 @@ def clean(uid, imgs, radius, density, env, factor, prefetch):
         peaks[peaks.kind == key].sort_values("firmness", ascending=False)
         for key in ["cell", "background", "remove"]
     ]
+    logger.info("clean: %d %d %d", cell.shape[0], bg.shape[0], removed.shape[0])
+
     peaks = pd.concat([cell, bg, removed], axis=0)
-
     segments = segments[peaks[peaks.kind != "remove"].index]
-    peaks = peaks.reset_index(drop=True)
-
-    logger.info("segments shape: %s", segments.shape)
-    return segments, peaks
+    return segments, peaks.reset_index(drop=True)
 
 
 def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):

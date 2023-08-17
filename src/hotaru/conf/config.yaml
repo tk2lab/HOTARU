@@ -2,7 +2,7 @@ defaults:
   - _self_
   - data: default
   - radius: default
-  - density: default
+  - select: default
   - model: default
   - cmd: default
   - outputs: default

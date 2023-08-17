@@ -4,3 +4,4 @@ max_radius: 10.0
 min_distance_ratio:
   reduce: 1.8
   clean: 1.0
+max_dense: 0.1

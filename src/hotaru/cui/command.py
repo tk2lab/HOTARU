@@ -18,7 +18,7 @@ logger = getLogger(__name__)
 
 
 def make(data, findval, env, cfg):
-    peaks = reduce_peaks(findval, cfg.density, **cfg.cmd.reduce)
+    peaks = reduce_peaks(findval, cfg.select, **cfg.cmd.reduce)
     footprints = make_footprints(data, peaks, env, **cfg.cmd.make)
     peaks["sum"] = footprints.sum(axis=(1, 2))
     peaks["area"] = np.count_nonzero(footprints > 0, axis=(1, 2))
@@ -100,12 +100,11 @@ def spatial_and_clean(data, old_footprints, old_peaks, spikes, background, cfg):
         cfg.env,
         **cfg.cmd.spatial,
     )
-    uid = old_peaks.uid.to_numpy()
     footprints, peaks = clean(
-        uid,
+        old_peaks,
         segments,
         cfg.radius,
-        cfg.density,
+        cfg.select,
         cfg.env,
         **cfg.cmd.clean,
     )
@@ -113,7 +112,7 @@ def spatial_and_clean(data, old_footprints, old_peaks, spikes, background, cfg):
 
 
 def temporal_and_eval(data, footprints, peaks, cfg):
-    spikes, background = temporal(
+    spikes, bg = temporal(
         data,
         footprints,
         peaks,
@@ -121,16 +120,17 @@ def temporal_and_eval(data, footprints, peaks, cfg):
         cfg.env,
         **cfg.cmd.temporal,
     )
-    peaks["umax"] = pd.Series(
-        spikes.max(axis=1), index=peaks.query("kind=='cell'").index
-    )
-    peaks["unum"] = pd.Series(
-        np.count_nonzero(spikes, axis=1), index=peaks.query("kind=='cell'").index
-    )
-    peaks["bmax"] = pd.Series(
-        np.abs(background).max(axis=1), index=peaks.query("kind=='background'").index
-    )
-    peaks["bmean"] = pd.Series(
-        background.mean(axis=1), index=peaks.query("kind=='background'").index
-    )
-    return spikes, background, peaks
+
+    cell = peaks.query("kind=='cell'").index
+    sm = spikes.max(axis=1)
+    sd = spikes.mean(axis=1) / sm
+    peaks["umax"] = pd.Series(sm, index=cell)
+    peaks["udense"] = pd.Series(sd, index=cell)
+
+    background = peaks.query("kind=='background'").index
+    bmax = np.abs(bg).max(axis=1)
+    bstd = np.std(bg, axis=1)
+    peaks["bmax"] = pd.Series(bmax, index=background)
+    peaks["bstd"] = pd.Series(bstd, index=background)
+
+    return spikes, bg, peaks

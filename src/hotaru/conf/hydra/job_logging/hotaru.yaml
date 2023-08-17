@@ -10,19 +10,20 @@ formatters:
 handlers:
   hotaru:
     class: hotaru.utils.logging.StreamHandler
+    level: INFO
     formatter: brief
     stream: ext://sys.stdout
   logfile:
     class: logging.FileHandler
+    level: DEBUG
     filters: [droppbar]
     formatter: simple
     filename: ${hydra.runtime.output_dir}/${now:%Y-%m-%dT%H:%M:%S}.log
 loggers:
   hotaru:
-    level: INFO
-    handlers: [hotaru]
+    handlers: [hotaru, logfile]
   jax:
-    level: DEBUG
+    handlers: [logfile]
 root:
   level: DEBUG
   handlers: [logfile]

@@ -20,6 +20,17 @@ class L2:
         return y / (1 + self.fac * eta)
 
 
+class L1:
+    def __init__(self, fac):
+        self.fac = fac
+
+    def __call__(self, x):
+        return jnp.abs(self.fac * x).sum()
+
+    def prox(self, y, eta):
+        return jnp.sign(y) * jnp.maximum(0, jnp.abs(y) - self.fac * eta)
+
+
 class NonNegativeL1:
     def __init__(self, fac):
         self.fac = fac

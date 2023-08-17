@@ -12,7 +12,7 @@ from .common import (
 from .dynamics import get_dynamics
 from .optimizer import ProxOptimizer
 from .penalty import get_penalty
-from .regularizer import L2
+from .regularizer import L1, NonNegativeL1
 
 logger = getLogger(__name__)
 
@@ -107,12 +107,6 @@ class Model:
         x = jnp.concatenate([x1, x2], axis=0)
         return loss_fn(x, *self.args) + self.py
 
-    def regularizer(self):
-        y2 = self._yval[self._n1 :]
-        lb2 = jnp.square(self.penalty.lb)
-        y2sum = jnp.square(y2).sum(axis=1)
-        return self.x1_regularizer, L2(lb2 * y2sum[:, jnp.newaxis])
-
 
 class SpatialModel(Model):
     def __init__(self, data, oldx, peaks, y1, y2, *args, **kwargs):
@@ -120,10 +114,6 @@ class SpatialModel(Model):
         self.oldx = oldx
         self.y1 = y1
         self.y2 = y2
-
-    @property
-    def x1_regularizer(self):
-        return self.penalty.la
 
     @property
     def n1(self):
@@ -156,6 +146,12 @@ class SpatialModel(Model):
     def _shape(self):
         return self._data.ns, self._data.ns
 
+    def regularizer(self):
+        lb = self.penalty.lb
+        y2 = self._yval[self._n1:]
+        lb = jnp.abs(lb * y2).sum(axis=1, keepdims=True)
+        return self.penalty.la, NonNegativeL1(lb)
+
     def finalize(self, x1, x2):
         index1, index2, x1, x2 = super().finalize(x1, x2)
         index = np.concatenate([index1, index2 + self.n1], axis=0)
@@ -171,10 +167,6 @@ class TemporalModel(Model):
     def __init__(self, data, y, peaks, *args, **kwargs):
         super().__init__(data, True, peaks, *args, **kwargs)
         self.y = y
-
-    @property
-    def x1_regularizer(self):
-        return self.penalty.lu
 
     @property
     def n1(self):
@@ -209,3 +201,9 @@ class TemporalModel(Model):
     def loss_fn(self, x1, x2):
         x1 = self.dynamics(x1)
         return super().loss_fn(x1, x2)
+
+    def regularizer(self):
+        lb = self.penalty.lb
+        y2 = self._yval[self._n1:]
+        lb = (lb * y2).sum(axis=1, keepdims=True)
+        return self.penalty.lu, L1(lb)

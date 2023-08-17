@@ -30,6 +30,13 @@ class Model:
         nd = self.env.num_devices
         self.sharding = self.env.sharding((nd, 1))
 
+    def _try_clip(self, clip, seg):
+        seg = clip.clip(seg)
+        self._clip = clip
+        self._clipped = np.any(seg, axis=(1, 2))
+        active1, active2, index1, index2 = self._active()
+        return index1, index2
+
     def _prepare(self, clip, clipped, data, yval, py, **kwargs):
         logger.info("clip: %s", clip)
         ycov, yout, ydot = prepare_matrix(data, yval, self.trans, self.env, **kwargs)
@@ -63,6 +70,19 @@ class Model:
     def _n2(self):
         return np.count_nonzero(self._clipped[self.n1 :])
 
+    def _active(self):
+        clip = self._clip
+        clipped = self._clipped
+        clipped_state = self.peaks[clipped]
+        clipped_n1 = np.count_nonzero(clipped[:self.n1])
+        clipped_state1 = clipped_state[:clipped_n1]
+        clipped_state2 = clipped_state[clipped_n1:]
+        active1 = clip.in_clipping_area(clipped_state1.y, clipped_state1.x)
+        active2 = clip.in_clipping_area(clipped_state2.y, clipped_state2.x)
+        active_index1 = clipped_state1[active1].index
+        active_index2 = clipped_state2[active2].index - self.n1
+        return active1, active2, active_index1, active_index2
+
     def initial_data(self):
         n1, n2 = self._n1, self._n2
         nx1, nx2 = self._shape
@@ -71,14 +91,7 @@ class Model:
         return x1, x2
 
     def finalize(self, x1, x2):
-        n1 = self._n1
-        clipped = self.peaks[self._clipped]
-        clipped1 = clipped[:n1]
-        clipped2 = clipped[n1:]
-        active1 = self._clip.in_clipping_area(clipped1.y, clipped1.x)
-        active2 = self._clip.in_clipping_area(clipped2.y, clipped2.x)
-        active_index1 = clipped1[active1].index
-        active_index2 = clipped2[active2].index - self.n1
+        active1, active2, active_index1, active_index2 = self._active()
         active_x1 = np.array(x1[active1])
         active_x2 = np.array(x2[active2])
         return active_index1, active_index2, active_x1, active_x2
@@ -119,6 +132,9 @@ class SpatialModel(Model):
     @property
     def n2(self):
         return self.y2.shape[0]
+
+    def try_clip(self, clip):
+        return self._try_clip(clip, self.oldx)
 
     def prepare(self, clip, **kwargs):
         data = self.data.clip(clip.clip)
@@ -168,6 +184,9 @@ class TemporalModel(Model):
     def n2(self):
         return np.count_nonzero(self.peaks.kind == "background")
 
+    def try_clip(self, clip):
+        return self._try_clip(clip, self.y)
+
     def prepare(self, clip, **kwargs):
         data = self.data.clip(clip.clip)
         y = clip.clip(self.y)
@@ -179,7 +198,7 @@ class TemporalModel(Model):
         n1 = np.count_nonzero(clipped[: self.n1])
         py = self.penalty.la(yval[:n1])
 
-        self._prepare(clip, clipped, data, yval, py, **kwargs)
+        return self._prepare(clip, clipped, data, yval, py, **kwargs)
 
     @property
     def _shape(self):

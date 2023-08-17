@@ -36,7 +36,14 @@ def rev(index):
 
 
 def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step):
-    logger.info("spatial:")
+    logger.info(
+        "spatial: %s %d %s %s %s",
+        data.shape,
+        stats.shape[0],
+        oldx.shape,
+        y1.shape,
+        y2.shape,
+    )
     target = SpatialModel(data, oldx, stats, y1, y2, **model, env=env)
 
     clip = get_clip(data.shape, clip)
@@ -52,7 +59,14 @@ def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step
 
 
 def temporal(data, y, stats, model, env, clip, prepare, optimize, step):
-    logger.info("temporal:")
+    logger.info(
+        "temporal: %s %s %d %d",
+        data.shape,
+        y.shape,
+        stats.shape[0],
+        np.count_nonzero(stats.kind != "remove"),
+    )
+    stats = stats[stats.kind != "remove"]
     target = TemporalModel(data, y, stats, **model, env=env)
 
     clip = get_clip(data.shape, clip)

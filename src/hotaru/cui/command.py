@@ -29,7 +29,7 @@ def make(data, findval, env, cfg):
 
 
 def rev(index):
-    rev_index = np.empty_like(index)
+    rev_index = np.full_like(index, index.size)
     for i, j in enumerate(index):
         rev_index[j] = i
     return rev_index
@@ -47,6 +47,7 @@ def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step
     target = SpatialModel(data, oldx, stats, y1, y2, **model, env=env)
 
     clip = get_clip(data.shape, clip)
+
     out = []
     for cl in clip:
         target.prepare(cl, **prepare)
@@ -55,6 +56,12 @@ def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step
         x1, x2 = optimizer.fit((x1, x2), **step)
         out.append(target.finalize(x1, x2))
     index, x = (np.concatenate(v, axis=0) for v in zip(*out))
+    logger.info(
+        "%d %d\n%s",
+        index.size,
+        np.count_nonzero(np.sort(index) != np.arange(index.size)),
+        index,
+    )
     return x[rev(index)]
 
 

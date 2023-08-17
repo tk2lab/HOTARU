@@ -210,9 +210,9 @@ def plot_calcium(trace, seg, hz, scale=0.3, margin=30, label=""):
 
 
 def plot_spike(spike, hz, diff, time, scale=1, margin=30, label=""):
+    spmax = spike.max(axis=1, keepdims=True)
     if time is not None:
         spike = spike[:, slice(*time)]
-    spmax = spike.max(axis=1, keepdims=True)
     spike = spike / np.where(spmax > 0, spmax, 1)
     nk, nt = spike.shape
     margin = dict(t=margin, b=60 + margin, l=50 + margin, r=margin)

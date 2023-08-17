@@ -158,7 +158,7 @@ class SpatialModel(Model):
 
     def finalize(self, x1, x2):
         index1, index2, x1, x2 = super().finalize(x1, x2)
-        index = np.concatenate([index1, index2], axis=0)
+        index = np.concatenate([index1, index2 + self.n1], axis=0)
         x = np.concatenate([x1, x2], axis=0)
 
         mask = self._data.mask

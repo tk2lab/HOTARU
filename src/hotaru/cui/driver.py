@@ -17,9 +17,8 @@ from ..utils import Data
 from .command import (
     make,
     spatial,
-    clean,
     temporal,
-    temporal_eval,
+    eval_spikes,
 )
 
 logger = getLogger(__name__)
@@ -128,7 +127,7 @@ def cui_main(cfg):
             )
 
         else:
-            segments = load_or_exec(
+            footprints, peaks = load_or_exec(
                 "spatial",
                 spatial,
                 data,
@@ -136,18 +135,7 @@ def cui_main(cfg):
                 peaks,
                 spikes,  # noqa
                 background,  # noqa
-                cfg.model,
-                cfg.env,
-                **cfg.cmd.spatial,
-            )
-            footprints, peaks = load_or_exec(
-                clean,
-                peaks,
-                segments,
-                cfg.radius,
-                cfg.select,
-                cfg.env,
-                **cfg.cmd.clean,
+                cfg,
             )
 
         spikes, background = load_or_exec(
@@ -156,13 +144,11 @@ def cui_main(cfg):
             data,
             footprints,
             peaks,
-            cfg.model,
-            cfg.env,
-            **cfg.cmd.temporal,
+            cfg,
         )
         peaks = load_or_exec(
             "eval",
-            temporal_eval,
+            eval_spikes,
             spikes,
             background,
             peaks,

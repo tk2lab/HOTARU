@@ -35,7 +35,7 @@ def rev(index):
     return rev_index
 
 
-def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step):
+def spatial(data, oldx, stats, y1, y2, cfg):
     stats = stats.query("kind != 'remove'")
     logger.info(
         "spatial: data=%s cell=%d background=%d",
@@ -43,16 +43,16 @@ def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step
         y1.shape[0],
         y2.shape[0],
     )
-    target = SpatialModel(data, oldx, stats, y1, y2, **model, env=env)
+    target = SpatialModel(data, oldx, stats, y1, y2, **cfg.model, env=cfg.env)
 
-    clip = get_clip(data.shape, clip)
+    clip = get_clip(data.shape, cfg.cmd.spatial.clip)
 
     out = []
     for cl in clip:
-        target.prepare(cl, **prepare)
-        optimizer = target.optimizer(**optimize)
+        target.prepare(cl, **cfg.cmd.spatial.prepare)
+        optimizer = target.optimizer(**cfg.cmd.spatial.optimize)
         x1, x2 = target.initial_data()
-        x1, x2 = optimizer.fit((x1, x2), **step)
+        x1, x2 = optimizer.fit((x1, x2), **cfg.cmd.spatial.step)
         out.append(target.finalize(x1, x2))
     index, x = (np.concatenate(v, axis=0) for v in zip(*out))
     logger.debug(
@@ -61,10 +61,11 @@ def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step
         np.count_nonzero(np.sort(index) != np.arange(index.size)),
         index,
     )
-    return x[rev(index)]
+    segments = x[rev(index)]
+    return clean(stats, segments, cfg.radius, cfg.select, cfg.env, **cfg.cmd.clean)
 
 
-def temporal(data, y, stats, model, env, clip, prepare, optimize, step):
+def temporal(data, y, stats, cfg):
     logger.info(
         "temporal: data=%s cell=%d background=%d",
         data.shape,
@@ -72,21 +73,21 @@ def temporal(data, y, stats, model, env, clip, prepare, optimize, step):
         np.count_nonzero(stats.kind == "background"),
     )
     stats = stats[stats.kind != "remove"]
-    target = TemporalModel(data, y, stats, **model, env=env)
+    target = TemporalModel(data, y, stats, **cfg.model, env=cfg.env)
 
-    clip = get_clip(data.shape, clip)
+    clip = get_clip(data.shape, cfg.cmd.temporal.clip)
     out = []
     for cl in clip:
-        target.prepare(cl, **prepare)
-        optimizer = target.optimizer(**optimize)
+        target.prepare(cl, **cfg.cmd.temporal.prepare)
+        optimizer = target.optimizer(**cfg.cmd.temporal.optimize)
         x1, x2 = target.initial_data()
-        x1, x2 = optimizer.fit((x1, x2), **step)
+        x1, x2 = optimizer.fit((x1, x2), **cfg.cmd.temporal.step)
         out.append(target.finalize(x1, x2))
     index1, index2, x1, x2 = (np.concatenate(v, axis=0) for v in zip(*out))
     return np.array(x1[rev(index1)]), np.array(x2[rev(index2)])
 
 
-def temporal_eval(spikes, bg, peaks):
+def eval_spikes(spikes, bg, peaks):
     cell = peaks.query("kind=='cell'").index
     sm = spikes.max(axis=1)
     sd = spikes.mean(axis=1) / sm

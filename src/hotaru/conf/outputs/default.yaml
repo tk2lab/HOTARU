@@ -18,10 +18,6 @@ make:
 spatial:
   dir: ${data.label}${radius.label}${select.label}${model.label}
   files:
-    - "{stage:03d}segments.npy"
-clean:
-  dir: ${data.label}${radius.label}${select.label}${model.label}
-  files:
     - "{stage:03d}footprints.npy"
     - "{stage:03d}stats.csv"
 temporal:

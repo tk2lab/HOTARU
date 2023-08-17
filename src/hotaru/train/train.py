@@ -12,7 +12,10 @@ from .common import (
 from .dynamics import get_dynamics
 from .optimizer import ProxOptimizer
 from .penalty import get_penalty
-from .regularizer import L1, NonNegativeL1
+from .regularizer import (
+    L1,
+    NonNegativeL1,
+)
 
 logger = getLogger(__name__)
 
@@ -38,7 +41,6 @@ class Model:
         return index1, index2
 
     def _prepare(self, clip, clipped, data, yval, py, **kwargs):
-        logger.info("clip: %s", clip)
         ycov, yout, ydot = prepare_matrix(data, yval, self.trans, self.env, **kwargs)
 
         penalty = self.penalty
@@ -60,7 +62,14 @@ class Model:
         self.lr_scale = jnp.diagonal(ycov + bx * yout).max()
         self.loss_scale = nx * ny + nx + ny
 
-        logger.info("mat scale: %f", np.array(self.lr_scale))
+        logger.info(
+            "clip: clip=%s data=%s cell=%d background=%d",
+            clip,
+            data.imgs.shape,
+            self._n1,
+            self._n2,
+        )
+        logger.debug("mat scale: %f", np.array(self.lr_scale))
 
     @property
     def _n1(self):
@@ -74,7 +83,7 @@ class Model:
         clip = self._clip
         clipped = self._clipped
         clipped_state = self.peaks[clipped]
-        clipped_n1 = np.count_nonzero(clipped[:self.n1])
+        clipped_n1 = np.count_nonzero(clipped[: self.n1])
         clipped_state1 = clipped_state[:clipped_n1]
         clipped_state2 = clipped_state[clipped_n1:]
         active1 = clip.in_clipping_area(clipped_state1.y, clipped_state1.x)
@@ -148,7 +157,7 @@ class SpatialModel(Model):
 
     def regularizer(self):
         lb = self.penalty.lb
-        y2 = self._yval[self._n1:]
+        y2 = self._yval[self._n1 :]
         lb = jnp.abs(lb * y2).sum(axis=1, keepdims=True)
         return self.penalty.la, NonNegativeL1(lb)
 
@@ -204,6 +213,6 @@ class TemporalModel(Model):
 
     def regularizer(self):
         lb = self.penalty.lb
-        y2 = self._yval[self._n1:]
+        y2 = self._yval[self._n1 :]
         lb = (lb * y2).sum(axis=1, keepdims=True)
         return self.penalty.lu, L1(lb)

@@ -23,7 +23,10 @@ loggers:
   hotaru:
     handlers: [hotaru, logfile]
     propagate: false
+  jax:
+    handlers: [logfile]
+    propagate: false
 root:
   level: DEBUG
   handlers: [logfile]
-disable_existing_loggers: true
+disable_existing_loggers: false

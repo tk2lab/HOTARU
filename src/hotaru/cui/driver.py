@@ -16,8 +16,10 @@ from ..io import (
 from ..utils import Data
 from .command import (
     make,
-    spatial_and_clean,
-    temporal_and_eval,
+    spatial,
+    clean,
+    temporal,
+    temporal_eval,
 )
 
 logger = getLogger(__name__)
@@ -57,9 +59,9 @@ def get_trace_ctx(cfg):
 
 
 def cui_main(cfg):
-    def load_or_exec(name, command, *args, **kwargs):
+    def load_or_exec(name, command, *args, force=False, **kwargs):
         files = get_files(cfg, name, stage)
-        if get_force(cfg, name, stage):
+        if force or get_force(cfg, name, stage):
             out = [None]
         else:
             out = try_load(files)
@@ -126,24 +128,45 @@ def cui_main(cfg):
             )
 
         else:
-            footprints, peaks = load_or_exec(
+            segments = load_or_exec(
                 "spatial",
-                spatial_and_clean,
+                spatial,
                 data,
                 footprints,
                 peaks,
                 spikes,  # noqa
                 background,  # noqa
-                cfg,
+                cfg.model,
+                cfg.env,
+                **cfg.cmd.spatial,
+            )
+            footprints, peaks = load_or_exec(
+                clean,
+                peaks,
+                segments,
+                cfg.radius,
+                cfg.select,
+                cfg.env,
+                **cfg.cmd.clean,
             )
 
-        spikes, background, peaks = load_or_exec(
+        spikes, background = load_or_exec(
             "temporal",
-            temporal_and_eval,
+            temporal,
             data,
             footprints,
             peaks,
-            cfg,
+            cfg.model,
+            cfg.env,
+            **cfg.cmd.temporal,
+        )
+        peaks = load_or_exec(
+            "eval",
+            temporal_eval,
+            spikes,
+            background,
+            peaks,
+            force=True,
         )
 
         if finish():

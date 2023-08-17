@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from ..filter import (
-    gaussian_laplace,
+from ..filter import gaussian_laplace
+from ..utils import (
+    from_tf,
+    get_gpu_env,
 )
-from ..utils import get_gpu_env, from_tf
 from .radius import get_radius
 from .reduce import reduce_peaks_simple
 from .segment import get_segment_mask
@@ -22,9 +23,24 @@ Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 def clean(oldstats, segs, radius, select, env, factor, prefetch):
     uid = oldstats.uid.to_numpy()
-    bg = (oldstats.kind == "background") | (oldstats.udense > select.max_dense)
-    bg = list(np.where(bg)[0])
+    kind = oldstats.kind.to_numpy()
+    bg = kind == "background"
+    cell_to_bg = (kind == "cell") & (oldstats.udense > select.max_udense)
+    bg_to_cell = (
+        bg
+        & (oldstats.bsparse > select.min_bsparse)
+        & (oldstats.radius < select.max_radius)
+    )
+    logger.debug("old_bg: uid=%s", oldstats[bg].uid.to_numpy())
+    logger.debug("cell_to_bg: uid=%s", oldstats[cell_to_bg].uid.to_numpy())
+    logger.debug("bg_to_cell: uid=%s", oldstats[bg_to_cell].uid.to_numpy())
 
+    bg = list(np.where((bg & ~bg_to_cell) | cell_to_bg)[0])
+    select = dict(
+        min_radius=select.min_radius,
+        max_radius=select.max_radius,
+        min_distance_ratio=select.min_distance_ratio.clean,
+    )
     args = radius, env, factor, prefetch
     segments, y, x, radius, firmness = clean_footprints(segs, *args)
     cell, bg = reduce_peaks_simple(y, x, radius, firmness, bg, **select)

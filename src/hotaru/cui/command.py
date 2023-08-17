@@ -36,13 +36,12 @@ def rev(index):
 
 
 def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step):
+    stats = stats.query("kind != 'remove'")
     logger.info(
-        "spatial: %s %d %s %s %s",
-        data.shape,
-        stats.shape[0],
-        oldx.shape,
-        y1.shape,
-        y2.shape,
+        "spatial: data=%s cell=%d background=%d",
+        data.imgs.shape,
+        y1.shape[0],
+        y2.shape[0],
     )
     target = SpatialModel(data, oldx, stats, y1, y2, **model, env=env)
 
@@ -56,7 +55,7 @@ def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step
         x1, x2 = optimizer.fit((x1, x2), **step)
         out.append(target.finalize(x1, x2))
     index, x = (np.concatenate(v, axis=0) for v in zip(*out))
-    logger.info(
+    logger.debug(
         "%d %d\n%s",
         index.size,
         np.count_nonzero(np.sort(index) != np.arange(index.size)),
@@ -67,11 +66,10 @@ def spatial(data, oldx, stats, y1, y2, model, env, clip, prepare, optimize, step
 
 def temporal(data, y, stats, model, env, clip, prepare, optimize, step):
     logger.info(
-        "temporal: %s %s %d %d",
+        "temporal: data=%s cell=%d background=%d",
         data.shape,
-        y.shape,
-        stats.shape[0],
-        np.count_nonzero(stats.kind != "remove"),
+        np.count_nonzero(stats.kind == "cell"),
+        np.count_nonzero(stats.kind == "background"),
     )
     stats = stats[stats.kind != "remove"]
     target = TemporalModel(data, y, stats, **model, env=env)
@@ -88,39 +86,7 @@ def temporal(data, y, stats, model, env, clip, prepare, optimize, step):
     return np.array(x1[rev(index1)]), np.array(x2[rev(index2)])
 
 
-def spatial_and_clean(data, old_footprints, old_peaks, spikes, background, cfg):
-    old_peaks = old_peaks[old_peaks.kind != "remove"]
-    segments = spatial(
-        data,
-        old_footprints,
-        old_peaks,
-        spikes,
-        background,
-        cfg.model,
-        cfg.env,
-        **cfg.cmd.spatial,
-    )
-    footprints, peaks = clean(
-        old_peaks,
-        segments,
-        cfg.radius,
-        cfg.select,
-        cfg.env,
-        **cfg.cmd.clean,
-    )
-    return footprints, peaks
-
-
-def temporal_and_eval(data, footprints, peaks, cfg):
-    spikes, bg = temporal(
-        data,
-        footprints,
-        peaks,
-        cfg.model,
-        cfg.env,
-        **cfg.cmd.temporal,
-    )
-
+def temporal_eval(spikes, bg, peaks):
     cell = peaks.query("kind=='cell'").index
     sm = spikes.max(axis=1)
     sd = spikes.mean(axis=1) / sm
@@ -129,8 +95,8 @@ def temporal_and_eval(data, footprints, peaks, cfg):
 
     background = peaks.query("kind=='background'").index
     bmax = np.abs(bg).max(axis=1)
-    bstd = np.std(bg, axis=1)
+    bgvar = bg - np.median(bg, axis=1, keepdims=True)
+    bstd = np.maximum(np.median(np.abs(bgvar), axis=1), 1e-10)
     peaks["bmax"] = pd.Series(bmax, index=background)
-    peaks["bstd"] = pd.Series(bstd, index=background)
-
-    return spikes, bg, peaks
+    peaks["bsparse"] = pd.Series(bmax / bstd, index=background)
+    return peaks

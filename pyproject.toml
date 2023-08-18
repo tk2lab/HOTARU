@@ -38,11 +38,13 @@ priority = "explicit"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
+
 jax = "^0.4"
 jaxlib = [
     { version = "^0.4", platform = "linux", source = "jax-cuda" },
     { version = "^0.4", platform = "darwin", source = "jax" },
 ]
+tensorflow = "^2.13.0"
 
 tifffile = "^2022.8"
 pandas = "^2.0.3"
@@ -51,21 +53,20 @@ av = "^10.0"
 plotly = "^5.0.0"
 kaleido = "0.2.1"
 
-#setuptools = "^67.6.1"
 hydra-core = "^1.3"
 tqdm = "^4.64"
 
 dash = { version = "^2.8.1", extras=["diskcache"] }
 dash-bootstrap-components = "^1.4.1"
 dash-mantine-components = "^0.12.1"
-tensorboard-plugin-profile = "^2.13.1"
-tensorflow = "^2.13.0"
-rich = "^13.5.2"
 
 [tool.poetry.scripts]
 hotaru = "hotaru.__main__:main"
 
 [tool.poetry.group.dev.dependencies]
+jupyterlab = "^4.0.5"
+tensorboard-plugin-profile = "^2.13.1"
+
 ruff = "^0.0.277"
 black = "^23.3.0"
 isort = "^5.12.0"

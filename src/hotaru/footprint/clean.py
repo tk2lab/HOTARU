@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from scipy.ndimage import grey_closing
 
 from ..filter import gaussian_laplace
 from ..utils import (
@@ -126,5 +127,6 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     logger.info("%s: %s", "pbar", "close")
 
     out, y, x, r, g = (np.array(v[:-1]) for v in (out, y, x, r, g))
+    out = grey_closing(out, (1, 10, 10))
     r = np.array(radius)[r]
     return Footprint(out, y, x, r, g)

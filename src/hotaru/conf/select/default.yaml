@@ -1,4 +1,4 @@
-label: ""
+label: default
 min_radius: 3.0
 max_radius: 10.0
 min_distance_ratio:

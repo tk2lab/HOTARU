@@ -1,4 +1,4 @@
-label: ""
+label: default
 dynamics:
   type: double_exp
   tau1: 0.08

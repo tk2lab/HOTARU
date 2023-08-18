@@ -22,6 +22,7 @@ trace: false
 plot:
   stage: ${max_train_step}
   time: null
+  plot_bg: true
 
 gui:
   server:

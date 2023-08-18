@@ -1,4 +1,4 @@
-label: ""
+label: default
 type: logscale
 min: 2
 max: 12

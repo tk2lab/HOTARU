@@ -115,7 +115,7 @@ def plot_peak_stats(peaks, peakval=None, label=""):
     return fig
 
 
-def plot_seg_max(footprints, peaks, scale=1, margin=30, label=""):
+def plot_seg_max(footprints, peaks, plot_bg=True, scale=1, margin=30, label=""):
     nk = np.count_nonzero(peaks.kind == "cell")
     seg = footprints[:nk]
     bg = footprints[nk:]
@@ -128,7 +128,7 @@ def plot_seg_max(footprints, peaks, scale=1, margin=30, label=""):
     data = [
         go.Heatmap(z=segmax, colorscale="Greens", showscale=False, opacity=0.8),
     ]
-    if bg.shape[0] > 0:
+    if plot_bg and bg.shape[0] > 0:
         bgmax = bg.max(axis=0)
         bgmax = np.pad(bgmax, ((1, 1), (1, 1)))
         data += [

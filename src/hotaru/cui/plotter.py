@@ -57,10 +57,11 @@ def plotter(cfg):
         plot_peak_stats(peaks, findval).write_image(fig_dir / f"{stage:03d}peaks.pdf")
     else:
         plot_peak_stats(peaks).write_image(fig_dir / f"{stage:03d}peaks.pdf")
-    plot_seg_max(footprints, peaks).write_image(fig_dir / f"{stage:03d}max.pdf")
+    plot_seg_max(footprints, peaks, cfg.plot.plot_bg).write_image(fig_dir / f"{stage:03d}max.pdf")
     plot_seg(footprints, peaks, 10).write_image(fig_dir / f"{stage:03d}seg.pdf")
 
-    spikes, background, peaks = load("temporal")
+    spikes, background = load("temporal")
+    #stats = load("spike")
     diff = spikes.shape[1] - imgs.shape[0]
 
     plot_spike(spikes, hz, diff, time).write_image(fig_dir / f"{stage:03d}spike.pdf")

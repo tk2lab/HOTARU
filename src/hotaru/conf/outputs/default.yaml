@@ -6,23 +6,27 @@ normalize:
     - max.npy
     - std.npy
     - cor.npy
-init:
-  dir: ${data.label}/${init.label}
+find:
+  dir: ${data.label}/${find.label}
+  files:
+    - "{stage:03d}find.npz"
+make:
+  dir: ${data.label}/${find.label}/${make.label}
   files:
     - "{stage:03d}footprint.npy"
     - "{stage:03d}stats.csv"
 spatial:
-  dir: ${data.label}/${init.label}/${model.label}
+  dir: ${data.label}/${find.label}/${make.label}/${model.label}
   files:
     - "{stage:03d}footprints.npy"
     - "{stage:03d}stats.csv"
 temporal:
-  dir: ${data.label}/${init.label}/${model.label}
+  dir: ${data.label}/${find.label}/${make.label}${model.label}
   files:
     - "{stage:03d}spike.npy"
     - "{stage:03d}background.npy"
 eval:
-  dir: ${data.label}/${init.label}/${model.label}
+  dir: ${data.label}/${find.label}/${make.label}${model.label}
   files:
     - "{stage:03d}stats.csv"
 figs:

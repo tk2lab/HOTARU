@@ -1,0 +1,6 @@
+label: ${find.radius.type}${find.radius.num}-${find.radius.min}-${find.radius.max}
+radius:
+  type: logscale
+  min: 2
+  max: 12
+  num: 16

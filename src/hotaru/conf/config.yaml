@@ -1,7 +1,8 @@
 defaults:
   - _self_
   - data: default
-  - init: default
+  - find: default
+  - make: default
   - model: default
   - cmd: default
   - outputs: default

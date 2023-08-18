@@ -27,7 +27,7 @@ spatial:
     max_epoch: 100
     steps_par_epoch: 100
     tol: 1e-5
-    patience: 10
+    patience: 3
 temporal:
   clip:
     type: Div
@@ -43,4 +43,4 @@ temporal:
     max_epoch: 100
     steps_par_epoch: 100
     tol: 1e-5
-    patience: 10
+    patience: 3

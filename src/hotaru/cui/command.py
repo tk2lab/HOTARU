@@ -23,9 +23,12 @@ def normalize(imgs, mask, hz, cfg):
     return calc_stats(imgs, mask, cfg.env, **cfg.cmd.stats)
 
 
-def init(data, cfg):
-    findval = find_peaks(data, cfg.init.radius, cfg.env, **cfg.cmd.find)
-    peaks = reduce_peaks(findval, **cfg.init.reduce, **cfg.cmd.reduce)
+def find(data, cfg):
+    return find_peaks(data, cfg.find.radius, cfg.env, **cfg.cmd.find)
+
+
+def make(data, findval, cfg):
+    peaks = reduce_peaks(findval, **cfg.make.reduce, **cfg.cmd.reduce)
     footprints = make_footprints(data, peaks, cfg.env, **cfg.cmd.make)
     peaks["sum"] = footprints.sum(axis=(1, 2))
     peaks["area"] = np.count_nonzero(footprints > 0, axis=(1, 2))
@@ -89,7 +92,7 @@ def temporal(data, y, stats, cfg):
     return np.array(x1[rev(index1)]), np.array(x2[rev(index2)])
 
 
-def eval_spikes(spikes, bg, peaks):
+def evaluate(spikes, bg, peaks):
     cell = peaks.query("kind=='cell'").index
     sm = spikes.max(axis=1)
     sd = spikes.mean(axis=1) / sm

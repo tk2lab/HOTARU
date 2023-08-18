@@ -14,10 +14,11 @@ from ..io import (
 )
 from .command import (
     normalize,
-    init,
+    find,
+    make,
     spatial,
     temporal,
-    eval_spikes,
+    evaluate,
 )
 
 logger = getLogger(__name__)
@@ -25,11 +26,12 @@ logger = getLogger(__name__)
 
 def get_force(cfg, name, stage):
     force_dict = dict(
-        stats=["stats", "find", "make", "temporal"],
-        find=["find", "make", "temporal"],
-        make=["make", "temporal"],
-        spatial=["spatial", "temporal"],
-        temporal=["temporal"],
+        stats=["stats", "find", "make", "temporal", "evaluate"],
+        find=["find", "make", "temporal", "evaluate"],
+        make=["make", "temporal", "evaluate"],
+        spatial=["spatial", "temporal", "evaluate"],
+        temporal=["temporal", "evaluate"],
+        evaluate=["evaluate"],
     )
     force = (stage > cfg.force_from[0]) or (
         (stage == cfg.force_from[0]) and (name in force_dict[cfg.force_from[1]])
@@ -116,13 +118,8 @@ def cui_main(cfg):
                 cfg,
             )
             data = Data(imgs, mask, hz, *data_stats)
-
-            footprints, peaks = load_or_exec(
-                "init",
-                init,
-                data,
-                cfg,
-            )
+            findval = load_or_exec("find", find, data, cfg)
+            footprints, peaks = load_or_exec("make", make, data, findval, cfg)
 
         else:
             footprints, peaks = load_or_exec(
@@ -151,7 +148,7 @@ def cui_main(cfg):
         )
         peaks = load_or_exec(
             "eval",
-            eval_spikes,
+            evaluate,
             spikes,
             background,
             peaks,

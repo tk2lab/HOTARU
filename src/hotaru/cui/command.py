@@ -8,7 +8,7 @@ from ..footprint import (
     make_footprints,
     reduce_peaks,
 )
-from ..train import (
+from ..train.model import (
     SpatialModel,
     TemporalModel,
 )
@@ -36,24 +36,21 @@ def rev(index):
 
 
 def spatial(data, oldx, stats, y1, y2, cfg):
-    stats = stats.query("kind != 'remove'")
     logger.info(
         "spatial: data=%s cell=%d background=%d",
         data.imgs.shape,
         y1.shape[0],
         y2.shape[0],
     )
-    target = SpatialModel(data, oldx, stats, y1, y2, **cfg.model, env=cfg.env)
+    stats = stats.query("kind != 'remove'")
+    model = SpatialModel(data, oldx, stats, y1, y2, **cfg.model, env=cfg.env)
 
     clip = get_clip(data.shape, cfg.cmd.spatial.clip)
-
     out = []
     for cl in clip:
-        target.prepare(cl, **cfg.cmd.spatial.prepare)
-        optimizer = target.optimizer(**cfg.cmd.spatial.optimize)
-        x1, x2 = target.initial_data()
-        x1, x2 = optimizer.fit((x1, x2), **cfg.cmd.spatial.step)
-        out.append(target.finalize(x1, x2))
+        model.prepare(cl, **cfg.cmd.spatial.prepare)
+        model.fit(**cfg.cmd.spatial.step)
+        out.append(model.get_x())
     index, x = (np.concatenate(v, axis=0) for v in zip(*out))
     logger.debug(
         "%d %d\n%s",
@@ -73,16 +70,14 @@ def temporal(data, y, stats, cfg):
         np.count_nonzero(stats.kind == "background"),
     )
     stats = stats[stats.kind != "remove"]
-    target = TemporalModel(data, y, stats, **cfg.model, env=cfg.env)
+    model = TemporalModel(data, y, stats, **cfg.model, env=cfg.env)
 
     clip = get_clip(data.shape, cfg.cmd.temporal.clip)
     out = []
     for cl in clip:
-        target.prepare(cl, **cfg.cmd.temporal.prepare)
-        optimizer = target.optimizer(**cfg.cmd.temporal.optimize)
-        x1, x2 = target.initial_data()
-        x1, x2 = optimizer.fit((x1, x2), **cfg.cmd.temporal.step)
-        out.append(target.finalize(x1, x2))
+        model.prepare(cl, **cfg.cmd.temporal.prepare)
+        model.fit(**cfg.cmd.temporal.step)
+        out.append(model.get_x())
     index1, index2, x1, x2 = (np.concatenate(v, axis=0) for v in zip(*out))
     return np.array(x1[rev(index1)]), np.array(x2[rev(index2)])
 
@@ -97,7 +92,7 @@ def eval_spikes(spikes, bg, peaks):
     background = peaks.query("kind=='background'").index
     bmax = np.abs(bg).max(axis=1)
     bgvar = bg - np.median(bg, axis=1, keepdims=True)
-    bstd = np.maximum(np.median(np.abs(bgvar), axis=1), 1e-10)
+    bstd = 1.4826 * np.maximum(np.median(np.abs(bgvar), axis=1), 1e-10)
     peaks["bmax"] = pd.Series(bmax, index=background)
     peaks["bsparse"] = pd.Series(bmax / bstd, index=background)
     return peaks

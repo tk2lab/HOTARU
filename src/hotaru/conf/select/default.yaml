@@ -5,4 +5,4 @@ min_distance_ratio:
   reduce: 1.8
   clean: 1.0
 max_udense: 0.11
-min_bsparse: 100.0
+min_bsparse: 30.0

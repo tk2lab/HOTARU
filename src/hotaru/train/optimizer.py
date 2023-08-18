@@ -1,6 +1,7 @@
 from logging import getLogger
 
 import jax
+import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
 
@@ -8,36 +9,68 @@ logger = getLogger(__name__)
 
 
 class ProxOptimizer:
-    def __init__(self, loss_fn, regularizers, lr, nesterov_scale=20, loss_scale=1):
-        logger.info("optimizer: %g", lr)
-        self.loss_fn = loss_fn
-        self.prox = [ri.prox for ri in regularizers]
-        self.regularizers = regularizers
-        self.nesterov_scale = jnp.array(nesterov_scale, jnp.float32)
-        self.lr = jnp.array(lr, jnp.float32)
-        self.loss_scale = loss_scale
+    def __init__(self, model):
+        self._model = model
         self._history = []
+        self._loss_fn = jax.jit(self._loss)
+        self._step_fn = jax.jit(self._step, static_argnames=("n_step",))
 
-    def fit(self, x, max_epoch, steps_par_epoch, tol, patience, name="fit"):
-        loss_fn = jax.jit(self._loss)
-        step_fn = jax.jit(self._step, static_argnames=("n_step",))
-
+    def loss(self, *x):
         x = tuple(jnp.array(xi) for xi in x)
-        loss = np.array(loss_fn(*x))
+        loss_args = dict(
+            args=tuple(jnp.array(v) for v in self._model.args),
+            loss_scale=jnp.array(self._model.loss_scale),
+            prox_args=tuple(
+                tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args
+            ),
+        )
+        return np.array(self._loss_fn(*x, **loss_args))
+
+    def step(self, x, lr=1, nesterov=20, n_step=100):
+        x = tuple(jnp.array(xi) for xi in x)
+        args = tuple(jnp.array(v) for v in self._model.args)
+        prox_args = tuple(tuple(jnp.array(vi) for vi in v) for v in self._model.args)
+        lr = jnp.array(lr, jnp.float32)
+        nesterov = jnp.array(nesterov, jnp.float32)
+        return self._step_fn(x, args, prox_args, lr, nesterov, n_step)
+
+    def fit(self, x, max_epoch, steps_par_epoch, lr, nesterov, tol, patience):
+        x = tuple(jnp.array(xi) for xi in x)
+        common_args = dict(
+            args=tuple(jnp.array(v) for v in self._model.args),
+            prox_args=tuple(
+                tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args
+            ),
+        )
+        loss_args = common_args | dict(loss_scale=jnp.array(self._model.loss_scale))
+        step_args = common_args | dict(
+            lr=jnp.array(lr, jnp.float32),
+            nesterov=jnp.array(nesterov, jnp.float32),
+            n_step=steps_par_epoch,
+        )
+
+        loss = self._loss_fn(*x, **loss_args)
+        loss = np.array(loss)
         log_diff = np.inf
-        self._history.append(loss)
+
         postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
-        logger.info("%s: %s %s %d %s", "pbar", "start", name, -1, postfix)
-        min_loss = np.inf
+        logger.info("%s: %s %d %s", "pbar", "update", 0, postfix)
+        self._history.append(loss)
+
         patience_count = 0
+        min_loss = np.inf
         for i in range(max_epoch):
-            x = step_fn(x, steps_par_epoch)
-            old_loss, loss = loss, np.array(loss_fn(*x))
-            self._history.append(loss)
+            x = self._step_fn(x, **step_args)
+            old_loss = loss
+            loss = self._loss_fn(*x, **loss_args)
+            loss = np.array(loss)
             diff = (old_loss - loss) / tol
             log_diff = np.log10(diff) if diff > 0 else np.nan
+
             postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
             logger.info("%s: %s %d %s", "pbar", "update", 1, postfix)
+            self._history.append(loss)
+
             if loss > min_loss - tol:
                 patience_count += 1
             else:
@@ -45,35 +78,30 @@ class ProxOptimizer:
             if patience_count == patience:
                 break
             min_loss = min(loss, min_loss)
-        logger.info("%s: %s", "pbar", "close")
         return tuple(np.array(xi) for xi in x)
 
-    def step(self, x, n_step):
-        x = tuple(jnp.array(xi) for xi in x)
-        x = self._step(x, n_step)
-        x = tuple(np.array(xi) for xi in x)
-        return x
+    def _loss(self, *x, args, loss_scale, prox_args):
+        loss = self._model.loss(*x, *args)
+        penalty = sum(
+            ri(xi, *ai) for xi, ri, ai in zip(x, self._model.regularizers, prox_args)
+        )
+        return (loss + penalty) / loss_scale
 
-    def loss(self, *x):
-        return np.array(jax.jit(self._loss)(*(jnp.array(xi) for xi in x)))
-
-    def _step(self, x, n_step):
-        prox = self.prox
-        nesterov_scale = self.nesterov_scale
-        lr = self.lr
-        grad_loss_fn = jax.grad(self.loss_fn, range(len(x)))
-        oldx, oldy = x, x
-        for i in range(n_step):
-            grady = grad_loss_fn(*oldy)
-            t0 = (nesterov_scale + i) / (nesterov_scale)
-            t1 = (nesterov_scale + 1) / (nesterov_scale + i + 1)
-            newx = tuple(p(y - lr * g, lr) for p, y, g in zip(prox, oldy, grady))
+    def _step(self, x, args, prox_args, lr, nesterov, n_step):
+        def update(i, xy):
+            oldx, oldy = xy
+            grady = grad_loss_fn(*oldy, *args)
+            t0 = (nesterov + i) / (nesterov)
+            t1 = (nesterov + 1) / (nesterov + i + 1)
+            newx = tuple(
+                p(y - lr * g, lr, *a)
+                for p, a, y, g in zip(prox, prox_args, oldy, grady)
+            )
             tmpx = tuple((1 - t0) * xo + t0 * xn for xo, xn in zip(oldx, newx))
             newy = tuple((1 - t1) * xn + t1 * xt for xn, xt in zip(newx, tmpx))
-            oldx, oldy = newx, newy
-        return newx
+            return newx, newy
 
-    def _loss(self, *x):
-        loss = self.loss_fn(*x)
-        penalty = sum(ri(xi) for xi, ri in zip(x, self.regularizers))
-        return (loss + penalty) / self.loss_scale
+        grad_loss_fn = jax.grad(self._model.loss, range(len(x)))
+        prox = self._model.prox
+        x, _ = lax.fori_loop(0, n_step, update, (x, x))
+        return x

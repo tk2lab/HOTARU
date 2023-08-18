@@ -17,13 +17,13 @@ def get_penalty(penalty):
     for p in (penalty.la, penalty.lu):
         match p:
             case {"type": "NoPenalty"}:
-                out.append(Regularizer())
+                out.append((Regularizer(),()))
             case {"type": "L2", "factor": fac}:
-                out.append(L2(fac))
+                out.append((L2, (fac,)))
             case {"type": "NonNegativeL1", "factor": fac}:
-                out.append(NonNegativeL1(fac))
+                out.append((NonNegativeL1(), (fac,)))
             case {"type": "MaxNormNonNegativeL1", "factor": fac}:
-                out.append(MaxNormNonNegativeL1(fac))
+                out.append((MaxNormNonNegativeL1(), (fac,)))
             case _:
                 raise ValueError()
     out += [penalty.lb, penalty.bs, penalty.bt]

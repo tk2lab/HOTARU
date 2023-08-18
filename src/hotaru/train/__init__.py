@@ -11,7 +11,7 @@ from .regularizer import (
     NonNegativeL1,
     Regularizer,
 )
-from .train import (
+from .model import (
     SpatialModel,
     TemporalModel,
 )

@@ -10,47 +10,35 @@ class Regularizer:
 
 
 class L2:
-    def __init__(self, fac):
-        self.fac = fac
-
-    def __call__(self, x):
-        return jnp.square(self.fac * x).sum()
+    def __call__(self, x, fac):
+        return jnp.square(fac * x).sum()
 
     def prox(self, y, eta):
         return y / (1 + self.fac * eta)
 
 
 class L1:
-    def __init__(self, fac):
-        self.fac = fac
+    def __call__(self, x, fac):
+        return jnp.abs(fac * x).sum()
 
-    def __call__(self, x):
-        return jnp.abs(self.fac * x).sum()
-
-    def prox(self, y, eta):
-        return jnp.sign(y) * jnp.maximum(0, jnp.abs(y) - self.fac * eta)
+    def prox(self, y, eta, fac):
+        return jnp.sign(y) * jnp.maximum(0, jnp.abs(y) - fac * eta)
 
 
 class NonNegativeL1:
-    def __init__(self, fac):
-        self.fac = fac
-
-    def __call__(self, x):
+    def __call__(self, x, fac):
         x = jnp.maximum(0, x)
-        return (self.fac * x).sum()
+        return (fac * x).sum()
 
-    def prox(self, y, eta):
-        return jnp.maximum(0, y - self.fac * eta)
+    def prox(self, y, eta, fac):
+        return jnp.maximum(0, y - fac * eta)
 
 
 class MaxNormNonNegativeL1:
-    def __init__(self, fac):
-        self.fac = fac
-
-    def __call__(self, x):
+    def __call__(self, x, fac):
         x = jnp.maximum(0, x)
         m = x.max(axis=-1)
-        s = (self.fac * x).sum(axis=-1)
+        s = (fac * x).sum(axis=-1)
         if x.ndim > 1:
             positive = m > 0
             m = jnp.where(positive, m, 1)
@@ -58,12 +46,12 @@ class MaxNormNonNegativeL1:
             return (s / m).sum()
         else:
             if m > 0:
-                return self.fac * s / m
+                return s / m
             else:
                 return jnp.zeros(())
 
-    def prox(self, y, eta):
+    def prox(self, y, eta, fac):
         y = jnp.maximum(0, y)
         m = y.max(axis=-1, keepdims=True)
-        ym = jnp.where(y == m, y, y - self.fac * eta / m)
+        ym = jnp.where(y == m, y, y - fac * eta / m)
         return jnp.maximum(0, ym)

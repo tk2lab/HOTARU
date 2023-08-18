@@ -147,7 +147,7 @@ def cui_main(cfg):
             cfg,
         )
         peaks = load_or_exec(
-            "eval",
+            "evaluate",
             evaluate,
             spikes,
             background,

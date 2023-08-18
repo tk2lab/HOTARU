@@ -22,11 +22,11 @@ spatial:
     factor: 10.0
     prefetch: 1
   step:
-    lr: 0.01
+    lr: 0.1
     nesterov: 20
     max_epoch: 100
     steps_par_epoch: 100
-    tol: 1e-5
+    tol: 1e-4
     patience: 3
 temporal:
   clip:
@@ -38,9 +38,9 @@ temporal:
     factor: 10.0
     prefetch: 1
   step:
-    lr: 0.01
+    lr: 0.1
     nesterov: 20
     max_epoch: 100
     steps_par_epoch: 100
-    tol: 1e-5
+    tol: 1e-4
     patience: 3

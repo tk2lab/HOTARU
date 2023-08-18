@@ -69,7 +69,14 @@ def spatial(data, oldx, stats, y1, y2, cfg):
         index,
     )
     segments = x[rev(index)]
-    return clean(stats, segments, **cfg.model.clean, env=cfg.env, **cfg.cmd.clean)
+    return clean(
+        stats,
+        segments,
+        cfg.model.clean.radius,
+        **cfg.model.clean.reduce,
+        env=cfg.env,
+        **cfg.cmd.clean,
+    )
 
 
 def temporal(data, y, stats, cfg):

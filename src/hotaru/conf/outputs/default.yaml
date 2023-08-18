@@ -25,7 +25,7 @@ temporal:
   files:
     - "{stage:03d}spike.npy"
     - "{stage:03d}background.npy"
-eval:
+evaluate:
   dir: ${data.label}/${find.label}/${make.label}${model.label}
   files:
     - "{stage:03d}stats.csv"

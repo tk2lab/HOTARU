@@ -22,29 +22,24 @@ logger = getLogger(__name__)
 Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 
-def clean(oldstats, segs, radius, select, env, factor, prefetch):
+def clean(oldstats, segs, radius, reduce, env, factor, prefetch):
     uid = oldstats.uid.to_numpy()
     kind = oldstats.kind.to_numpy()
     bg = kind == "background"
-    cell_to_bg = (kind == "cell") & (oldstats.udense > select.max_udense)
+    cell_to_bg = (kind == "cell") & (oldstats.udense > reduce.get("max_udense"))
     bg_to_cell = (
         bg
-        & (oldstats.bsparse > select.min_bsparse)
-        & (oldstats.radius < select.max_radius)
+        & (oldstats.bsparse > reduce.get("min_bsparse"))
+        & (oldstats.radius < reduce.get("max_radius"))
     )
     logger.debug("old_bg: uid=%s", oldstats[bg].uid.to_numpy())
     logger.debug("cell_to_bg: uid=%s", oldstats[cell_to_bg].uid.to_numpy())
     logger.debug("bg_to_cell: uid=%s", oldstats[bg_to_cell].uid.to_numpy())
 
     bg = list(np.where((bg & ~bg_to_cell) | cell_to_bg)[0])
-    select = dict(
-        min_radius=select.min_radius,
-        max_radius=select.max_radius,
-        min_distance_ratio=select.min_distance_ratio.clean,
-    )
     args = radius, env, factor, prefetch
     segments, y, x, radius, firmness = clean_footprints(segs, *args)
-    cell, bg = reduce_peaks_simple(y, x, radius, firmness, bg, **select)
+    cell, bg = reduce_peaks_simple(y, x, radius, firmness, **reduce, old_bg=bg)
 
     peaks = pd.DataFrame(dict(uid=uid, y=y, x=x, radius=radius, firmness=firmness))
     peaks["kind"] = "remove"

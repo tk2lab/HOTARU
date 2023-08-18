@@ -67,6 +67,7 @@ class ProxOptimizer:
             diff = (old_loss - loss) / tol
             log_diff = np.log10(diff) if diff > 0 else np.nan
 
+            logger.debug("xval:\n%s", x)
             postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
             logger.info("%s: %s %d %s", "pbar", "update", 1, postfix)
             self._history.append(loss)

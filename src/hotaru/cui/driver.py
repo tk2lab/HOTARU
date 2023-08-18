@@ -5,17 +5,16 @@ from pathlib import Path
 import numpy as np
 from jax.profiler import trace
 
-from ..filter import calc_stats
-from ..footprint import find_peaks
+from ..utils import Data
 from ..io import (
     apply_mask,
     load_imgs,
     save,
     try_load,
 )
-from ..utils import Data
 from .command import (
-    make,
+    normalize,
+    init,
     spatial,
     temporal,
     eval_spikes,
@@ -55,6 +54,17 @@ def get_trace_ctx(cfg):
     else:
         trace_ctx = nullcontext()
     return trace_ctx
+
+
+def radius_stats(peaks):
+    #logger.info("%s", peaks.groupby("kind").radius.count())
+
+    rcell = peaks.query("kind=='cell'").radius
+    rbg = peaks.query("kind=='background'").radius
+    for r in np.sort(np.unique(rcell)):
+        ncell = (rcell == r).sum()
+        nbg = (rbg == r).sum()
+        logger.info("radius: %f cell: %d bg: %d", r, ncell, nbg)
 
 
 def cui_main(cfg):
@@ -97,32 +107,20 @@ def cui_main(cfg):
         logger.info("*** stage %s ***", stage)
 
         if stage == 0:
-            stats, *simgs = load_or_exec(
-                "stats",
-                calc_stats,
+            data_stats, *_ = load_or_exec(
+                "normalize",
+                normalize,
                 imgs,
                 mask,
-                cfg.env,
-                **cfg.cmd.stats,
+                hz,
+                cfg,
             )
-
-            data = Data(imgs, mask, hz, *stats)
-
-            findval = load_or_exec(
-                "find",
-                find_peaks,
-                data,
-                cfg.radius,
-                cfg.env,
-                **cfg.cmd.find,
-            )
+            data = Data(imgs, mask, hz, *data_stats)
 
             footprints, peaks = load_or_exec(
-                "make",
-                make,
+                "init",
+                init,
                 data,
-                findval,
-                cfg.env,
                 cfg,
             )
 
@@ -137,6 +135,11 @@ def cui_main(cfg):
                 background,  # noqa
                 cfg,
             )
+
+        radius_stats(peaks)
+
+        if cfg.mode == "test":
+            break
 
         spikes, background = load_or_exec(
             "temporal",

@@ -1,8 +1,7 @@
 defaults:
   - _self_
   - data: default
-  - radius: default
-  - select: default
+  - init: default
   - model: default
   - cmd: default
   - outputs: default
@@ -10,7 +9,7 @@ defaults:
   - hydra/local
   - hotaru
 
-mode: run
+mode: test
 
 max_train_step: 100
 early_stop: true
@@ -22,7 +21,9 @@ trace: false
 plot:
   stage: ${max_train_step}
   time: null
-  plot_bg: true
+  seg_max:
+    base: 0.5
+    plot_bg: false
 
 gui:
   server:

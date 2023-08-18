@@ -1,4 +1,4 @@
-label: default
+label: ${data.imgs.hz}-${data.mask.type}
 imgs:
   type: tif
   file: imgs.tif

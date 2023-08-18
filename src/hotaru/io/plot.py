@@ -115,7 +115,7 @@ def plot_peak_stats(peaks, peakval=None, label=""):
     return fig
 
 
-def plot_seg_max(footprints, peaks, plot_bg=True, scale=1, margin=30, label=""):
+def plot_seg_max(footprints, peaks, base=0.5, plot_bg=True, scale=1, margin=30, label=""):
     nk = np.count_nonzero(peaks.kind == "cell")
     seg = footprints[:nk]
     bg = footprints[nk:]
@@ -123,6 +123,7 @@ def plot_seg_max(footprints, peaks, plot_bg=True, scale=1, margin=30, label=""):
     margin = dict(t=margin, b=margin, l=margin, r=margin)
     nk, h, w = seg.shape
 
+    seg = np.maximum(0, (seg - base) / (1 - base))
     segmax = seg.max(axis=0)
     segmax = np.pad(segmax, ((1, 1), (1, 1)))
     data = [

@@ -76,7 +76,6 @@ class Model:
         if not hasattr(self, "_optimizer"):
             self._optimizer = ProxOptimizer(self)
 
-        logger.debug("mat scale: %f", np.array(self._lr_scale))
 
     @property
     def args(self):

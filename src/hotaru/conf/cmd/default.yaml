@@ -24,7 +24,7 @@ spatial:
   step:
     lr: 0.01
     nesterov: 20
-    max_epoch: 1000
+    max_epoch: 100
     steps_par_epoch: 100
     tol: 1e-5
     patience: 10
@@ -40,7 +40,7 @@ temporal:
   step:
     lr: 0.01
     nesterov: 20
-    max_epoch: 1000
+    max_epoch: 100
     steps_par_epoch: 100
     tol: 1e-5
     patience: 10

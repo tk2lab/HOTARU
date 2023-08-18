@@ -3,8 +3,10 @@ from logging import getLogger
 import numpy as np
 import pandas as pd
 
+from ..filter import calc_stats
 from ..footprint import (
     clean,
+    find_peaks,
     make_footprints,
     reduce_peaks,
 )
@@ -17,9 +19,14 @@ from ..utils import get_clip
 logger = getLogger(__name__)
 
 
-def make(data, findval, env, cfg):
-    peaks = reduce_peaks(findval, cfg.select, **cfg.cmd.reduce)
-    footprints = make_footprints(data, peaks, env, **cfg.cmd.make)
+def normalize(imgs, mask, hz, cfg):
+    return calc_stats(imgs, mask, cfg.env, **cfg.cmd.stats)
+
+
+def init(data, cfg):
+    findval = find_peaks(data, cfg.init.radius, cfg.env, **cfg.cmd.find)
+    peaks = reduce_peaks(findval, **cfg.init.reduce, **cfg.cmd.reduce)
+    footprints = make_footprints(data, peaks, cfg.env, **cfg.cmd.make)
     peaks["sum"] = footprints.sum(axis=(1, 2))
     peaks["area"] = np.count_nonzero(footprints > 0, axis=(1, 2))
     nk = np.count_nonzero(peaks.kind == "cell")
@@ -43,7 +50,7 @@ def spatial(data, oldx, stats, y1, y2, cfg):
         y2.shape[0],
     )
     stats = stats.query("kind != 'remove'")
-    model = SpatialModel(data, oldx, stats, y1, y2, **cfg.model, env=cfg.env)
+    model = SpatialModel(data, oldx, stats, y1, y2, **cfg.model.optimize, env=cfg.env)
 
     clip = get_clip(data.shape, cfg.cmd.spatial.clip)
     out = []
@@ -59,7 +66,7 @@ def spatial(data, oldx, stats, y1, y2, cfg):
         index,
     )
     segments = x[rev(index)]
-    return clean(stats, segments, cfg.radius, cfg.select, cfg.env, **cfg.cmd.clean)
+    return clean(stats, segments, **cfg.model.clean, env=cfg.env, **cfg.cmd.clean)
 
 
 def temporal(data, y, stats, cfg):
@@ -70,7 +77,7 @@ def temporal(data, y, stats, cfg):
         np.count_nonzero(stats.kind == "background"),
     )
     stats = stats[stats.kind != "remove"]
-    model = TemporalModel(data, y, stats, **cfg.model, env=cfg.env)
+    model = TemporalModel(data, y, stats, **cfg.model.optimize, env=cfg.env)
 
     clip = get_clip(data.shape, cfg.cmd.temporal.clip)
     out = []

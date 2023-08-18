@@ -47,18 +47,14 @@ def reduce_peaks_mesh(rs, vs, *args, **kwargs):
     return ys[cell], xs[cell], ys[bg], xs[bg]
 
 
-def reduce_peaks(peakval, select, block_size):
-    static_args = dict(
-        min_radius=select.min_radius,
-        max_radius=select.max_radius,
-        min_distance_ratio=select.min_distance_ratio.reduce,
-    )
-    logger.info("reduce_peaks: %s %d", static_args, block_size)
+def reduce_peaks(peakval, min_radius, max_radius, min_distance_ratio, block_size):
+    static_args = min_radius, max_radius, min_distance_ratio
+    logger.info("reduce_peaks: %f %f %f %d", *static_args, block_size)
 
     radius, ts, ri, vs = peakval
     rs = radius[ri]
     h, w = rs.shape
-    margin = int(np.ceil(select.min_distance_ratio.reduce * rs.max()))
+    margin = int(np.ceil(min_distance_ratio * rs.max()))
 
     args = []
     for xs in range(0, w - margin, block_size):
@@ -71,7 +67,7 @@ def reduce_peaks(peakval, select, block_size):
             y1 = min(ye + margin, h)
             r = rs[y0:y1, x0:x1]
             v = vs[y0:y1, x0:x1]
-            args.append(((y0, x0, ys, xs, ye, xe), dict(rs=r, vs=v, **static_args)))
+            args.append(((y0, x0, ys, xs, ye, xe), (r, v, *static_args)))
 
     out = []
     with mp.Pool() as pool:
@@ -98,8 +94,6 @@ def reduce_peaks(peakval, select, block_size):
     peaks = pd.concat([cell, bg], axis=0)
     peaks = peaks.reset_index(drop=True)
     peaks.insert(0, "uid", peaks.index)
-    for r in radius:
-        logger.info("%f %d", r, (peaks.radius == r).sum())
     return peaks
 
 
@@ -111,5 +105,5 @@ def _reduce_peaks(args):
         return y[cond], x[cond]
 
     y0, x0, ys, xs, ye, xe = args[0]
-    celly, cellx, bgy, bgx = reduce_peaks_mesh(**args[1])
+    celly, cellx, bgy, bgx = reduce_peaks_mesh(*args[1])
     return *fix(celly, cellx), *fix(bgy, bgx)

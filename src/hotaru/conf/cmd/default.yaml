@@ -29,7 +29,7 @@ spatial:
     prefetch: 1
   step:
     env: ${env}
-    lr: 0.1
+    lr: 0.01
     nesterov: 20
     max_epoch: 100
     steps_par_epoch: 100
@@ -43,7 +43,7 @@ temporal:
     prefetch: 1
   step:
     env: ${env}
-    lr: 0.1
+    lr: 0.01
     nesterov: 20
     max_epoch: 100
     steps_par_epoch: 100

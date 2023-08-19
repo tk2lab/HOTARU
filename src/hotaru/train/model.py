@@ -3,7 +3,6 @@ from logging import getLogger
 import jax.numpy as jnp
 import numpy as np
 
-from ..utils import get_gpu_env
 from .common import (
     loss_fn,
     prepare_matrix,
@@ -20,10 +19,9 @@ logger = getLogger(__name__)
 
 
 class Model:
-    def __init__(self, data, trans, stats, dynamics, penalty, env, **kwargs):
+    def __init__(self, data, trans, stats, dynamics, penalty, **kwargs):
         self._dynamics = get_dynamics(dynamics)
         self._penalty = get_penalty(penalty)
-        self._env = get_gpu_env(env)
 
         self._data = data
         self._trans = trans
@@ -51,7 +49,7 @@ class Model:
         return clipped, clipped_segs[clipped]
 
     def _prepare(self, data, yval, nx1, nx2, py, **kwargs):
-        ycov, yout, ydot = prepare_matrix(data, yval, self._trans, self._env, **kwargs)
+        ycov, yout, ydot = prepare_matrix(data, yval, self._trans, **kwargs)
 
         penalty = self._penalty
         if self._trans:
@@ -75,7 +73,6 @@ class Model:
 
         if not hasattr(self, "_optimizer"):
             self._optimizer = ProxOptimizer(self)
-
 
     @property
     def args(self):
@@ -107,6 +104,8 @@ class Model:
         x1, x2 = self._x
         active_x1 = np.array(x1[active1])
         active_x2 = np.array(x2[active2])
+        print(x1.shape, x2.shape)
+        print(active_x1.shape, active_x2.shape)
         return active_index1, active_index2, active_x1, active_x2
 
 
@@ -197,7 +196,14 @@ class TemporalModel(Model):
 
         clipped_n1 = np.count_nonzero(clipped[: self.n1])
         clipped_n2 = np.count_nonzero(clipped[self.n1 :])
-        logger.info("clip: pos=(%d %d), size=%s, n1=%d, n2=%d", clip.y0, clip.x0, clipped_y.shape, clipped_n1, clipped_n2)
+        logger.info(
+            "clip: pos=(%d %d), size=%s, n1=%d, n2=%d",
+            clip.y0,
+            clip.x0,
+            clipped_y.shape,
+            clipped_n1,
+            clipped_n2,
+        )
 
         data = self._data.clip(clip.clip)
         yval = data.apply_mask(clipped_y, mask_type=True)

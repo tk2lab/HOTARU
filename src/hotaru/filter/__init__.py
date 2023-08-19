@@ -4,12 +4,12 @@ from .laplace import (
 )
 from .map import mapped_imgs
 from .pool import max_pool
-from .stats import calc_stats
+from .stats import movie_stats
 
 __all__ = [
     "mapped_imgs",
     "max_pool",
     "gaussian_laplace",
     "gaussian_laplace_single",
-    "calc_stats",
+    "movie_stats",
 ]

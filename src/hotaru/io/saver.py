@@ -22,6 +22,10 @@ def save(path, obj):
                 np.save(path, obj)
             case ".csv":
                 obj.to_csv(path)
+            case ".flag":
+                path.write_text(obj)
+            case _:
+                raise ValueError()
 
 
 def try_load(path):
@@ -41,6 +45,8 @@ def try_load(path):
                     return np.load(path)
                 case ".csv":
                     return pd.read_csv(path, index_col=0)
+                case ".flag":
+                    return path.read_text()
                 case _:
                     return
         except Exception:

@@ -1,5 +1,0 @@
-label: ${make.reduce.min_radius}-${make.reduce.max_radius}-${make.reduce.min_distance_ratio}
-reduce:
-  min_radius: 2.8
-  max_radius: 11.0
-  min_distance_ratio: 1.8

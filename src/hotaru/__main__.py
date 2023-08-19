@@ -5,7 +5,7 @@ from importlib.resources import read_text
 import hydra
 
 from .cui import (
-    cui_main,
+    run,
     plotter,
 )
 
@@ -13,10 +13,8 @@ from .cui import (
 @hydra.main(version_base=None, config_path="pkg://hotaru.conf", config_name="config")
 def _main(cfg):
     match cfg.mode:
-        case "test":
-            cui_main(cfg)
-        case "run":
-            cui_main(cfg)
+        case "test" | "run":
+            run(cfg)
         case "plot":
             plotter(cfg)
         case "gui":

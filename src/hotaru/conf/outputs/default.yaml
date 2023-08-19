@@ -1,34 +1,43 @@
 dir: outputs
 normalize:
-  dir: ${data.label}
+  dir: ${data.mask.type}-${data.imgs.hz}
   files:
     - stats.npz
     - max.npy
     - std.npy
     - cor.npy
 find:
-  dir: ${data.label}/${find.label}
+  dir: ${outputs.normalize.dir}/${init.find.radius.type}${init.find.radius.num}-${init.find.radius.min}-${init.find.radius.max}
   files:
     - "{stage:03d}find.npz"
+reduce:
+  dir: ${outputs.find.dir}/${init.reduce.min_radius}-${init.reduce.max_radius}-${init.reduce.min_distance_ratio}
+  files:
+    - "{stage:03d}reduce.csv"
 make:
-  dir: ${data.label}/${find.label}/${make.label}
+  dir: ${outputs.reduce.dir}
   files:
     - "{stage:03d}footprint.npy"
     - "{stage:03d}stats.csv"
 spatial:
-  dir: ${data.label}/${find.label}/${make.label}/${model.label}
+  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
+  files:
+    - "{stage:03d}segments.npy"
+clean:
+  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
   files:
     - "{stage:03d}footprints.npy"
     - "{stage:03d}stats.csv"
 temporal:
-  dir: ${data.label}/${find.label}/${make.label}/${model.label}
+  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
   files:
     - "{stage:03d}spike.npy"
     - "{stage:03d}background.npy"
 evaluate:
-  dir: ${data.label}/${find.label}/${make.label}/${model.label}
+  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
   files:
     - "{stage:03d}stats.csv"
+    - ".{stage:03d}stats.flag"
 figs:
   dir: figs
 trace:

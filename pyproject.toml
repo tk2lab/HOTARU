@@ -59,6 +59,7 @@ tqdm = "^4.64"
 dash = { version = "^2.8.1", extras=["diskcache"] }
 dash-bootstrap-components = "^1.4.1"
 dash-mantine-components = "^0.12.1"
+matplotlib = "^3.7.2"
 
 [tool.poetry.scripts]
 hotaru = "hotaru.__main__:main"

@@ -25,7 +25,7 @@ def make_footprints(data, peaks, env=None, factor=1, prefetch=1):
     nd = env.num_devices
     sharding = env.sharding((nd, 1))
     batch = env.batch(float(factor) * h * w, nk)
-    logger.info("make: %s %d", peaks.shape[0], batch)
+    logger.info("make: %s batch=%d", peaks.shape[0], batch)
 
     logger.info("%s: %s %s %d", "pbar", "start", "make", ts.size)
     out = np.empty((nk, h, w))

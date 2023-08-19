@@ -1,7 +1,7 @@
-from .driver import cui_main
+from .run import run
 from .plotter import plotter
 
 __all__ = [
-    "cui_main",
+    "run",
     "plotter",
 ]

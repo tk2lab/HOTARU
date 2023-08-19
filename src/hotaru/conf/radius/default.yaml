@@ -1,0 +1,4 @@
+type: logscale
+min: 2
+max: 12
+num: 16

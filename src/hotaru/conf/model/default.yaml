@@ -1,26 +1,24 @@
-label: ${model.optimize.penalty.la.factor}-${model.optimize.penalty.lu.factor}-${model.optimize.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
-optimize:
-  dynamics:
-    type: double_exp
-    tau1: 0.08
-    tau2: 0.16
-    duration: 1.0
-    hz: ${data.imgs.hz}
-  penalty:
-    la:
-      type: MaxNormNonNegativeL1
-      factor: 30.0
-    lu:
-      type: MaxNormNonNegativeL1
-      factor: 30.0
-    lb: 0.1
-    bs: 0.1
-    bt: 0.1
+dynamics:
+  type: double_exp
+  tau1: 0.08
+  tau2: 0.16
+  duration: 1.0
+  hz: ${data.imgs.hz}
+penalty:
+  la:
+    type: MaxNormNonNegativeL1
+    factor: 30.0
+  lu:
+    type: MaxNormNonNegativeL1
+    factor: 30.0
+  lb: 0.1
+  bs: 0.1
+  bt: 0.1
 clean:
-  radius: ${find.radius}
+  radius: ${init.find.radius}
   reduce:
-    min_radius: ${make.reduce.min_radius}
-    max_radius: ${make.reduce.max_radius}
+    min_radius: ${init.reduce.min_radius}
+    max_radius: ${init.reduce.max_radius}
     min_distance_ratio: 1.0
     max_udense: 0.11
     min_bsparse: 30.0

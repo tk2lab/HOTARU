@@ -34,7 +34,7 @@ class ProxOptimizer:
         nesterov = jnp.array(nesterov, jnp.float32)
         return self._step_fn(x, args, prox_args, lr, nesterov, n_step)
 
-    def fit(self, x, max_epoch, steps_par_epoch, lr, nesterov, tol, patience):
+    def fit(self, x, max_epoch, steps_par_epoch, lr, nesterov, tol, patience, env):
         x = tuple(jnp.array(xi) for xi in x)
         common_args = dict(
             args=tuple(jnp.array(v) for v in self._model.args),

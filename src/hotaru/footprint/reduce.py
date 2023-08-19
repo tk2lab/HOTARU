@@ -90,6 +90,9 @@ def reduce_peaks(peakval, min_radius, max_radius, min_distance_ratio, block_size
     peaks = pd.concat([cell, bg], axis=0)
     peaks = peaks.reset_index(drop=True)
     peaks.insert(0, "uid", peaks.index)
+    nk = np.count_nonzero(peaks.kind == "cell")
+    nb = np.count_nonzero(peaks.kind == "background")
+    logger.info("num cell/bg: %d/%d", nk, nb)
     return peaks
 
 

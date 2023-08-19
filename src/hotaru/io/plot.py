@@ -28,7 +28,12 @@ def plot_simgs(simgs, scale=1, margin=30, label=None):
 
 def plot_gl(data, radius, idx, scale=1, margin=30, label=""):
     radius = get_radius(radius)
-    gl = gaussian_laplace(data.select(idx), radius, -2)
+    imgs = data.select(idx)
+    print(imgs.shape)
+    print(radius)
+    gl = gaussian_laplace(imgs, radius, 0)
+    print(gl.shape)
+    gl = np.transpose(gl, (1, 2, 0, 3))
     gl = np.pad(gl, ((0, 0), (0, 1), (0, 0), (0, 1)))
     nt, h, nr, w = gl.shape
     gl = gl.reshape(nt * h, nr * w)
@@ -79,7 +84,7 @@ def plot_peak_stats(peaks, peakval=None, label=""):
             y=cell[intensity],
             mode="markers",
             marker=dict(size=10, symbol="star", color="lime", opacity=0.5),
-           name="cell",
+            name="cell",
         ),
         go.Scattergl(
             x=jitter(bg.radius),
@@ -115,7 +120,9 @@ def plot_peak_stats(peaks, peakval=None, label=""):
     return fig
 
 
-def plot_seg_max(footprints, peaks, base=0.5, plot_bg=True, scale=1, margin=30, label=""):
+def plot_seg_max(
+    footprints, peaks, base=0.5, plot_bg=True, scale=1, margin=30, label=""
+):
     nk = np.count_nonzero(peaks.kind == "cell")
     seg = footprints[:nk]
     bg = footprints[nk:]

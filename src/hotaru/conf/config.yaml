@@ -1,8 +1,8 @@
 defaults:
   - _self_
   - data: default
-  - find: default
-  - make: default
+  - radius: default
+  - init: default
   - model: default
   - cmd: default
   - outputs: default
@@ -12,7 +12,7 @@ defaults:
 
 mode: test
 
-max_train_step: 100
+max_train_step: 10
 early_stop: true
 force_from:
   - 100
@@ -40,5 +40,6 @@ hydra:
     name: hotaru
     env_set:
       TF_CPP_MIN_LOG_LEVEL: 2
-      JAX_PLATFORMS: cuda
-      JLA_PYTHON_CLIENT_PREALLOCATE: false
+      #TF_CPP_VMODULE: bfc_allocator=1
+      #JAX_PLATFORMS: cuda
+      #JLA_PYTHON_CLIENT_PREALLOCATE: true

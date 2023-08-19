@@ -17,7 +17,7 @@ logger = getLogger(__name__)
 Stats = namedtuple("Stats", "avgx avgt std0 min0 max0 min1 max1")
 
 
-def calc_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
+def movie_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     @jax.jit
     def update(avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax, index, imgs):
         if mask is None:

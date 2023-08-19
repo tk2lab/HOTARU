@@ -92,10 +92,12 @@ def get_xla_stats():
     lbs = backend.live_buffers()
     les = backend.live_executables()
     mem = psutil.Process().memory_info().rss
-    return dict(mem=mem, executable=les, buffer=[lb.shape for lb in lbs])
+    return dict(mem=mem * 1e-6, executable=les, buffer=[lb.shape for lb in lbs])
 
 
 def delete_xla_buffers():
     backend = jax.lib.xla_bridge.get_backend()
     for buf in backend.live_buffers():
         buf.delete()
+    for exe in backend.live_executables():
+        exe.delete()

@@ -1,9 +1,11 @@
 import os
 import math
 import subprocess
+import psutil
 from logging import getLogger
 
 import tensorflow as tf
+import jax
 from jax.experimental.mesh_utils import create_device_mesh
 from jax.sharding import PositionalSharding
 from jax.dlpack import from_dlpack
@@ -83,3 +85,17 @@ def get_gpu_used():
         check=True,
     )
     return [int(x) for x in result.stdout.strip().split(os.linesep)]
+
+
+def get_xla_stats():
+    backend = jax.lib.xla_bridge.get_backend()
+    lbs = backend.live_buffers()
+    les = backend.live_executables()
+    mem = psutil.Process().memory_info().rss
+    return dict(mem=mem, executable=les, buffer=[lb.shape for lb in lbs])
+
+
+def delete_xla_buffers():
+    backend = jax.lib.xla_bridge.get_backend()
+    for buf in backend.live_buffers():
+        buf.delete()

@@ -5,7 +5,8 @@ from pathlib import Path
 import numpy as np
 from jax.profiler import trace
 
-from ..utils import Data
+from ..utils import Data, get_xla_stats
+from ..utils.gpu import delete_xla_buffers
 from ..io import (
     apply_mask,
     load_imgs,
@@ -26,7 +27,7 @@ logger = getLogger(__name__)
 
 def get_force(cfg, name, stage):
     force_dict = dict(
-        stats=["stats", "find", "make", "temporal", "evaluate"],
+        normalize=["normalize", "find", "make", "temporal", "evaluate"],
         find=["find", "make", "temporal", "evaluate"],
         make=["make", "temporal", "evaluate"],
         spatial=["spatial", "temporal", "evaluate"],
@@ -78,6 +79,9 @@ def cui_main(cfg):
             out = try_load(files)
         if out is None or np.any([o is None for o in out]):
             logger.info("exec: %s", name)
+            print(get_xla_stats())
+            delete_xla_buffers()
+            print(get_xla_stats())
             with get_trace_ctx(cfg):
                 out = command(*args, **kwargs)
                 if len(files) == 1:
@@ -85,6 +89,7 @@ def cui_main(cfg):
                 else:
                     save(files, out)
                 logger.info("saved:" + " %s" * len(files), *files)
+            print(get_xla_stats())
         else:
             logger.info("loaded:" + " %s" * len(files), *files)
         return out

@@ -21,12 +21,12 @@ spatial:
     - "{stage:03d}footprints.npy"
     - "{stage:03d}stats.csv"
 temporal:
-  dir: ${data.label}/${find.label}/${make.label}${model.label}
+  dir: ${data.label}/${find.label}/${make.label}/${model.label}
   files:
     - "{stage:03d}spike.npy"
     - "{stage:03d}background.npy"
 evaluate:
-  dir: ${data.label}/${find.label}/${make.label}${model.label}
+  dir: ${data.label}/${find.label}/${make.label}/${model.label}
   files:
     - "{stage:03d}stats.csv"
 figs:

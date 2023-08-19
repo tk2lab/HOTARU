@@ -48,7 +48,7 @@ class Model:
         self._active = active1, active2
         self._active_index = active_index1, active_index2
 
-        return clipped, clipped_segs
+        return clipped, clipped_segs[clipped]
 
     def _prepare(self, data, yval, nx1, nx2, py, **kwargs):
         ycov, yout, ydot = prepare_matrix(data, yval, self._trans, self._env, **kwargs)
@@ -70,7 +70,7 @@ class Model:
         self._args = ycov, yout, ydot, nx, ny, bx, by, py
         self._loss_scale = nx * ny + nx + ny
 
-        self._lr_scale = jnp.linalg.eigh(ycov)[0].max()
+        self._lr_scale = np.linalg.eigh(ycov)[0].max()
         self._x = x1, x2
 
         if not hasattr(self, "_optimizer"):
@@ -137,7 +137,7 @@ class SpatialModel(Model):
         return self._try_clip(clip, self._oldx)
 
     def prepare(self, clip, **kwargs):
-        clipped, clipped_segs = self.try_clip(clip)
+        clipped, _ = self.try_clip(clip)
         clipped_data = self._data.clip(clip.clip)
 
         n1 = self.n1
@@ -196,9 +196,11 @@ class TemporalModel(Model):
         clipped, clipped_y = self.try_clip(clip)
 
         clipped_n1 = np.count_nonzero(clipped[: self.n1])
+        clipped_n2 = np.count_nonzero(clipped[self.n1 :])
+        logger.info("clip: pos=(%d %d), size=%s, n1=%d, n2=%d", clip.y0, clip.x0, clipped_y.shape, clipped_n1, clipped_n2)
 
         data = self._data.clip(clip.clip)
-        yval = data.apply_mask(clipped_y[clipped], mask_type=True)
+        yval = data.apply_mask(clipped_y, mask_type=True)
 
         yval = jnp.array(yval)
         clipped_y1 = yval[:clipped_n1]

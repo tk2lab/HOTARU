@@ -69,7 +69,7 @@ def find_peaks(data, radius, env=None, factor=1, prefetch=1):
     logger.info("%s: %s", "pbar", "close")
 
     for i, r in enumerate(radius):
-        logger.info("%f %d", r, (rs == i).sum())
+        logger.info("radius=%f num=%d", r, (rs == i).sum())
     return PeakVal(np.array(radius, np.float32), *map(np.array, (ts, rs, gs)))
 
 

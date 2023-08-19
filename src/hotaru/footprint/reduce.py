@@ -7,7 +7,9 @@ import pandas as pd
 logger = getLogger(__name__)
 
 
-def reduce_peaks_simple(ys, xs, rs, vs, min_radius, max_radius, min_distance_ratio, old_bg=None):
+def reduce_peaks_simple(
+    ys, xs, rs, vs, min_radius, max_radius, min_distance_ratio, old_bg=None
+):
     if old_bg is None:
         old_bg = []
 

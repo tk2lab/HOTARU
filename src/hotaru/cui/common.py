@@ -1,5 +1,4 @@
 from logging import getLogger
-
 from pathlib import Path
 
 import numpy as np
@@ -56,16 +55,21 @@ def finish(cfg, stage):
     cell = stats[stats.kind == "cell"]
     bg = stats[stats.kind == "background"]
     removed = stats[stats.kind == "remove"]
+
+    radius = np.sort(np.unique(stats.radius))
+    for r in radius:
+        logger.info(
+            "radius=%f cell=%d bg=%d remove=%d",
+            r,
+            (cell.radius == r).sum(),
+            (bg.radius == r).sum(),
+            (removed.radius == r).sum(),
+        )
+
     logger.info("cell: %d\n%s", cell.shape[0], cell.head())
     if bg.shape[0] > 0:
         logger.info("background: %d\n%s", bg.shape[0], bg.head())
     if removed.shape[0] > 0:
         logger.info("removed: %d\n%s", removed.shape[0], removed.head())
-    if stage == 0:
-        return False
-    old_stats, _ = try_load(get_files(cfg, "evaluate", stage - 1))
-    old_cell = old_stats[old_stats.kind == "cell"]
-    stop = cfg.early_stop and cell.shape[0] == old_cell.shape[0]
-    if stop:
-        logger.info("early stop")
-    return stop
+
+    return (stage > 0) and removed.shape[0] == 0

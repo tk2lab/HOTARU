@@ -50,13 +50,30 @@ def clean(
     cell, bg = reduce_peaks_simple(
         y, x, radius, firmness, min_radius, max_radius, min_distance_ratio, old_bg=bg
     )
+    kind = np.array(["remove"] * uid.size)
+    kind[cell] = "cell"
+    kind[bg] = "background"
 
-    peaks = pd.DataFrame(dict(uid=uid, y=y, x=x, radius=radius, firmness=firmness))
-    peaks["kind"] = "remove"
-    peaks.loc[cell, "kind"] = "cell"
-    peaks.loc[bg, "kind"] = "background"
-    peaks["sum"] = segments.sum(axis=(1, 2))
-    peaks["area"] = np.count_nonzero(segments > 0, axis=(1, 2))
+    peaks = pd.DataFrame(
+        dict(
+            uid=uid,
+            y=y,
+            x=x,
+            radius=radius,
+            firmness=firmness,
+            kind=kind,
+            asum=segments.sum(axis=(1, 2)),
+            area=np.count_nonzero(segments > 0, axis=(1, 2)),
+            umax=None,
+            udense=None,
+            bmax=None,
+            bsparse=None,
+            **{
+                f"old_{k}": oldstats[k].to_numpy()
+                for k in ("asum", "area", "umax", "udense", "bmax", "bsparse")
+            },
+        )
+    )
 
     cell, bg, removed = [
         peaks[peaks.kind == key].sort_values("firmness", ascending=False)

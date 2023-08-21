@@ -11,12 +11,11 @@ logger = getLogger(__name__)
 class ProxOptimizer:
     def __init__(self, model):
         self._model = model
-        self._history = []
+        self._loss_sep_fn = jax.jit(self._loss_sep)
         self._loss_fn = jax.jit(self._loss)
         self._step_fn = jax.jit(self._step, static_argnames=("n_step",))
 
     def loss(self, *x):
-        x = tuple(jnp.array(xi) for xi in x)
         loss_args = dict(
             args=tuple(jnp.array(v) for v in self._model.args),
             loss_scale=jnp.array(self._model.loss_scale),
@@ -24,6 +23,9 @@ class ProxOptimizer:
                 tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args
             ),
         )
+        x = tuple(jnp.array(xi) for xi in x)
+        print(x)
+        print(loss_args)
         return np.array(self._loss_fn(*x, **loss_args))
 
     def step(self, x, lr=1, nesterov=20, n_step=100):
@@ -35,7 +37,6 @@ class ProxOptimizer:
         return self._step_fn(x, args, prox_args, lr, nesterov, n_step)
 
     def fit(self, x, max_epoch, steps_par_epoch, lr, nesterov, tol, patience, env):
-        x = tuple(jnp.array(xi) for xi in x)
         common_args = dict(
             args=tuple(jnp.array(v) for v in self._model.args),
             prox_args=tuple(
@@ -49,27 +50,34 @@ class ProxOptimizer:
             n_step=steps_par_epoch,
         )
 
-        loss = self._loss_fn(*x, **loss_args)
-        loss = np.array(loss)
-        log_diff = np.inf
+        def loss_fn(*x):
+            loss = self._loss_fn(*x, **loss_args)
+            return np.array(loss)
 
+        x = tuple(jnp.array(xi) for xi in x)
+
+        history = []
+
+        loss = loss_fn(*x)
+        diff = np.nan
+        history.append(loss)
+
+        log_diff = np.inf
         postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
         logger.info("%s: %s %d %s", "pbar", "update", 0, postfix)
-        self._history.append(loss)
 
         patience_count = 0
         min_loss = np.inf
         for i in range(max_epoch):
             x = self._step_fn(x, **step_args)
-            old_loss = loss
-            loss = self._loss_fn(*x, **loss_args)
-            loss = np.array(loss)
-            diff = (old_loss - loss) / tol
-            log_diff = np.log10(diff) if diff > 0 else np.nan
 
+            loss, old_loss = loss_fn(*x), loss
+            diff = (old_loss - loss) / tol
+            history.append(loss)
+
+            log_diff = np.log10(diff) if diff > 0 else np.nan
             postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
             logger.info("%s: %s %d %s", "pbar", "update", 1, postfix)
-            self._history.append(loss)
 
             if loss > min_loss - tol:
                 patience_count += 1
@@ -78,14 +86,18 @@ class ProxOptimizer:
             if patience_count == patience:
                 break
             min_loss = min(loss, min_loss)
-        return tuple(np.array(xi) for xi in x)
+        return tuple(np.array(xi) for xi in x), history
 
-    def _loss(self, *x, args, loss_scale, prox_args):
+    def _loss_sep(self, *x, args, loss_scale, prox_args):
         loss = self._model.loss(*x, *args)
         penalty = sum(
             ri(xi, *ai) for xi, ri, ai in zip(x, self._model.regularizers, prox_args)
         )
-        return (loss + penalty) / loss_scale
+        return loss / loss_scale, penalty / loss_scale
+
+    def _loss(self, *x, **args):
+        loss, penalty = self._loss_sep(*x, **args)
+        return loss + penalty
 
     def _step(self, x, args, prox_args, lr, nesterov, n_step):
         def update(i, xy):

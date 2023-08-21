@@ -14,16 +14,21 @@ logger = getLogger(__name__)
 
 
 def get_force(cfg, name, stage):
-    print(name, stage)
     force_dict = dict(
-        normalize=["normalize", "init", "temporal", "spatial"],
-        init=["init", "temporal", "spatial"],
-        temporal=["temporal", "spatial"],
-        spatial=["spatial"],
+        normalize=["normalize", "find", "reduce", "make", "init", "temporal", "evaluate"],
+        find=["find", "reduce", "make", "init", "temporal", "evaluate"],
+        reduce=["reduce", "make", "init", "temporal", "evaluate"],
+        make=["make", "init", "temporal", "evaluate"],
+        init=["init", "temporal", "evaluate"],
+        spatial=["spatial", "clean", "temporal", "evaluate"],
+        clean=["clean", "temporal", "evaluate"],
+        temporal=["temporal", "evaluate"],
+        evaluate=["evaluate"],
     )
     force = (stage > cfg.force_from[0]) or (
         (stage == cfg.force_from[0]) and (name in force_dict[cfg.force_from[1]])
     )
+    print("test force: ", name, stage)
     return force
 
 

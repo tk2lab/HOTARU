@@ -94,9 +94,12 @@ class Model:
         lr /= self._lr_scale
         x = self._x
         logger.info("%s: %s %s %d", "pbar", "start", "optimize", -1)
-        x = self._optimizer.fit(x, max_epoch, steps_par_epoch, lr, *args, **kwargs)
+        x, history = self._optimizer.fit(
+            x, max_epoch, steps_par_epoch, lr, *args, **kwargs
+        )
         logger.info("%s: %s", "pbar", "close")
         self._x = x
+        return history
 
     def get_x(self):
         active1, active2 = self._active
@@ -139,6 +142,13 @@ class SpatialModel(Model):
         clipped, _ = self.try_clip(clip)
         clipped_data = self._data.clip(clip.clip)
 
+        print(self._oldx.shape)
+        print(self._y1.shape)
+        print(self._y2.shape)
+        print((self._stats.kind == "cell").sum())
+        print((self._stats.kind == "background").sum())
+        print(clipped.size)
+
         n1 = self.n1
         clipped_y1 = self._y1[clipped[:n1]]
         clipped_y2 = self._y2[clipped[n1:]]
@@ -162,12 +172,16 @@ class SpatialModel(Model):
 
     def get_x(self):
         index1, index2, x1, x2 = super().get_x()
+        print(index1.shape, index2.shape)
+        print(x1.shape, x2.shape)
+
         index = np.concatenate([index1, index2 + self.n1], axis=0)
         x = np.concatenate([x1, x2], axis=0)
 
         mask = self._data.mask
         shape = self._data.shape
         x = self._clip.unclip(x, mask, shape)
+        print(index.size, x.shape)
         return index, x
 
 
@@ -193,6 +207,10 @@ class TemporalModel(Model):
 
     def prepare(self, clip, **kwargs):
         clipped, clipped_y = self.try_clip(clip)
+        print(self._y.shape)
+        print((self._stats.kind == "cell").sum())
+        print((self._stats.kind == "background").sum())
+        print(clipped.size)
 
         clipped_n1 = np.count_nonzero(clipped[: self.n1])
         clipped_n2 = np.count_nonzero(clipped[self.n1 :])

@@ -18,23 +18,28 @@ make:
   dir: ${outputs.reduce.dir}
   files:
     - "{stage:03d}footprint.npy"
+init:
+  dir: ${outputs.reduce.dir}
+  files:
     - "{stage:03d}stats.csv"
 spatial:
-  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
+  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}-${cmd.label}
   files:
     - "{stage:03d}segments.npy"
+    - "{stage:03d}loss_spatial.csv"
 clean:
-  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
+  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}-${cmd.label}
   files:
     - "{stage:03d}footprints.npy"
     - "{stage:03d}stats.csv"
 temporal:
-  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
+  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}-${cmd.label}
   files:
     - "{stage:03d}spike.npy"
     - "{stage:03d}background.npy"
+    - "{stage:03d}loss_temporal.csv"
 evaluate:
-  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
+  dir: ${outputs.make.dir}/${model.penalty.la.factor}-${model.penalty.lu.factor}-${model.penalty.lb}-${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}-${cmd.label}
   files:
     - "{stage:03d}stats.csv"
     - ".{stage:03d}stats.flag"

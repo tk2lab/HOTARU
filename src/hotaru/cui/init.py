@@ -22,16 +22,16 @@ logger = getLogger(__name__)
 
 
 def init(cfg):
-    force = get_force(cfg, "init", 0)
-    makefile, statsfile = get_files(cfg, "make", 0)
-    if force or not statsfile.exists():
-        if force or not makefile.exists():
+    statsfile, = get_files(cfg, "init", 0)
+    if get_force(cfg, "init", 0) or not statsfile.exists():
+        makefile, = get_files(cfg, "make", 0)
+        if get_force(cfg, "make", 0) or not makefile.exists():
             logger.info("%s", get_xla_stats())
             data = get_data(cfg)
             (reducefile,) = get_files(cfg, "reduce", 0)
-            if force or not reducefile.exists():
+            if get_force(cfg, "reduce", 0) or not reducefile.exists():
                 (findfile,) = get_files(cfg, "find", 0)
-                if force or not findfile.exists():
+                if get_force(cfg, "find", 0) or not findfile.exists():
                     logger.info("exec find")
                     findval = find_peaks(data, **cfg.init.find, **cfg.cmd.find)
                     logger.info("%s", get_xla_stats())
@@ -58,9 +58,11 @@ def init(cfg):
         else:
             logger.info("load make")
             footprints = try_load(makefile)
+            peaks = try_load(reducefile)
         logger.info("exec init")
-        peaks["sum"] = footprints.sum(axis=(1, 2))
+        peaks["asum"] = footprints.sum(axis=(1, 2))
         peaks["area"] = np.count_nonzero(footprints > 0, axis=(1, 2))
         save(statsfile, peaks)
-        reducefile.unlink(missing_ok=True)
+        if cfg.init.remove_reduce:
+            reducefile.unlink(missing_ok=True)
         logger.info("saved init")

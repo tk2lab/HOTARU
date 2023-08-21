@@ -10,7 +10,7 @@ import numpy as np
 def gaussian_laplace(imgs, rs, axis=-1):
     ndim = imgs.ndim
     if axis < 0:
-        axis = ndim + axis
+        axis = ndim + axis + 1
     out_shape = imgs.shape[:axis] + (len(rs),) + imgs.shape[axis:]
     out = jnp.empty(out_shape)
     for i, r in enumerate(rs):

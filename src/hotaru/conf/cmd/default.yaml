@@ -1,3 +1,4 @@
+label: default
 stats:
   env: ${env}
   factor: 1000.0

@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
+from scipy.ndimage import grey_closing
 
 from ..filter.laplace import gaussian_laplace_single
 from ..utils import (
@@ -55,6 +56,7 @@ def make_footprints(data, peaks, env=None, factor=1, prefetch=1):
                 x = jnp.pad(x, ((0, diff)), constant_values=-1)
             out[idx] = np.array(_make_segments_simple(imgs, y, x, r)[:count])
             logger.info("%s: %s %d", "pbar", "update", count)
+    out = grey_closing(out, (1, 10, 10))
     logger.info("%s: %s", "pbar", "close")
     return out
 

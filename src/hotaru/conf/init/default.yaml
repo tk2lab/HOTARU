@@ -1,3 +1,5 @@
+remove_find: true
+remove_reduce: true
 find:
   radius: ${radius}
 reduce:

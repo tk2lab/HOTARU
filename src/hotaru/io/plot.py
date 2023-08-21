@@ -8,7 +8,52 @@ from hotaru.footprint import get_radius
 pio.kaleido.scope.mathjax = None
 
 
-def plot_simgs(simgs, scale=1, margin=30, label=None):
+def plot_imgs_subplots(imgs, labels, width=500, pad=0.05):
+    margin = dict(l=10, r=10, t=20, b=10)
+    num = len(imgs)
+    xdomainsize = (1 - (num - 1) * pad) / num
+    xstride = xdomainsize + pad
+    print(xdomainsize, xstride)
+    fig = go.Figure().set_subplots(1, len(imgs), subplot_titles=labels)
+    for i, (img, label) in enumerate(zip(imgs, labels)):
+        h, w = img.shape
+        smin = img.min()
+        smax = img.max()
+        img = (img - smin) / (smax - smin)
+        fig.add_trace(
+            go.Heatmap(z=img, colorscale="Greens", showscale=False),
+            col=i + 1,
+            row=1,
+        )
+        fig.update_xaxes(
+            autorange=False,
+            range=(-0.5, w - 0.5),
+            showticklabels=False,
+            domain=[i * xstride, i * xstride + xdomainsize],
+            col=i + 1,
+            row=1,
+        )
+        fig.update_yaxes(
+            scaleanchor="x",
+            autorange=False,
+            domain=[0, 1],
+            range=(h, 0),
+            showticklabels=False,
+            col=i + 1,
+            row=1,
+        )
+    mod_w = num * w * (1 + (num -1) * pad)
+    mod_width = width - margin["l"] - margin["r"]
+    fig.update_layout(
+        annotations=[dict(font=dict(size=11)) for _ in range(num)],
+        width=width,
+        height=np.ceil(margin["t"] + margin["b"] + mod_width * h / mod_w),
+        margin=margin,
+    )
+    return fig
+
+
+def plot_simgs(simgs, labels, scale=1, margin=30, label=None):
     simgs = np.stack(simgs)
     h, w = simgs[0].shape
     smin = simgs.min(axis=(1, 2), keepdims=True)
@@ -23,7 +68,10 @@ def plot_simgs(simgs, scale=1, margin=30, label=None):
     )
     margin = dict(t=margin, b=margin, l=margin, r=margin)
     data = [go.Heatmap(z=simgs, **kwargs)]
-    return plot_clip(data, simgs.shape, h + 1, w + 1, scale, margin)
+    fig = plot_clip(data, simgs.shape, h + 1, w + 1, scale, margin)
+    for i, label in enumerate(labels):
+        fig.add_annotation(x=10 + i * (w + 1), y=10, text=label, showarrow=False)
+    return fig
 
 
 def plot_gl(data, radius, idx, scale=1, margin=30, label=""):

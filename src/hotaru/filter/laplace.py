@@ -8,11 +8,15 @@ import numpy as np
 
 @partial(jax.jit, static_argnames=["rs", "axis"])
 def gaussian_laplace(imgs, rs, axis=-1):
-    out_shape = (len(rs),) + imgs.shape
+    ndim = imgs.ndim
+    if axis < 0:
+        axis = ndim + axis
+    out_shape = imgs.shape[:axis] + (len(rs),) + imgs.shape[axis:]
     out = jnp.empty(out_shape)
     for i, r in enumerate(rs):
-        out = out.at[i].set(gaussian_laplace_single(imgs, r))
-    return jnp.swapaxes(out, 0, axis)
+        idx = (slice(None),) * axis + (i,) + (slice(None),) * (ndim - axis)
+        out = out.at[idx].set(gaussian_laplace_single(imgs, r))
+    return out
 
 
 @partial(jax.jit, static_argnames=["r"])

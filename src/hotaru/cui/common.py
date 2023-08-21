@@ -8,7 +8,7 @@ from ..io import (
     load_imgs,
     try_load,
 )
-from ..utils import Data
+from .data import Data
 
 logger = getLogger(__name__)
 

@@ -34,12 +34,11 @@ def temporal(cfg, stage, force=False):
         if force or not spikefile.exists() or not bgfile.exists():
             logger.info(f"exec temporal ({stage})")
             data = get_data(cfg)
-            stats = stats.query("kind != 'remove'")
             logger.info("%s", get_xla_stats())
             model = TemporalModel(
                 data,
                 footprints,
-                stats,
+                stats.query("kind != 'remove'"),
                 cfg.model.dynamics,
                 cfg.model.penalty,
             )

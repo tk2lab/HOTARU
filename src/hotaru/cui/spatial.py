@@ -68,7 +68,6 @@ def spatial(cfg, stage, force=False):
             logger.info(f"load spatial ({stage})")
             segments = try_load(segsfile)
         logger.info(f"exec clean ({stage})")
-        print(segments.shape)
         footprints, stats = clean(
             stats,
             segments,

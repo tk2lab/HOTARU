@@ -44,7 +44,8 @@ def init(cfg):
                 peaks = reduce_peaks(findval, **cfg.init.reduce, **cfg.cmd.reduce)
                 logger.info("%s", get_xla_stats())
                 save(reducefile, peaks)
-                findfile.unlink(missing_ok=True)
+                if cfg.init.remove_find:
+                    findfile.unlink(missing_ok=True)
                 logger.info("saved reduce")
             else:
                 logger.info("load reduce")

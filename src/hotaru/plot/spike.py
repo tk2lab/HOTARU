@@ -1,20 +1,33 @@
 import pandas as pd
 import plotly.exporess as px
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from .cui.common import load
 from .common import to_image
 
 
-def spike_image(cfg, stage, tselect=slice(None), uselect=slice(None)):
+def spike_image(cfg, stage, tsel=slice(None), usel=slice(None), width=3, lines=()):
     u, _, _ = load(cfg, "temporal", stage)
     u /= u.max(axis=1, keepdims=True)
-    u = u[tselect, uselect]
-    imgs = to_image(u, "Reds")
-    return Image.fromarray(imgs)
+    u = u[tsel, usel]
+    nk, nt = u.shape
+    img = to_image(u, "Reds")
+    img = Image.fromarray(img)
+    draw = ImageDraw.Draw(img)
+    draw.line(
+        (int(0.8 * nt), (nk - 10), int(0.9 * nt), (nk - 10)),
+        fill=(0, 0, 0),
+        width=width,
+    )
+    for k0, k1, color, width in lines:
+        draw.line((0, k0, 0, k1), fill=color, width=width)
+    return img
 
 
-def spike_stats_fig(cfg, stages):
+def spike_stats_fig(cfg, stages, **kwargs):
+    kwargs.setdefault("tempolate", "none")
+    kwargs.setdefault("margin", dict(l=40, r=10, t=20, b=35))
+
     dfs = []
     for stage in stages:
         stats, _ = load("evaluate", stage)
@@ -29,5 +42,6 @@ def spike_stats_fig(cfg, stages):
         labels=dict(signal="signal intensity", udense="spike density"),
     )
     fig.update_layout(
-        template="none",
+        **kwargs,
     )
+    return fig

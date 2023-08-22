@@ -51,6 +51,10 @@ def get_files(cfg, name, stage):
     return files
 
 
+def load(cfg, name, stage):
+    return try_load(get_files(cfg, name, stage))
+
+
 def get_data(cfg):
     imgs, hz = load_imgs(**cfg.data.imgs)
     imgs, mask = apply_mask(imgs, **cfg.data.mask)

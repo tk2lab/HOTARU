@@ -1,11 +1,8 @@
 import numpy as np
 import plotly.graph_objects as go
-import plotly.express as px
 import plotly.io as pio
 
-from hotaru.filter import gaussian_laplace
-from hotaru.footprint import get_radius
-from hotaru.io.plot import plot_clip
+from ..cui.common import load
 
 pio.kaleido.scope.mathjax = None
 
@@ -15,7 +12,9 @@ def jitter(r, radius, scale):
     jitter = np.exp(scale * dscale * np.random.randn(r.size))
     return r * jitter
 
-def plot_peak_stats_multi(stats, rmin, rmax):
+
+def multi_peak_stats_fig(cfg, stage, stats, rmin, rmax):
+    stats, _ = load(cfg, "evaluate", stage)
     fig = go.Figure().set_subplots(2, len(stats), row_heights=(1, 2))
     vmax = 0
     for i, peaks in enumerate(stats):
@@ -75,7 +74,7 @@ def plot_peak_stats_multi(stats, rmin, rmax):
                 title_text="intensity",
                 col=1,
                 row=2,
-                range=(0, vmax),
+                range=(0, 1.05 * vmax),
             )
     fig.update_yaxes(
         title_text="fimness",
@@ -95,11 +94,18 @@ def plot_peak_stats_multi(stats, rmin, rmax):
     )
     return fig
 
-def plot_peak_stats(peaks, rmin, rmax, peakval=None):
+
+def peak_stats_fig(cfg, stage, rmin, rmax, peakval=None):
+    stats, _ = load(cfg, "evaluate", stage)
+    if stage == 0 and not cfg.init.remove_find:
+        peakval = load(cfg, "find", stage)
+    else:
+        peakval = None
+
     fig = go.Figure().set_subplots(2, 1, row_heights=(1, 2))
     if peakval is None:
         intensity = "firmness"
-        vmax = peaks[intensity].max()
+        vmax = stats[intensity].max()
     else:
         intensity = "intensity"
         ri = peakval.r
@@ -129,7 +135,7 @@ def plot_peak_stats(peaks, rmin, rmax, peakval=None):
             row=1,
         )
         """
-    cell = peaks.query("kind == 'cell'")
+    cell = stats.query("kind == 'cell'")
     fig.add_trace(
         go.Scattergl(
             x=cell.radius, #jitter(rs),
@@ -175,6 +181,7 @@ def plot_peak_stats(peaks, rmin, rmax, peakval=None):
     )
     fig.update_yaxes(
         title_text=intensity,
+        range=(0, 1.05 * vmax),
         col=1,
         row=2,
     )
@@ -184,6 +191,7 @@ def plot_peak_stats(peaks, rmin, rmax, peakval=None):
         row=1,
     )
     return fig
+
 
 def peak_stats_trace(peaks, peakval=None, label=""):
 

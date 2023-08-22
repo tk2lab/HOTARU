@@ -1,4 +1,7 @@
 import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.exporess as px
 from PIL import Image
 
 from ..cui.common import load
@@ -67,3 +70,95 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
             segs[i, y : y + size, x : x + size], "Greens",
         )
     return Image.fromarray(clip)
+
+
+def footprint_stats_fig(cfg, stages, rmin, rmax, **kwargs):
+    kwargs.setdefault("tempolate", "none")
+    kwargs.setdefault("margin", dict(l=40, r=10, t=20, b=35))
+
+    dfs = []
+    for stage in stages:
+        stats, _ = load("evaluate", stage)
+        stats["epoch"] = stage
+        dfs.append(stats)
+    stats = pd.concat(dfs, axis=0)
+
+    fig = go.Figure().set_subplots(2, len(stats), row_heights=(1, 2))
+    vmax = 0
+    for i, peaks in enumerate(stats):
+        cell = peaks.query("kind == 'cell'")
+        if i == 0:
+            intensity = "intensity"
+        else:
+            intensity = "firmness"
+        v = cell[intensity]
+        vmax = max(v.max(), vmax)
+        fig.add_trace(
+            go.Scattergl(
+                x=cell.radius, #jitter(rs),
+                y=v,
+                mode="markers",
+                marker=dict(opacity=0.3, size=5, color="green"),
+                name="all pixels",
+            ),
+            col=i + 1,
+            row=2,
+        )
+        r, c = np.unique(cell.radius, return_counts=True)
+        print(r)
+        print(c)
+        fig.add_trace(
+            go.Bar(
+                x=np.log(r),
+                y=c,
+                marker_color="green",
+            ),
+            col=i + 1,
+            row=1,
+        )
+        fig.update_xaxes(
+            showticklabels=False,
+            #tickmode="array",
+            #tickvals=[np.log(2), np.log(4), np.log(8)],
+            #ticktext=["2", "4", "8"],
+            range=[np.log(rmin), np.log(rmax)],
+            col=i + 1,
+            row=1,
+        )
+        print(rmin, rmax)
+        fig.update_xaxes(
+            title_text="radius",
+            type="log",
+            tickmode="array",
+            tickvals=[3, 6, 12],
+            ticktext=["3", "6", "12"],
+            autorange=False,
+            range=[np.log10(rmin), np.log10(rmax)],
+            col=i + 1,
+            row=2,
+        )
+        if i == 0:
+            fig.update_yaxes(
+                title_text="intensity",
+                col=1,
+                row=2,
+                range=(0, 1.05 * vmax),
+            )
+    fig.update_yaxes(
+        title_text="fimness",
+        col=2,
+        row=2,
+    )
+    for i in range(1, len(stats)):
+        fig.update_yaxes(
+            range=(0, 1.05 * vmax),
+            col=i + 1,
+            row=2,
+        )
+    fig.update_yaxes(
+        title_text="count",
+        col=1,
+        row=1,
+    )
+    fig.update_layout(**kwargs)
+    return fig

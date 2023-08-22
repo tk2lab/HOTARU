@@ -1,7 +1,9 @@
+import os
 from logging import getLogger
 from pathlib import Path
 
 import numpy as np
+from hydra.core.hydra_config import HydraConfig
 
 from ..io import (
     apply_mask,
@@ -11,6 +13,12 @@ from ..io import (
 from .data import Data
 
 logger = getLogger(__name__)
+
+
+def set_env(cfg):
+    hcfg = HydraConfig.get()
+    for k, v in hcfg.job.env_set.items():
+        os.environ[k] = v
 
 
 def get_force(cfg, name, stage):

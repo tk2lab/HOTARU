@@ -24,8 +24,6 @@ class ProxOptimizer:
             ),
         )
         x = tuple(jnp.array(xi) for xi in x)
-        print(x)
-        print(loss_args)
         return np.array(self._loss_fn(*x, **loss_args))
 
     def step(self, x, lr=1, nesterov=20, n_step=100):

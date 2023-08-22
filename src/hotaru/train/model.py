@@ -107,8 +107,6 @@ class Model:
         x1, x2 = self._x
         active_x1 = np.array(x1[active1])
         active_x2 = np.array(x2[active2])
-        print(x1.shape, x2.shape)
-        print(active_x1.shape, active_x2.shape)
         return active_index1, active_index2, active_x1, active_x2
 
 
@@ -142,13 +140,6 @@ class SpatialModel(Model):
         clipped, _ = self.try_clip(clip)
         clipped_data = self._data.clip(clip.clip)
 
-        print(self._oldx.shape)
-        print(self._y1.shape)
-        print(self._y2.shape)
-        print((self._stats.kind == "cell").sum())
-        print((self._stats.kind == "background").sum())
-        print(clipped.size)
-
         n1 = self.n1
         clipped_y1 = self._y1[clipped[:n1]]
         clipped_y2 = self._y2[clipped[n1:]]
@@ -172,8 +163,6 @@ class SpatialModel(Model):
 
     def get_x(self):
         index1, index2, x1, x2 = super().get_x()
-        print(index1.shape, index2.shape)
-        print(x1.shape, x2.shape)
 
         index = np.concatenate([index1, index2 + self.n1], axis=0)
         x = np.concatenate([x1, x2], axis=0)
@@ -181,7 +170,6 @@ class SpatialModel(Model):
         mask = self._data.mask
         shape = self._data.shape
         x = self._clip.unclip(x, mask, shape)
-        print(index.size, x.shape)
         return index, x
 
 
@@ -207,10 +195,6 @@ class TemporalModel(Model):
 
     def prepare(self, clip, **kwargs):
         clipped, clipped_y = self.try_clip(clip)
-        print(self._y.shape)
-        print((self._stats.kind == "cell").sum())
-        print((self._stats.kind == "background").sum())
-        print(clipped.size)
 
         clipped_n1 = np.count_nonzero(clipped[: self.n1])
         clipped_n2 = np.count_nonzero(clipped[self.n1 :])

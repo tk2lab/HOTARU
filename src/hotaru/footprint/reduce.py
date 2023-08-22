@@ -13,12 +13,8 @@ def reduce_peaks_simple(
     if old_bg is None:
         old_bg = []
 
-    print(vs.size)
-    print(vs)
     n = np.count_nonzero(np.isfinite(vs))
-    print(n)
     flg = np.argsort(vs)[::-1][:n]
-    print(flg)
     cell = []
     bg = []
     remove = []

@@ -140,7 +140,6 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     def calc(imgs):
         gl = gaussian_laplace(imgs, radius, -3)
         nk, nr, h, w = gl.shape
-        print(nk, nr, h, w)
         idx = jnp.argmax(gl.reshape(nk, nr * h * w), axis=1)
         k = jnp.arange(nk)
         r, y, x = idx // (h * w), (idx // w) % h, idx % w

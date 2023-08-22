@@ -7,10 +7,10 @@ dynamics:
 penalty:
   la:
     type: MaxNormNonNegativeL1
-    factor: 30.0
+    factor: 20.0
   lu:
     type: MaxNormNonNegativeL1
-    factor: 30.0
+    factor: 20.0
   lb: 0.1
   bs: 0.1
   bt: 0.1
@@ -19,6 +19,6 @@ clean:
   reduce:
     min_radius: ${init.reduce.min_radius}
     max_radius: ${init.reduce.max_radius}
-    min_distance_ratio: 1.0
-    max_udense: 0.11
-    min_bsparse: 30.0
+    min_distance_ratio: 0.0
+    max_udense: 0.15
+    min_bsparse: 10.0

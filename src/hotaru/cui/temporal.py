@@ -81,7 +81,7 @@ def temporal(cfg, stage, force=False):
         cell = stats.query("kind=='cell'").index
         sm = spikes.max(axis=1)
         sd = spikes.mean(axis=1) / sm
-        stats["umax"] = pd.Series(sm, index=cell)
+        stats["signal"] = pd.Series(sm, index=cell)
         stats["udense"] = pd.Series(sd, index=cell)
 
         background = stats.query("kind=='background'").index

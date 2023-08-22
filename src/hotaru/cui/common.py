@@ -15,7 +15,15 @@ logger = getLogger(__name__)
 
 def get_force(cfg, name, stage):
     force_dict = dict(
-        normalize=["normalize", "find", "reduce", "make", "init", "temporal", "evaluate"],
+        normalize=[
+            "normalize",
+            "find",
+            "reduce",
+            "make",
+            "init",
+            "temporal",
+            "evaluate",
+        ],
         find=["find", "reduce", "make", "init", "temporal", "evaluate"],
         reduce=["reduce", "make", "init", "temporal", "evaluate"],
         make=["make", "init", "temporal", "evaluate"],
@@ -35,7 +43,10 @@ def get_force(cfg, name, stage):
 def get_files(cfg, name, stage):
     odir = Path(cfg.outputs.dir)
     path = cfg.outputs[name]
-    fdir = odir / path.dir
+    if (stage == 0) or ((stage == 1) and (name == "spatial")):
+        fdir = odir / path.dir0
+    else:
+        fdir = odir / path.dir
     files = [fdir / file.format(stage=stage) for file in path.files]
     return files
 
@@ -71,9 +82,22 @@ def finish(cfg, stage):
             (removed.radius == r).sum(),
         )
 
-    logger.info("cell: %d\n%s", cell.shape[0], cell.head())
+    firmness = "intensity" if stage == 0 else "firmness"
+    labels = ["uid", "y", "x", "radius", firmness, "signal", "udense"]
+    logger.info("cell: %d\n%s", cell.shape[0], cell.head()[labels])
     if bg.shape[0] > 0:
-        logger.info("background: %d\n%s", bg.shape[0], bg.head())
+        labels = [
+            "uid",
+            "y",
+            "x",
+            "radius",
+            firmness,
+            "bmax",
+            "bsparse",
+        ]
+        if stage > 0:
+            labels += ["old_radius", "old_udense", "old_bsparse"]
+        logger.info("background: %d\n%s", bg.shape[0], bg.head()[labels])
     if removed.shape[0] > 0:
         logger.info("removed: %d\n%s", removed.shape[0], removed.head())
 

@@ -13,35 +13,75 @@ def reduce_peaks_simple(
     if old_bg is None:
         old_bg = []
 
+    print(vs.size)
+    print(vs)
     n = np.count_nonzero(np.isfinite(vs))
+    print(n)
     flg = np.argsort(vs)[::-1][:n]
+    print(flg)
     cell = []
     bg = []
+    remove = []
     while flg.size > 0:
         i, flg = flg[0], flg[1:]
         r0 = rs[i]
         if r0 >= min_radius:
             y0, x0 = ys[i], xs[i]
-            thr = min_distance_ratio * r0
             if i in old_bg or r0 > max_radius:
                 yb, xb = ys[bg], xs[bg]
-                if not bg or np.all(np.hypot(xb - x0, yb - y0) >= thr):
+                distance = np.hypot(xb - x0, yb - y0) / r0
+                if not bg or np.all(distance > min_distance_ratio):
                     bg.append(i)
+                    logger.debug(
+                        "background: id=%d old=%d r=%f dist=%s",
+                        i,
+                        i in old_bg,
+                        r0,
+                        sorted(distance)[:2],
+                    )
+                else:
+                    remove.append(i)
+                    logger.debug(
+                        "removed (dup bg): id=%d old=%d r=%f dist=%s",
+                        i,
+                        i in old_bg,
+                        r0,
+                        sorted(distance)[:2],
+                    )
             else:
                 yc, xc = ys[cell], xs[cell]
-                if not cell or np.all(np.hypot(xc - x0, yc - y0) >= thr):
+                distance = np.hypot(xc - x0, yc - y0) / r0
+                if not cell or np.all(distance > min_distance_ratio):
                     y1, x1 = ys[flg], xs[flg]
-                    cond = np.hypot(x1 - x0, y1 - y0) >= thr
+                    dist2 = np.hypot(x1 - x0, y1 - y0) / r0
+                    cond = dist2 > min_distance_ratio
+                    if np.any(~cond):
+                        remove += list(flg[~cond])
+                        logger.debug(
+                            "pre remove: %s dist=%s", list(flg[~cond]), dist2[~cond]
+                        )
                     flg = flg[cond]
                     cell.append(i)
-    return cell, bg
+                    logger.debug("cell: id=%d dist%s", i, sorted(distance)[:2])
+                else:
+                    remove.append(i)
+                    logger.debug(
+                        "removed (dup cell): id=%d r=%f dist=%s",
+                        i,
+                        r0,
+                        sorted(distance)[:2],
+                    )
+        else:
+            remove.append(i)
+            logger.debug("removed (small r): id=%d r=%f", i, r0)
+    return cell, bg, remove
 
 
 def reduce_peaks_mesh(rs, vs, *args, **kwargs):
     h, w = rs.shape
     ys, xs = np.mgrid[:h, :w]
     ys, xs, rs, vs = ys.ravel(), xs.ravel(), rs.ravel(), vs.ravel()
-    cell, bg = reduce_peaks_simple(ys, xs, rs, vs, *args, **kwargs)
+    cell, bg, remove = reduce_peaks_simple(ys, xs, rs, vs, *args, **kwargs)
     return ys[cell], xs[cell], ys[bg], xs[bg]
 
 

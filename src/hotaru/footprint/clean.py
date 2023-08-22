@@ -35,25 +35,41 @@ def clean(
     factor,
     prefetch,
 ):
+    oldstats = oldstats.query("kind != 'remove'")
     uid = oldstats.uid.to_numpy()
     kind = oldstats.kind.to_numpy()
     bg = kind == "background"
     cell_to_bg = (kind == "cell") & (oldstats.udense > max_udense)
     bg_to_cell = bg & (oldstats.bsparse > min_bsparse) & (oldstats.radius < max_radius)
-    logger.debug("old_bg: uid=%s", oldstats[bg].uid.to_numpy())
-    logger.debug("cell_to_bg: uid=%s", oldstats[cell_to_bg].uid.to_numpy())
-    logger.debug("bg_to_cell: uid=%s", oldstats[bg_to_cell].uid.to_numpy())
+    logger.info("old_bg: uid=%s", oldstats[bg].uid.to_numpy())
+    logger.info("cell_to_bg: uid=%s", oldstats[cell_to_bg].uid.to_numpy())
+    logger.info("bg_to_cell: uid=%s", oldstats[bg_to_cell].uid.to_numpy())
 
     bg = list(np.where((bg & ~bg_to_cell) | cell_to_bg)[0])
     args = radius, env, factor, prefetch
     segments, y, x, radius, firmness = clean_footprints(segs, *args)
-    cell, bg = reduce_peaks_simple(
+    logger.info(
+        "segemtns.shape=%s, y.size=%d, x.size=%d, r.size=%f, g.size=%f",
+        segments.shape,
+        y.size,
+        x.size,
+        radius.size,
+        firmness.size,
+    )
+    logger.info("old_bg: size=%d, %s", len(bg), bg)
+    cell, bg, remove = reduce_peaks_simple(
         y, x, radius, firmness, min_radius, max_radius, min_distance_ratio, old_bg=bg
     )
-    kind = np.array(["remove"] * uid.size)
+    logger.info("cell: size=%d, %s", len(cell), sorted(cell))
+    logger.info("bg: size=%d, %s", len(bg), sorted(bg))
+    logger.info("remove: size=%d, %s", len(remove), sorted(remove))
+    assert sorted(cell + bg + remove) == list(range(segs.shape[0]))
+    logger.info("segs.shape=%s, segments.shape=%s", segs.shape, segments.shape)
+
+    kind = pd.Series(["remove"] * uid.size)
     kind[cell] = "cell"
     kind[bg] = "background"
-
+    logger.info("kind: %s", kind)
     peaks = pd.DataFrame(
         dict(
             uid=uid,
@@ -70,10 +86,28 @@ def clean(
             bsparse=None,
             **{
                 f"old_{k}": oldstats[k].to_numpy()
-                for k in ("asum", "area", "umax", "udense", "bmax", "bsparse")
+                for k in (
+                    "radius",
+                    "intensity",
+                    "firmness",
+                    "asum",
+                    "area",
+                    "signal",
+                    "udense",
+                    "bmax",
+                    "bsparse",
+                )
                 if k in oldstats
             },
         )
+    )
+    logger.info("kind: %s", peaks.kind)
+    logger.info(
+        "peaks: size=%d cell=%d bg=%d remove=%d",
+        peaks.shape[0],
+        (peaks.kind == "cell").sum(),
+        (peaks.kind == "background").sum(),
+        (peaks.kind == "remove").sum(),
     )
 
     cell, bg, removed = [
@@ -82,8 +116,22 @@ def clean(
     ]
     logger.info("clean: %d %d %d", cell.shape[0], bg.shape[0], removed.shape[0])
 
+    x, y, r = cell.x.to_numpy(), cell.y.to_numpy(), cell.radius.to_numpy()
+    dist = np.hypot(x - x[:, np.newaxis], y - y[:, np.newaxis]) / r
+    np.fill_diagonal(dist, np.inf)
+    dist = np.sort(dist.ravel())
+    logger.info("small distance: %s", dist[dist < 1])
+
     peaks = pd.concat([cell, bg, removed], axis=0)
+    logger.info(
+        "n.peaks=%d, c=%d, b=%d, r=%d",
+        peaks.shape[0],
+        (peaks.kind == "cell").sum(),
+        (peaks.kind == "background").sum(),
+        (peaks.kind == "remove").sum(),
+    )
     segments = segments[peaks[peaks.kind != "remove"].index]
+    logger.info("segments.shape=%s", segments.shape)
     return segments, peaks.reset_index(drop=True)
 
 

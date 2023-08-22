@@ -68,7 +68,7 @@ class Model:
         self._args = ycov, yout, ydot, nx, ny, bx, by, py
         self._loss_scale = nx * ny + nx + ny
 
-        self._lr_scale = np.linalg.eigh(ycov)[0].max()
+        self._lr_scale = np.linalg.eigh(ycov)[0].max() / nx
         self._x = x1, x2
 
         if not hasattr(self, "_optimizer"):

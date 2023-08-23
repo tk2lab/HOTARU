@@ -52,12 +52,12 @@ def clean(
         if rm_flg[i]:
             remove.append(i)
         elif bg_flg[i]:
-            if simmat[i, bg].max() >= thr_remove_sim:
+            if bg and (simmat[i, bg].max() >= thr_remove_sim):
                 remove.append(i)
             else:
                 bg.append(i)
         else:
-            if simmat[i, cell].max() >= thr_remove_sim:
+            if cell and (simmat[i, cell].max() >= thr_remove_sim):
                 remove.append(i)
             else:
                 cell.append(i)

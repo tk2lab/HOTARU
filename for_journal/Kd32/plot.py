@@ -19,19 +19,19 @@ def main(cfg):
     w = cfg.data.imgs.width
 
     footprint_stats_fig(cfg, [0], usefind=True, width=200, height=200).write_image(
-        fig_dir / f"{cfg.plot.name}peak0.pdf",
+        fig_dir / f"{cfg.plot.name}0peak.pdf",
     )
     seg_max_image(cfg, 0).save(
-        fig_dir / f"{cfg.plot.name}segmax0.png",
+        fig_dir / f"{cfg.plot.name}0segmax.png",
         dpi=(w / 3, w / 3),
     )
 
     segs_image(cfg, 0, range(100), mx=10, hsize=25, pad=2).save(
-        fig_dir / f"{cfg.plot.name}seg0top.png",
+        fig_dir / f"{cfg.plot.name}0segtop.png",
         dpi=(255, 255),
     )
     segs_image(cfg, 0, range(-100, 0), mx=10, hsize=25, pad=2).save(
-        fig_dir / f"{cfg.plot.name}seg0bottom.png",
+        fig_dir / f"{cfg.plot.name}0segbottom.png",
         dpi=(255, 255),
     )
     img, nt, nk = spike_image(
@@ -39,33 +39,33 @@ def main(cfg):
         lines=((0, 99, (0, 0, 0), 3), (-100, -1, (0, 0, 0), 3)),
     )
     img.save(
-        fig_dir / f"{cfg.plot.name}spike0.png",
+        fig_dir / f"{cfg.plot.name}0spike.png",
         dpi=(int(0.3 * nt), int(0.3 * nk)),
     )
 
     cell_num_fig(cfg, width=400, height=200).write_image(
-        fig_dir / f"{cfg.plot.name}num.pdf",
+        fig_dir / f"{cfg.plot.name}run_num.pdf",
     )
     spike_stats_fig(cfg, [0, 1, cfg.plot.final], width=600, height=200).write_image(
-        fig_dir / f"{cfg.plot.name}spike_stats.pdf",
+        fig_dir / f"{cfg.plot.name}run_spike.pdf",
     )
     footprint_stats_fig(cfg, [0, 1, cfg.plot.final], width=600, height=200).write_image(
-        fig_dir / f"{cfg.plot.name}footprint_stats.pdf",
+        fig_dir / f"{cfg.plot.name}run_footprint.pdf",
     )
 
     segs_image(cfg, cfg.plot.final, mx=10, hsize=25, pad=2).save(
-        fig_dir / f"{cfg.plot.name}segfinal.png",
+        fig_dir / f"{cfg.plot.name}finalseg.png",
         dpi=(255, 255),
     )
     seg_max_image(cfg, cfg.plot.final).save(
-        fig_dir / f"{cfg.plot.name}segmaxfinal.png",
+        fig_dir / f"{cfg.plot.name}finalsegmax.png",
         dpi=(w / 3, w / 3),
     )
     img, nt, nk = spike_image(
         cfg, cfg.plot.final, tsel=range(t0:=400, t1:=800),
     )
     img.save(
-        fig_dir / f"{cfg.plot.name}segfinal.png",
+        fig_dir / f"{cfg.plot.name}finalspike.png",
         dpi=(int(0.3 * nt), int(0.3 * nk)),
     )
 

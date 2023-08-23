@@ -26,8 +26,9 @@ def _main(cfg):
 
 
 def main():
-    cfg_path = Path("hotaru.yaml")
+    cfg_path = Path("hotaru/default.yaml")
     if not cfg_path.exists():
+        cfg_path.parent.mkdir(parents=True, exist_ok=True)
         cfg = read_text("hotaru.conf", "user_sample.yaml")
         cfg_path.write_text(cfg)
 

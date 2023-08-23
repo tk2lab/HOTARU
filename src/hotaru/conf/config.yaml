@@ -8,7 +8,7 @@ defaults:
   - outputs: default
   - env: default
   - hydra/local
-  - hotaru
+  - hotaru@_global_: default
 
 mode: test
 

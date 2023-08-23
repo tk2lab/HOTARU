@@ -1,0 +1,5 @@
+label: default
+args:
+  cell_range: ${init.args.cell_range}
+  thr_active_area: 1
+  thr_remove_sim: 1

@@ -1,16 +1,18 @@
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.exporess as px
+import plotly.express as px
 from PIL import Image
 
 from ..cui.common import load
+from ..footprint import get_radius
 from .common import to_image
 
 
 def seg_max_image(cfg, stage, base=0, showbg=False):
     if stage == 0:
-        segs, stats = load(cfg, "make", stage)
+        segs = load(cfg, "make", stage)
+        stats = load(cfg, "init", stage)
     else:
         segs, stats = load(cfg, "clean", stage)
     nk = np.count_nonzero(stats.kind == "cell")
@@ -35,12 +37,19 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
         return (i + 1) * (size + pad)
 
     if stage == 0:
-        segs, stats = load(cfg, "make", stage)
+        segs = load(cfg, "make", stage)
+        stats = load(cfg, "init", stage)
     else:
         segs, stats = load(cfg, "clean", stage)
-    nk = np.count_nonzero(stats.kind == "cell")
+    stats = stats.query("kind == 'cell'")
+    nk = stats.shape[0]
     fp = segs[:nk]
+    ys = stats.y.to_numpy()
+    xs = stats.x.to_numpy()
+
     fp = segs[select]
+    ys = ys[select]
+    xs = xs[select]
     nk = fp.shape[0]
 
     if mx is None:
@@ -62,35 +71,57 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
         en = st + pad
         clip[st:en] = [0, 0, 0, 255]
 
-    ys = stats.y.to_numpy()
-    xs = stats.x.to_numpy()
     for i, (y, x) in enumerate(zip(ys, xs)):
         j, k = divmod(i, mx)
+        print(nk, mx * my, j, k, clip.shape, s(j), e(j), s(k), e(k), y, y + size, x, x + size)
         clip[s(j) : e(j), s(k) : e(k)] = to_image(
             segs[i, y : y + size, x : x + size], "Greens",
         )
     return Image.fromarray(clip)
 
 
-def footprint_stats_fig(cfg, stages, rmin, rmax, **kwargs):
-    kwargs.setdefault("tempolate", "none")
+def jitter(r, radius, scale):
+    dscale = np.log((radius[1:] / radius[:-1]).min())
+    jitter = np.exp(scale * dscale * np.random.randn(r.size))
+    return r * jitter
+
+
+def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
+    kwargs.setdefault("template", "none")
     kwargs.setdefault("margin", dict(l=40, r=10, t=20, b=35))
+    kwargs.setdefault("showlegend", False)
 
-    dfs = []
-    for stage in stages:
-        stats, _ = load("evaluate", stage)
-        stats["epoch"] = stage
-        dfs.append(stats)
-    stats = pd.concat(dfs, axis=0)
+    radius = get_radius(cfg.radius)
+    rmin, rmax = radius[0], radius[-1]
 
-    fig = go.Figure().set_subplots(2, len(stats), row_heights=(1, 2))
+    fig = go.Figure().set_subplots(2, len(stages), row_heights=(1, 2))
     vmax = 0
-    for i, peaks in enumerate(stats):
-        cell = peaks.query("kind == 'cell'")
+    for i, stage in enumerate(stages):
         if i == 0:
             intensity = "intensity"
+            if usefind:
+                peakval = load(cfg, "find", 0)
+                ri = peakval.r
+                cond = ri > 0
+                rs = peakval.radius[ri[cond]]
+                vs = peakval.v[cond]
+                vmax = vs.max()
+                fig.add_trace(
+                    go.Scattergl(
+                        x=jitter(rs, peakval.radius, 0.3),
+                        y=vs,
+                        mode="markers",
+                        marker=dict(opacity=0.2, size=1, color="blue"),
+                        name="all pixels",
+                    ),
+                    col=i + 1,
+                    row=2,
+                )
         else:
             intensity = "firmness"
+        print(intensity)
+        stats, _ = load(cfg, "evaluate", stage)
+        cell = stats.query("kind == 'cell'")
         v = cell[intensity]
         vmax = max(v.max(), vmax)
         fig.add_trace(
@@ -144,6 +175,7 @@ def footprint_stats_fig(cfg, stages, rmin, rmax, **kwargs):
                 row=2,
                 range=(0, 1.05 * vmax),
             )
+            vmax = 0
     fig.update_yaxes(
         title_text="fimness",
         col=2,

@@ -20,9 +20,9 @@ def cell_num_fig(cfg, **kwargs):
         title_text="epoch",
         title_font_size=11,
     )
-    fig.update_xaxes(
+    fig.update_yaxes(
         title_text="Number of cells",
         title_font_size=11,
     )
-    fig.update_yaxes(**kwargs)
+    fig.update_layout(**kwargs)
     return fig

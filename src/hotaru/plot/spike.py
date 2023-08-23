@@ -1,15 +1,15 @@
 import pandas as pd
-import plotly.exporess as px
+import plotly.express as px
 from PIL import Image, ImageDraw
 
-from .cui.common import load
+from ..cui.common import load
 from .common import to_image
 
 
-def spike_image(cfg, stage, tsel=slice(None), usel=slice(None), width=3, lines=()):
+def spike_image(cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=()):
     u, _, _ = load(cfg, "temporal", stage)
     u /= u.max(axis=1, keepdims=True)
-    u = u[tsel, usel]
+    u = u[ksel, tsel]
     nk, nt = u.shape
     img = to_image(u, "Reds")
     img = Image.fromarray(img)
@@ -20,17 +20,21 @@ def spike_image(cfg, stage, tsel=slice(None), usel=slice(None), width=3, lines=(
         width=width,
     )
     for k0, k1, color, width in lines:
+        if k0 < 0:
+            k0 = nk - k0
+        if k1 < 0:
+            k1 = nk - k1
         draw.line((0, k0, 0, k1), fill=color, width=width)
-    return img
+    return img, nt, nk
 
 
 def spike_stats_fig(cfg, stages, **kwargs):
-    kwargs.setdefault("tempolate", "none")
+    kwargs.setdefault("template", "none")
     kwargs.setdefault("margin", dict(l=40, r=10, t=20, b=35))
 
     dfs = []
     for stage in stages:
-        stats, _ = load("evaluate", stage)
+        stats, _ = load(cfg, "evaluate", stage)
         stats["epoch"] = stage
         dfs.append(stats)
     stats = pd.concat(dfs, axis=0)

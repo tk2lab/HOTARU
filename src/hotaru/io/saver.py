@@ -36,6 +36,7 @@ def try_load(path):
             return [try_load(p) for p in path]
     else:
         path = Path(path)
+        print(path)
         try:
             match path.suffix:
                 case ".npz":
@@ -49,5 +50,7 @@ def try_load(path):
                     return path.read_text()
                 case _:
                     return
-        except Exception:
+        except Exception as e:
+            print("fail")
+            print(e)
             return

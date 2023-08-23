@@ -35,7 +35,7 @@ def clean(
     prefetch,
 ):
     logger.info(
-        "args: cell_range=%f, min_distance_ratio=%f, max_udense=%f, min_bsparse=%s",
+        "args: cell_range=%s, min_distance_ratio=%f, max_udense=%s, min_bsparse=%s",
         cell_range,
         min_distance_ratio,
         max_udense,
@@ -145,6 +145,8 @@ def clean(
     )
     segments = segments[peaks[peaks.kind != "remove"].index]
     logger.info("segments.shape=%s", segments.shape)
+    print(peaks.head())
+    print(segments.sum(axis=(1, 2))[:10])
     return segments, peaks.reset_index(drop=True)
 
 

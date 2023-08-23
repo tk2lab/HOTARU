@@ -23,7 +23,7 @@ init:
   files:
     - "{stage:03d}stats.csv"
 temporal:
-  dir0: ${outputs.init.dir0}/lu${penalty.lu.factor}
+  dir0: ${outputs.init.dir0}/lu${penalty.lu.factor}-${cmd.label}
   dir: ${outputs.clean.dir}
   files:
     - "{stage:03d}spike.npy"

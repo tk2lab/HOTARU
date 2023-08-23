@@ -8,7 +8,7 @@ defaults:
   - /penalty: default
 
   - /dynamics: default
-  - /cmd: clip2x2
+  - /cmd: clip2-100
   - /env: default
   - /outputs: default
 

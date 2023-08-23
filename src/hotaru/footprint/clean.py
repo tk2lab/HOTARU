@@ -41,7 +41,7 @@ def clean(
 
     oldstats = oldstats.query("kind != 'remove'")
     kind = oldstats.kind.to_numpy()
-    bg_flg = (kind == "background") & (radius > cell_range[1])
+    bg_flg = (kind == "background") ^ (radius > cell_range[1])
     rm_flg = (radius < cell_range[0])
     flg = np.argsort(firmness)
     cell = []

@@ -42,13 +42,13 @@ def temporal(cfg, stage, force=False):
         ):
             logger.info(f"exec temporal ({stage})")
             data = get_data(cfg)
-            logger.info("%s", get_xla_stats())
+            logger.debug("%s", get_xla_stats())
             model = TemporalModel(
                 data,
                 footprints,
                 stats.query("kind != 'remove'"),
-                cfg.model.dynamics,
-                cfg.model.penalty,
+                cfg.dynamics,
+                cfg.penalty,
             )
             clips = get_clip(data.shape, cfg.cmd.temporal.clip)
             out = []
@@ -56,7 +56,7 @@ def temporal(cfg, stage, force=False):
             for i, clip in enumerate(clips):
                 model.prepare(clip, **cfg.cmd.temporal.prepare)
                 log = model.fit(**cfg.cmd.temporal.step)
-                logger.info("%s", get_xla_stats())
+                logger.debug("%s", get_xla_stats())
                 out.append(model.get_x())
                 df = pd.DataFrame(
                     dict(

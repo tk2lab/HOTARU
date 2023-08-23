@@ -1,17 +1,20 @@
 from collections import namedtuple
 from logging import getLogger
 
-import tensorflow as tf
 import jax
 import jax.numpy as jnp
 import numpy as np
+import tensorflow as tf
 
 from ..filter import (
     gaussian,
     gaussian_laplace,
     max_pool,
 )
-from ..utils import get_gpu_env, from_tf
+from ..utils import (
+    from_tf,
+    get_gpu_env,
+)
 from .radius import get_radius
 
 logger = getLogger(__name__)
@@ -37,7 +40,15 @@ def find_peaks(data, radius, env=None, factor=1, prefetch=1):
     batch = env.batch(float(factor) * h * w * len(radius), nt)
     sharding = env.sharding((nd, 1))
 
-    logger.info("find: %d %d %d %f %f %d", nt, h, w, radius[0], radius[-1], batch)
+    logger.info(
+        "find: nt=%d h=%d w=%d rmin=%f rmax=%f batch=%d",
+        nt,
+        h,
+        w,
+        radius[0],
+        radius[-1],
+        batch,
+    )
     dataset = tf.data.Dataset.from_generator(
         lambda: zip(range(nt), data.data(mask_type=False)),
         output_signature=(

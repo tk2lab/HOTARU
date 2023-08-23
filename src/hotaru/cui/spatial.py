@@ -41,15 +41,15 @@ def spatial(cfg, stage, force=False):
                 footprints = try_load(get_files(cfg, "clean", stage - 1)[0])
             spikes, bg, _ = try_load(get_files(cfg, "temporal", stage - 1))
             stats = stats.query("kind != 'remove'")
-            logger.info("%s", get_xla_stats())
+            logger.debug("%s", get_xla_stats())
             model = SpatialModel(
                 data,
                 footprints,
                 stats,
                 spikes,
                 bg,
-                cfg.model.dynamics,
-                cfg.model.penalty,
+                cfg.dynamics,
+                cfg.penalty,
             )
             clips = get_clip(data.shape, cfg.cmd.spatial.clip)
             logdfs = []
@@ -57,7 +57,7 @@ def spatial(cfg, stage, force=False):
             for i, clip in enumerate(clips):
                 model.prepare(clip, **cfg.cmd.spatial.prepare)
                 log = model.fit(**cfg.cmd.spatial.step)
-                logger.info("%s", get_xla_stats())
+                logger.debug("%s", get_xla_stats())
 
                 df = pd.DataFrame(
                     dict(
@@ -89,8 +89,8 @@ def spatial(cfg, stage, force=False):
         footprints, stats = clean(
             stats,
             segments,
-            cfg.model.clean.radius,
-            **cfg.model.clean.reduce,
+            cfg.radius.filter,
+            **cfg.clean.args,
             **cfg.cmd.clean,
         )
         save((footprintsfile, statsfile), (footprints, stats))

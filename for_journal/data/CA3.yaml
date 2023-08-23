@@ -1,0 +1,7 @@
+label: CA3
+imgs:
+  type: tif
+  file: Data/CA3.tif
+  hz: 20
+mask:
+  type: nomask

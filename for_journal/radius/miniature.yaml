@@ -1,4 +1,4 @@
-label: default
+label: miniature
 filter:
   type: logscale
   num: 16

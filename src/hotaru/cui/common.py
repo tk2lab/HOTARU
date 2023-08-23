@@ -70,8 +70,11 @@ def rev_index(index):
     return rev_index
 
 
-def finish(cfg, stage):
-    stats, _ = try_load(get_files(cfg, "evaluate", stage))
+def reduce_log(cfg, stage):
+    if stage == 0:
+        stats = try_load(get_files(cfg, "reduce", stage))
+    else:
+        _, stats = try_load(get_files(cfg, "clean", stage))
     cell = stats[stats.kind == "cell"]
     bg = stats[stats.kind == "background"]
     removed = stats[stats.kind == "remove"]
@@ -85,6 +88,15 @@ def finish(cfg, stage):
             (bg.radius == r).sum(),
             (removed.radius == r).sum(),
         )
+
+
+def finish(cfg, stage):
+    stats, _ = try_load(get_files(cfg, "evaluate", stage))
+    cell = stats[stats.kind == "cell"]
+    bg = stats[stats.kind == "background"]
+    removed = stats[stats.kind == "remove"]
+
+    reduce_log(cfg, stage)
 
     firmness = "intensity" if stage == 0 else "firmness"
     labels = ["uid", "y", "x", "radius", firmness, "signal", "udense"]

@@ -1,12 +1,5 @@
 defaults:
   - _self_
-  - data: default
-  - radius: default
-  - init: default
-  - model: default
-  - cmd: default
-  - outputs: default
-  - env: default
   - hydra/local
   - hotaru: default
 

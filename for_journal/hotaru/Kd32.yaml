@@ -1,0 +1,15 @@
+# @package _global_
+
+defaults:
+  - /data: Kd32
+  - /radius: miniature
+  - /init: min31
+  - /clean: default
+  - /penalty: default
+
+  - /dynamics: default
+  - /cmd: clip2x2
+  - /env: default
+  - /outputs: default
+
+max_train_step: 3

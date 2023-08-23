@@ -1,0 +1,4 @@
+label: min31
+args:
+  cell_range: [3.1, 15.9]
+  min_distance_ratio: 2

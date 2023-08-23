@@ -1,31 +1,37 @@
-label: default
-remove_find: true
-remove_reduce: true
-remove_segments: true
+label: clip2x2
+remove_find: false
+remove_reduce: false
+remove_segments: false
 
 stats:
   env: ${env}
   factor: 1000.0
   prefetch: 1
+
 find:
   env: ${env}
   factor: 1000.0
   prefetch: 1
+
 reduce:
   block_size: 100
+
 make:
   env: ${env}
   factor: 1000.0
   prefetch: 1
+
 clean:
   env: ${env}
   factor: 1000.0
   prefetch: 1
+
 clip:
   type: Div
-  ynum: 1
-  xnum: 1
-  margin: 0
+  ynum: 2
+  xnum: 2
+  margin: 30
+
 spatial:
   clip: ${cmd.clip}
   prepare:
@@ -40,6 +46,7 @@ spatial:
     steps_par_epoch: 100
     tol: 1e-4
     patience: 3
+
 temporal:
   clip: ${cmd.clip}
   prepare:

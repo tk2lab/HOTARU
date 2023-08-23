@@ -1,17 +1,17 @@
 dir: outputs
 normalize:
-  dir0: ${data.mask.type}-${data.imgs.hz}
+  dir0: ${data.label}
   files:
     - stats.npz
     - max.npy
     - std.npy
     - cor.npy
 find:
-  dir0: ${outputs.normalize.dir0}/${init.find.radius.type}${init.find.radius.num}-${init.find.radius.min}-${init.find.radius.max}
+  dir0: ${outputs.normalize.dir0}/${radius.label}
   files:
     - "{stage:03d}find.npz"
 reduce:
-  dir0: ${outputs.find.dir0}/${init.reduce.min_radius}-${init.reduce.max_radius}-${init.reduce.min_distance_ratio}
+  dir0: ${outputs.find.dir0}/${init.label}
   files:
     - "{stage:03d}reduce.csv"
 make:
@@ -23,7 +23,7 @@ init:
   files:
     - "{stage:03d}stats.csv"
 temporal:
-  dir0: ${outputs.init.dir0}/${model.penalty.lu.factor}-${model.penalty.lb}-${cmd.label}
+  dir0: ${outputs.init.dir0}/lu${penalty.lu.factor}
   dir: ${outputs.clean.dir}
   files:
     - "{stage:03d}spike.npy"
@@ -36,13 +36,13 @@ evaluate:
     - "{stage:03d}stats.csv"
     - ".{stage:03d}stats.flag"
 spatial:
-  dir0: ${outputs.evaluate.dir0}/${model.penalty.la.factor}
+  dir0: ${outputs.evaluate.dir0}/la${penalty.la.factor}
   dir: ${outputs.evaluate.dir}
   files:
     - "{stage:03d}segments.npy"
     - "{stage:03d}loss_spatial.csv"
 clean:
-  dir: ${outputs.spatial.dir0}/${model.clean.reduce.min_distance_ratio}-${model.clean.reduce.max_udense}-${model.clean.reduce.min_bsparse}
+  dir: ${outputs.spatial.dir0}/${clean.label}
   files:
     - "{stage:03d}footprints.npy"
     - "{stage:03d}stats.csv"

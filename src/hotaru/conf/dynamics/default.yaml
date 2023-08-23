@@ -1,0 +1,6 @@
+label: default
+type: double_exp
+tau1: 0.08
+tau2: 0.16
+duration: 1.0
+hz: ${data.imgs.hz}

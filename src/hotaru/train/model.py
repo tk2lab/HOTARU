@@ -91,6 +91,7 @@ class Model:
         return (r.prox for r in self.regularizers)
 
     def fit(self, max_epoch, steps_par_epoch, lr, *args, **kwargs):
+        logger.info("fit: lr=%f scale=%f", lr, self._lr_scale)
         lr /= self._lr_scale
         x = self._x
         logger.info("%s: %s %s %d", "pbar", "start", "optimize", -1)

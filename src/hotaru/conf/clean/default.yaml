@@ -1,0 +1,6 @@
+label: default
+args:
+  cell_range: ${init.args.cell_range}
+  min_distance_ratio: 0
+  max_udense: null
+  min_bsparse: null

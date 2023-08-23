@@ -26,8 +26,7 @@ def clean(
     oldstats,
     segs,
     radius,
-    min_radius,
-    max_radius,
+    cell_range,
     min_distance_ratio,
     max_udense,
     min_bsparse,
@@ -35,12 +34,26 @@ def clean(
     factor,
     prefetch,
 ):
+    logger.info(
+        "args: cell_range=%f, min_distance_ratio=%f, max_udense=%f, min_bsparse=%s",
+        cell_range,
+        min_distance_ratio,
+        max_udense,
+        min_bsparse,
+    )
     oldstats = oldstats.query("kind != 'remove'")
     uid = oldstats.uid.to_numpy()
     kind = oldstats.kind.to_numpy()
     bg = kind == "background"
-    cell_to_bg = (kind == "cell") & (oldstats.udense > max_udense)
-    bg_to_cell = bg & (oldstats.bsparse > min_bsparse) & (oldstats.radius < max_radius)
+    cell_to_bg = (
+        (kind == "cell") & (max_udense is not None) & (oldstats.udense > max_udense)
+    )
+    bg_to_cell = (
+        bg
+        & (min_bsparse is not None)
+        & (oldstats.bsparse > min_bsparse)
+        & (oldstats.radius < cell_range[1])
+    )
     logger.info("old_bg: uid=%s", oldstats[bg].uid.to_numpy())
     logger.info("cell_to_bg: uid=%s", oldstats[cell_to_bg].uid.to_numpy())
     logger.info("bg_to_cell: uid=%s", oldstats[bg_to_cell].uid.to_numpy())
@@ -58,7 +71,7 @@ def clean(
     )
     logger.info("old_bg: size=%d, %s", len(bg), bg)
     cell, bg, remove = reduce_peaks_simple(
-        y, x, radius, firmness, min_radius, max_radius, min_distance_ratio, old_bg=bg
+        y, x, radius, firmness, cell_range, min_distance_ratio, old_bg=bg
     )
     logger.info("cell: size=%d, %s", len(cell), sorted(cell))
     logger.info("bg: size=%d, %s", len(bg), sorted(bg))

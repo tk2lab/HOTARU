@@ -7,7 +7,7 @@ def get_dynamics(dynamics):
     match dynamics:
         case SpikeToCalcium():
             return dynamics
-        case {"type": "double_exp", **args}:
+        case {"label": _, "type": "double_exp", **args}:
             return SpikeToCalcium.double_exp(**args)
         case _:
             raise ValueError("invalid dynamics type")

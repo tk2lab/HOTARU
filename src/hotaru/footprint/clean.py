@@ -28,38 +28,53 @@ def clean(
     cell_range,
     thr_active_area,
     thr_remove_sim,
+    thr_bg_udense,
     env,
     factor,
     prefetch,
 ):
+    oldstats = oldstats.query("kind != 'remove'")
+
     segments, y, x, radius, firmness = clean_footprints(
-        segs, radius, env, factor, prefetch,
+        segs,
+        radius,
+        env,
+        factor,
+        prefetch,
     )
     nk, h, w = segments.shape
-    segmask = np.where(segments > 0, 1.0, 0.0).reshape(nk, h * w)
+    segmask = np.where(segments > thr_active_area, 1.0, 0.0).reshape(nk, h * w)
     simmat = (segmask @ segmask.T) / segmask.sum(axis=1)
 
-    oldstats = oldstats.query("kind != 'remove'")
     kind = oldstats.kind.to_numpy()
-    bg_flg = (kind == "background") ^ (radius > cell_range[1])
-    rm_flg = (radius < cell_range[0])
-    flg = np.argsort(firmness)
+    udense = oldstats.udense.to_numpy()
+
+    flg = np.argsort(firmness)[::-1]
     cell = []
     bg = []
     remove = []
     while flg.size > 0:
         i, flg = flg[0], flg[1:]
-        if rm_flg[i]:
+        if radius[i] < cell_range[0]:
+            print("remove small", i, radius[i], cell_range[0])
             remove.append(i)
-        elif bg_flg[i]:
+        elif (
+            (kind[i] == "background")
+            or (udense[i] > thr_bg_udense)
+            or (radius[i] > cell_range[1])
+        ):
             if bg and (simmat[i, bg].max() >= thr_remove_sim):
+                print("remove dup bg", i, kind[i], udense[i], radius[i])
                 remove.append(i)
             else:
+                print("bg", i, kind[i], udense[i], radius[i])
                 bg.append(i)
         else:
             if cell and (simmat[i, cell].max() >= thr_remove_sim):
+                print("remove dup cell", i, kind[i], udense[i], radius[i])
                 remove.append(i)
             else:
+                print("cell", i, kind[i], udense[i], radius[i])
                 cell.append(i)
 
     kind = pd.Series(["remove"] * nk)
@@ -73,9 +88,8 @@ def clean(
             x=x,
             radius=radius,
             firmness=firmness,
-            asum=segments.sum(axis=(1, 2)),
-            area=np.count_nonzero(segments > 0, axis=(1, 2)),
             signal=None,
+            asum=segments.sum(axis=(1, 2)),
             udense=None,
             bmax=None,
             bsparse=None,
@@ -85,9 +99,8 @@ def clean(
                     "radius",
                     "intensity",
                     "firmness",
-                    "asum",
-                    "area",
                     "signal",
+                    "asum",
                     "udense",
                     "bmax",
                     "bsparse",

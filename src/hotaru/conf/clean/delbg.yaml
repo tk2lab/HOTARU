@@ -1,5 +1,6 @@
-label: delsim
+label: delbg
 args:
   cell_range: ${init.args.cell_range}
   thr_active_area: 0.0
   thr_remove_sim: 0.8
+  thr_bg_udense: 0.3

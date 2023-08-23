@@ -4,7 +4,7 @@ defaults:
   - /data: Kd32
   - /radius: miniature
   - /init: min31
-  - /clean: delsim
+  - /clean: delbg
   - /penalty: default
 
   - /dynamics: default

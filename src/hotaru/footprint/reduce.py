@@ -26,7 +26,7 @@ def reduce_peaks_simple(
             if i in old_bg or r0 > max_radius:
                 yb, xb = ys[bg], xs[bg]
                 distance = np.hypot(xb - x0, yb - y0) / r0
-                if not bg or np.all(distance > min_distance_ratio):
+                if not bg or np.all(distance >= min_distance_ratio):
                     bg.append(i)
                     logger.debug(
                         "background: id=%d old=%d r=%f dist=%s",
@@ -47,7 +47,7 @@ def reduce_peaks_simple(
             else:
                 yc, xc = ys[cell], xs[cell]
                 distance = np.hypot(xc - x0, yc - y0) / r0
-                if not cell or np.all(distance > min_distance_ratio):
+                if not cell or np.all(distance >= min_distance_ratio):
                     y1, x1 = ys[flg], xs[flg]
                     dist2 = np.hypot(x1 - x0, y1 - y0) / r0
                     cond = dist2 > min_distance_ratio

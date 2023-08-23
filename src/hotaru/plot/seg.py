@@ -36,6 +36,8 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
     def e(i):
         return (i + 1) * (size + pad)
 
+    size = 2 * hsize + 1
+
     if stage == 0:
         segs = load(cfg, "make", stage)
         stats = load(cfg, "init", stage)
@@ -47,7 +49,7 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
     ys = stats.y.to_numpy()
     xs = stats.x.to_numpy()
 
-    fp = segs[select]
+    fp = fp[select]
     ys = ys[select]
     xs = xs[select]
     nk = fp.shape[0]
@@ -56,7 +58,6 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
         mx = int(np.floor(np.sqrt(nk)))
     my = (nk + mx - 1) // mx
 
-    size = 2 * hsize + 1
     segs = np.pad(segs, ((0, 0), (hsize, hsize), (hsize, hsize)))
     clip = np.zeros(
         (my * size + pad * (my + 1), mx * size + pad * (mx + 1), 4), np.uint8
@@ -73,7 +74,6 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
 
     for i, (y, x) in enumerate(zip(ys, xs)):
         j, k = divmod(i, mx)
-        print(nk, mx * my, j, k, clip.shape, s(j), e(j), s(k), e(k), y, y + size, x, x + size)
         clip[s(j) : e(j), s(k) : e(k)] = to_image(
             segs[i, y : y + size, x : x + size], "Greens",
         )

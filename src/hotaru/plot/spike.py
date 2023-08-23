@@ -21,9 +21,9 @@ def spike_image(cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=(
     )
     for k0, k1, color, width in lines:
         if k0 < 0:
-            k0 = nk - k0
+            k0 = nk + k0
         if k1 < 0:
-            k1 = nk - k1
+            k1 = nk + k1
         draw.line((0, k0, 0, k1), fill=color, width=width)
     return img, nt, nk
 

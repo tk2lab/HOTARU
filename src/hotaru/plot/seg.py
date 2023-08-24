@@ -99,7 +99,8 @@ def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5):
     return Image.fromarray(clip)
 
 
-def jitter(r, radius, scale):
+def jitter(r, scale):
+    radius = np.sort(np.unique(r))
     dscale = np.log((radius[1:] / radius[:-1]).min())
     jitter = np.exp(scale * dscale * np.random.randn(r.size))
     return r * jitter
@@ -127,7 +128,7 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
                 vmax = vs.max()
                 fig.add_trace(
                     go.Scattergl(
-                        x=jitter(rs, peakval.radius, 0.3),
+                        x=jitter(rs, 0.3),
                         y=vs,
                         mode="markers",
                         marker=dict(opacity=0.2, size=1, color="blue"),
@@ -145,7 +146,7 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
         vmax = max(v.max(), vmax)
         fig.add_trace(
             go.Scattergl(
-                x=cell.radius, #jitter(rs),
+                x=cell.radius if usefind else jitter(cell.radius, 0.3),
                 y=v,
                 mode="markers",
                 marker=dict(opacity=0.3, size=5, color="green"),

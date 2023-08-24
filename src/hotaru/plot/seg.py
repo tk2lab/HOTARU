@@ -27,7 +27,7 @@ def seg_max_image(cfg, stage, base=0, showbg=False):
     return fpimg
 
 
-def seg_max_fig(cfg, stage, base=0, showbg=False):
+def seg_max_fig(cfg, stage, base=0, showbg=False, width=600):
     img = seg_max_image(cfg, stage, base, showbg)
     stats, _ = load(cfg, "evaluate", stage)
     cell = stats.query("kind == 'cell'")
@@ -41,7 +41,7 @@ def seg_max_fig(cfg, stage, base=0, showbg=False):
             y=cell.y,
             text=cell.index,
             mode="text",
-            textfont=dict(size=8, color="red"),
+            textfont=dict(size=5, color="red"),
         ),
     )
     w, h = img.size
@@ -58,8 +58,8 @@ def seg_max_fig(cfg, stage, base=0, showbg=False):
         range=(h, 0),
     )
     fig.update_layout(
-        width=w,
-        height=h,
+        width=width,
+        height=int(width * h / w),
         margin=dict(l=0, r=0, b=0, t=0),
     )
     return fig

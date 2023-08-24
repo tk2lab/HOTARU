@@ -68,11 +68,11 @@ def main(cfg):
         fig_dir / f"{name}finalseg.png",
         dpi=(255, 255),
     )
-    seg_max_image(cfg, final, base=0.5).save(
+    seg_max_image(cfg, final, base=0.0).save(
         fig_dir / f"{name}finalsegmax.png",
         dpi=(w / 3, w / 3),
     )
-    seg_max_fig(cfg, final, base=0.5).write_image(
+    seg_max_fig(cfg, final, base=0.2).write_image(
         fig_dir / f"{name}finalsegmax.pdf",
     )
     bg_sum_image(cfg, final).save(

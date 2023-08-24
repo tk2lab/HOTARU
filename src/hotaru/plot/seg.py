@@ -1,7 +1,5 @@
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 from PIL import Image
 
 from ..cui.common import load
@@ -27,6 +25,44 @@ def seg_max_image(cfg, stage, base=0, showbg=False):
         fpimg = Image.fromarray(bgimg)
         fpimg.paset(bgimg, (0, 0), bgimg)
     return fpimg
+
+
+def seg_max_fig(cfg, stage, base=0, showbg=False):
+    img = seg_max_image(cfg, stage, base, showbg)
+    stats, _ = load(cfg, "evaluate", stage)
+    cell = stats.query("kind == 'cell'")
+    fig = go.Figure()
+    fig.add_trace(
+        go.Image(z=img),
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=cell.x,
+            y=cell.y,
+            text=cell.index,
+            mode="text",
+            textfont=dict(size=8, color="red"),
+        ),
+    )
+    w, h = img.size
+    fig.update_xaxes(
+        showticklabels=False,
+        domain=[0, 1],
+        autorange=False,
+        range=(0, w),
+    )
+    fig.update_yaxes(
+        showticklabels=False,
+        domain=[0, 1],
+        autorange=False,
+        range=(h, 0),
+    )
+    fig.update_layout(
+        width=w,
+        height=h,
+        margin=dict(l=0, r=0, b=0, t=0),
+    )
+    return fig
 
 
 def bg_sum_image(cfg, stage):
@@ -94,7 +130,8 @@ def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5):
     for i, (img, y, x) in enumerate(zip(fp, ys, xs)):
         u, w = divmod(i, mx)
         clip[s(u) : e(u), s(w) : e(w)] = to_image(
-            img[y : y + size, x : x + size], "Greens",
+            img[y : y + size, x : x + size],
+            "Greens",
         )
     return Image.fromarray(clip)
 
@@ -139,10 +176,10 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
                 )
         else:
             intensity = "firmness"
-        print(intensity)
         stats, _ = load(cfg, "evaluate", stage)
         cell = stats.query("kind == 'cell'")
         v = cell[intensity]
+        print(intensity, v)
         vmax = max(v.max(), vmax)
         fig.add_trace(
             go.Scattergl(
@@ -169,9 +206,9 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
         )
         fig.update_xaxes(
             showticklabels=False,
-            #tickmode="array",
-            #tickvals=[np.log(2), np.log(4), np.log(8)],
-            #ticktext=["2", "4", "8"],
+            # tickmode="array",
+            # tickvals=[np.log(2), np.log(4), np.log(8)],
+            # ticktext=["2", "4", "8"],
             range=[np.log(rmin), np.log(rmax)],
             col=i + 1,
             row=1,
@@ -201,6 +238,7 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
         col=2,
         row=2,
     )
+    print(vmax)
     for i in range(1, len(stats)):
         fig.update_yaxes(
             range=(0, 1.05 * vmax),

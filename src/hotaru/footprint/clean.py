@@ -29,6 +29,7 @@ def clean(
     thr_active_area,
     thr_remove_sim,
     thr_bg_udense,
+    thr_cell_bsparse,
     env,
     factor,
     prefetch,
@@ -49,6 +50,7 @@ def clean(
 
     kind = oldstats.kind.to_numpy()
     udense = oldstats.udense.to_numpy()
+    bsparse = oldstats.udense.to_numpy()
 
     flg = np.argsort(firmness)[::-1]
     cell = []
@@ -60,7 +62,7 @@ def clean(
             print("remove small", i, radius[i], cell_range[0])
             remove.append(i)
         elif (
-            (kind[i] == "background")
+            ((kind[i] == "background") and (bsparse[i] < thr_cell_bsparse))
             or (udense[i] > thr_bg_udense)
             or (radius[i] > cell_range[1])
         ):

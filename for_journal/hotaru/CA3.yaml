@@ -4,7 +4,7 @@ defaults:
   - /data: CA3
   - /radius: miniature
   - /init: min21
-  - /clean: tune1
+  - /clean: tune2
   - /penalty: default
 
   - /dynamics: default

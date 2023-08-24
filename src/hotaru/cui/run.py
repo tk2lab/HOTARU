@@ -8,7 +8,7 @@ from .common import set_env, finish
 def call(name, *args, **kwargs):
     def wrap(cfg, *args, **kwargs):
         set_env(cfg)
-        return target(*args, **kwargs)
+        return target(cfg, *args, **kwargs)
 
     target = getattr(import_module(f"hotaru.cui.{name}"), name)
     p = Process(target=wrap, args=args, kwargs=kwargs)

@@ -12,9 +12,9 @@ from .common import to_image
 def seg_max_image(cfg, stage, base=0, showbg=False):
     if stage == 0:
         segs = load(cfg, "make", stage)
-        stats = load(cfg, "init", stage)
     else:
-        segs, stats = load(cfg, "clean", stage)
+        segs, _ = load(cfg, "clean", stage)
+    stats, _ = load(cfg, "evaluate", stage)
     nk = np.count_nonzero(stats.kind == "cell")
     fp = segs[:nk]
     fp = np.maximum(0, (fp - base) / (1 - base)).max(axis=0)
@@ -27,6 +27,21 @@ def seg_max_image(cfg, stage, base=0, showbg=False):
         fpimg = Image.fromarray(bgimg)
         fpimg.paset(bgimg, (0, 0), bgimg)
     return fpimg
+
+
+def bg_sum_image(cfg, stage):
+    if stage == 0:
+        segs = load(cfg, "make", stage)
+    else:
+        segs, _ = load(cfg, "clean", stage)
+    stats, _ = load(cfg, "evaluate", stage)
+    st = stats.query("kind == 'background'")
+    bg = segs[st.index]
+    bg *= st.bmax.to_numpy()[:, np.newaxis, np.newaxis]
+    bgsum = bg.sum(axis=0)
+    bgsum /= bgsum.max()
+    img = to_image(bgsum, "Reds")
+    return Image.fromarray(img)
 
 
 def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5):

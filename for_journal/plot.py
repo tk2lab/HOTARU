@@ -4,7 +4,7 @@ import hydra
 
 from hotaru.cui.common import all_stats, get_data
 
-from hotaru.plot.seg import seg_max_image, segs_image
+from hotaru.plot.seg import seg_max_image, bg_sum_image, segs_image
 from hotaru.plot.spike import spike_image
 
 from hotaru.plot.num import cell_num_fig
@@ -26,8 +26,12 @@ def main(cfg):
     footprint_stats_fig(cfg, [0], usefind=True, width=200, height=200).write_image(
         fig_dir / f"{name}0peak.pdf",
     )
-    seg_max_image(cfg, 0).save(
+    seg_max_image(cfg, 0, base=0.5).save(
         fig_dir / f"{name}0segmax.png",
+        dpi=(w / 3, w / 3),
+    )
+    bg_sum_image(cfg, 0).save(
+        fig_dir / f"{name}0bgsum.png",
         dpi=(w / 3, w / 3),
     )
 
@@ -62,8 +66,12 @@ def main(cfg):
         fig_dir / f"{name}finalseg.png",
         dpi=(255, 255),
     )
-    seg_max_image(cfg, final).save(
+    seg_max_image(cfg, final, base=0.5).save(
         fig_dir / f"{name}finalsegmax.png",
+        dpi=(w / 3, w / 3),
+    )
+    bg_sum_image(cfg, final).save(
+        fig_dir / f"{name}finalbgsum.png",
         dpi=(w / 3, w / 3),
     )
     img, nt, nk = spike_image(

@@ -2,6 +2,8 @@ label: Kd32
 imgs:
   type: tif
   file: Data/Kd32.tif
+  width: 720
+  height: 540
   hz: 20
 mask:
   type: nomask

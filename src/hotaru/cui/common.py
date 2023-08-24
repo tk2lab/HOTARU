@@ -40,6 +40,16 @@ def get_force(cfg, name, stage):
     return force
 
 
+def all_stats(cfg):
+    out = []
+    for stage in range(1000):
+        stats, _ = load(cfg, "evaluate", stage)
+        if stats is None:
+            break
+        out.append(stats)
+    return out
+
+
 def get_files(cfg, name, stage):
     odir = Path(cfg.outputs.dir)
     path = cfg.outputs[name]

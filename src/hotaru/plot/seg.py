@@ -29,7 +29,7 @@ def seg_max_image(cfg, stage, base=0, showbg=False):
     return fpimg
 
 
-def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
+def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5):
     def s(i):
         return pad + i * (size + pad)
 
@@ -44,21 +44,25 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
     else:
         segs, stats = load(cfg, "clean", stage)
     stats = stats.query("kind == 'cell'")
+
     nk = stats.shape[0]
     fp = segs[:nk]
     ys = stats.y.to_numpy()
     xs = stats.x.to_numpy()
 
-    fp = fp[select]
-    ys = ys[select]
-    xs = xs[select]
-    nk = fp.shape[0]
+    if select is None:
+        select = range(nk)
+    else:
+        fp = fp[select]
+        ys = ys[select]
+        xs = xs[select]
+        nk = fp.shape[0]
 
     if mx is None:
         mx = int(np.floor(np.sqrt(nk)))
     my = (nk + mx - 1) // mx
 
-    segs = np.pad(segs, ((0, 0), (hsize, hsize), (hsize, hsize)))
+    fp = np.pad(fp, ((0, 0), (hsize, hsize), (hsize, hsize)))
     clip = np.zeros(
         (my * size + pad * (my + 1), mx * size + pad * (mx + 1), 4), np.uint8
     )
@@ -72,10 +76,10 @@ def segs_image(cfg, stage, select=slice(None), mx=None, hsize=20, pad=5):
         en = st + pad
         clip[st:en] = [0, 0, 0, 255]
 
-    for i, (y, x) in enumerate(zip(ys, xs)):
-        j, k = divmod(i, mx)
-        clip[s(j) : e(j), s(k) : e(k)] = to_image(
-            segs[i, y : y + size, x : x + size], "Greens",
+    for i, (img, y, x) in enumerate(zip(fp, ys, xs)):
+        u, w = divmod(i, mx)
+        clip[s(u) : e(u), s(w) : e(w)] = to_image(
+            img[y : y + size, x : x + size], "Greens",
         )
     return Image.fromarray(clip)
 
@@ -91,7 +95,7 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
     kwargs.setdefault("margin", dict(l=40, r=10, t=20, b=35))
     kwargs.setdefault("showlegend", False)
 
-    radius = get_radius(cfg.radius)
+    radius = get_radius(cfg.radius.filter)
     rmin, rmax = radius[0], radius[-1]
 
     fig = go.Figure().set_subplots(2, len(stages), row_heights=(1, 2))

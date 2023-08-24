@@ -33,6 +33,7 @@ def clean(
     factor,
     prefetch,
 ):
+    logger.info("clean: %f %f %f", thr_active_area, thr_remove_sim, thr_bg_udense)
     oldstats = oldstats.query("kind != 'remove'")
 
     segments, y, x, radius, firmness = clean_footprints(
@@ -63,6 +64,7 @@ def clean(
             or (udense[i] > thr_bg_udense)
             or (radius[i] > cell_range[1])
         ):
+            print(bg, bg and simmat[i, bg])
             if bg and (simmat[i, bg].max() >= thr_remove_sim):
                 print("remove dup bg", i, kind[i], udense[i], radius[i])
                 remove.append(i)
@@ -70,6 +72,7 @@ def clean(
                 print("bg", i, kind[i], udense[i], radius[i])
                 bg.append(i)
         else:
+            print(cell, cell and simmat[i, cell])
             if cell and (simmat[i, cell].max() >= thr_remove_sim):
                 print("remove dup cell", i, kind[i], udense[i], radius[i])
                 remove.append(i)

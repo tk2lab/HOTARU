@@ -59,27 +59,25 @@ def clean(
     while flg.size > 0:
         i, flg = flg[0], flg[1:]
         if radius[i] < cell_range[0]:
-            print("remove small", i, radius[i], cell_range[0])
+            logger.debug("remove small %s %s %s", i, radius[i], cell_range[0])
             remove.append(i)
         elif (
             ((kind[i] == "background") and (bsparse[i] < thr_cell_bsparse))
             or (udense[i] > thr_bg_udense)
             or (radius[i] > cell_range[1])
         ):
-            print(bg, bg and simmat[i, bg])
             if bg and (simmat[i, bg].max() >= thr_remove_sim):
-                print("remove dup bg", i, kind[i], udense[i], radius[i])
+                logger.debug("remove dup bg %s %s %s %s", i, kind[i], udense[i], radius[i])
                 remove.append(i)
             else:
-                print("bg", i, kind[i], udense[i], radius[i])
+                logger.debug("bg %s %s %s %s", i, kind[i], udense[i], radius[i])
                 bg.append(i)
         else:
-            print(cell, cell and simmat[i, cell])
             if cell and (simmat[i, cell].max() >= thr_remove_sim):
-                print("remove dup cell", i, kind[i], udense[i], radius[i])
+                logger.debug("remove dup cell %s %s %s %s", i, kind[i], udense[i], radius[i])
                 remove.append(i)
             else:
-                print("cell", i, kind[i], udense[i], radius[i])
+                logger.debug("cell %s %s %s %s", i, kind[i], udense[i], radius[i])
                 cell.append(i)
 
     kind = pd.Series(["remove"] * nk)
@@ -136,6 +134,7 @@ def clean(
 def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     @jax.jit
     def calc(imgs):
+        imgs /= imgs.max(axis=(1, 2), keepdims=True)
         gl = gaussian_laplace(imgs, radius, -3)
         nk, nr, h, w = gl.shape
         idx = jnp.argmax(gl.reshape(nk, nr * h * w), axis=1)

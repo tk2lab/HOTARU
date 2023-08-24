@@ -2,12 +2,16 @@ import sys
 from importlib import import_module
 from multiprocessing import Process
 
-from .common import finish
+from .common import set_env, finish
 
 
 def call(name, *args, **kwargs):
+    def wrap(cfg, *args, **kwargs):
+        set_env(cfg)
+        return target(*args, **kwargs)
+
     target = getattr(import_module(f"hotaru.cui.{name}"), name)
-    p = Process(target=target, args=args, kwargs=kwargs)
+    p = Process(target=wrap, args=args, kwargs=kwargs)
     p.start()
     p.join()
     if p.exitcode != 0:

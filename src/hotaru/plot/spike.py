@@ -42,6 +42,7 @@ def spike_stats_fig(cfg, stages, **kwargs):
         stats,
         x="signal",
         y="udense",
+        opacity=0.3,
         facet_col="epoch",
         labels=dict(signal="signal intensity", udense="spike density"),
     )

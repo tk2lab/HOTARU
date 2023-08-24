@@ -51,8 +51,8 @@ def get_force(cfg, name, stage):
 def all_stats(cfg):
     out = []
     for stage in range(1000):
-        stats, _ = load(cfg, "evaluate", stage)
-        if stats is None:
+        stats, flag= load(cfg, "evaluate", stage)
+        if flag is None:
             break
         out.append(stats)
     return out

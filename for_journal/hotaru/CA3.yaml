@@ -4,12 +4,12 @@ defaults:
   - /data: CA3
   - /radius: miniature
   - /init: min21
-  - /clean: default
+  - /clean: tune1
   - /penalty: default
 
   - /dynamics: default
-  - /cmd: clip2-100
+  - /cmd: clip3-100
   - /env: default
   - /outputs: default
 
-max_train_step: 3
+max_train_step: 30

@@ -8,4 +8,4 @@ imgs:
   endian: "<"
   hz: 15
 mask:
-  type: notype
+  type: nomask

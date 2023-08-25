@@ -58,13 +58,16 @@ def temporal(cfg, stage, force=False):
                 log = model.fit(**cfg.cmd.temporal.step)
                 logger.debug("%s", get_xla_stats())
                 out.append(model.get_x())
+
+                loss, sigma = zip(*log)
                 df = pd.DataFrame(
                     dict(
                         stage=stage,
                         kind="temporal",
                         div=i,
                         step=np.arange(len(log)),
-                        loss=log,
+                        loss=loss,
+                        sigma=sigma,
                     ),
                 )
                 logdfs.append(df)
@@ -76,7 +79,7 @@ def temporal(cfg, stage, force=False):
             logger.info(f"saved temporal ({stage})")
         else:
             logger.info(f"load temporal ({stage})")
-            spikes, bg = try_load((spikefile, bgfile))
+            spikes, bg, logdf = try_load((spikefile, bgfile, lossfile))
         logger.info(f"exec temporal stats ({stage})")
         cell = stats.query("kind=='cell'").index
         sm = spikes.max(axis=1)

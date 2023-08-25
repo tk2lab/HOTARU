@@ -96,4 +96,4 @@ def loss_fn(x, ycov, yout, ydot, nx, ny, bx, by):
     diff = (ycov * xcov).sum() - 2 * (ydot * xdif).sum() + nn
     penalty = ny * bx * (yout * xcov).sum() + nx * by * (ycov * xout).sum()
     var = diff + penalty
-    return (nm / 2) * (jnp.log(var) - jnp.log(nm))
+    return (nm / 2) * (jnp.log(var) - jnp.log(nm)), jnp.sqrt(var / nm)

@@ -24,7 +24,8 @@ class ProxOptimizer:
             ),
         )
         x = tuple(jnp.array(xi) for xi in x)
-        return np.array(self._loss_fn(*x, **loss_args))
+        loss, aux = self._loss_fn(*x, **loss_args)
+        return np.array(loss), np.array(aux)
 
     def step(self, x, lr=1, nesterov=20, n_step=100):
         x = tuple(jnp.array(xi) for xi in x)
@@ -49,16 +50,16 @@ class ProxOptimizer:
         )
 
         def loss_fn(*x):
-            loss = self._loss_fn(*x, **loss_args)
-            return np.array(loss)
+            loss, aux = self._loss_fn(*x, **loss_args)
+            return np.array(loss), np.array(aux)
 
         x = tuple(jnp.array(xi) for xi in x)
 
         history = []
 
-        loss = loss_fn(*x)
+        loss, aux = loss_fn(*x)
         diff = np.nan
-        history.append(loss)
+        history.append((loss, aux))
 
         log_diff = np.inf
         postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
@@ -69,12 +70,12 @@ class ProxOptimizer:
         for i in range(max_epoch):
             x = self._step_fn(x, **step_args)
 
-            loss, old_loss = loss_fn(*x), loss
+            (loss, aux), old_loss = loss_fn(*x), loss
             diff = (old_loss - loss) / tol
-            history.append(loss)
+            history.append((loss, aux))
 
             log_diff = np.log10(diff) if diff > 0 else np.nan
-            postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
+            postfix = f"loss={loss:.4f}, diff={log_diff:.2f}, aux={aux:.4f}"
             logger.info("%s: %s %d %s", "pbar", "update", 1, postfix)
 
             if loss > min_loss - tol:
@@ -87,20 +88,20 @@ class ProxOptimizer:
         return tuple(np.array(xi) for xi in x), history
 
     def _loss_sep(self, *x, args, loss_scale, prox_args):
-        loss = self._model.loss(*x, *args)
+        loss, aux = self._model.loss(*x, *args)
         penalty = sum(
             ri(xi, *ai) for xi, ri, ai in zip(x, self._model.regularizers, prox_args)
         )
-        return loss / loss_scale, penalty / loss_scale
+        return loss / loss_scale, penalty / loss_scale, aux
 
     def _loss(self, *x, **args):
-        loss, penalty = self._loss_sep(*x, **args)
-        return loss + penalty
+        loss, penalty, aux = self._loss_sep(*x, **args)
+        return loss + penalty, aux
 
     def _step(self, x, args, prox_args, lr, nesterov, n_step):
         def update(i, xy):
             oldx, oldy = xy
-            grady = grad_loss_fn(*oldy, *args)
+            grady, aux = grad_loss_fn(*oldy, *args)
             t0 = (nesterov + i) / (nesterov)
             t1 = (nesterov + 1) / (nesterov + i + 1)
             newx = tuple(
@@ -111,7 +112,7 @@ class ProxOptimizer:
             newy = tuple((1 - t1) * xn + t1 * xt for xn, xt in zip(newx, tmpx))
             return newx, newy
 
-        grad_loss_fn = jax.grad(self._model.loss, range(len(x)))
+        grad_loss_fn = jax.grad(self._model.loss, range(len(x)), has_aux=True)
         prox = self._model.prox
         x, _ = lax.fori_loop(0, n_step, update, (x, x))
         return x

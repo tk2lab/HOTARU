@@ -23,7 +23,7 @@ init:
   files:
     - "{stage:03d}stats.csv"
 temporal:
-  dir0: ${outputs.init.dir0}/lu${penalty.lu.factor}-${cmd.label}
+  dir0: ${outputs.init.dir0}/${cmd.label}/${penalty.ulabel}
   dir: ${outputs.clean.dir}
   files:
     - "{stage:03d}spike.npy"
@@ -36,7 +36,7 @@ evaluate:
     - "{stage:03d}stats.csv"
     - ".{stage:03d}stats.flag"
 spatial:
-  dir0: ${outputs.evaluate.dir0}/la${penalty.la.factor}
+  dir0: ${outputs.evaluate.dir0}/${penalty.label}
   dir: ${outputs.evaluate.dir}
   files:
     - "{stage:03d}segments.npy"

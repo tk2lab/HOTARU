@@ -29,6 +29,7 @@ def clean(
     thr_active_area,
     thr_remove_sim,
     thr_bg_udense,
+    thr_bg_firmness,
     thr_cell_bsparse,
     env,
     factor,
@@ -62,19 +63,27 @@ def clean(
             logger.debug("remove small %s %s %s", i, radius[i], cell_range[0])
             remove.append(i)
         elif (
-            ((kind[i] == "background") and (bsparse[i] < thr_cell_bsparse))
+            (
+                (kind[i] == "background")
+                and ((thr_cell_bsparse is None) or (bsparse[i] < thr_cell_bsparse))
+            )
             or (udense[i] > thr_bg_udense)
+            or (firmness[i] < thr_bg_firmness)
             or (radius[i] > cell_range[1])
         ):
             if bg and (simmat[i, bg].max() >= thr_remove_sim):
-                logger.debug("remove dup bg %s %s %s %s", i, kind[i], udense[i], radius[i])
+                logger.debug(
+                    "remove dup bg %s %s %s %s", i, kind[i], udense[i], radius[i]
+                )
                 remove.append(i)
             else:
                 logger.debug("bg %s %s %s %s", i, kind[i], udense[i], radius[i])
                 bg.append(i)
         else:
             if cell and (simmat[i, cell].max() >= thr_remove_sim):
-                logger.debug("remove dup cell %s %s %s %s", i, kind[i], udense[i], radius[i])
+                logger.debug(
+                    "remove dup cell %s %s %s %s", i, kind[i], udense[i], radius[i]
+                )
                 remove.append(i)
             else:
                 logger.debug("cell %s %s %s %s", i, kind[i], udense[i], radius[i])
@@ -99,6 +108,7 @@ def clean(
             **{
                 f"old_{k}": oldstats[k].to_numpy()
                 for k in (
+                    "kind",
                     "radius",
                     "intensity",
                     "firmness",

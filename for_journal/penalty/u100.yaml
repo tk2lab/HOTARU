@@ -1,0 +1,11 @@
+ulabel: u100
+label: default
+lu:
+  type: MaxNormNonNegativeL1
+  factor: 100.0
+la:
+  type: MaxNormNonNegativeL1
+  factor: 20.0
+lb: 0.1
+bs: 0.1
+bt: 0.1

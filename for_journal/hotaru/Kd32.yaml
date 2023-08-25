@@ -4,8 +4,8 @@ defaults:
   - /data: Kd32
   - /radius: miniature
   - /init: min31
-  - /clean: tune0fix
-  - /penalty: default
+  - /clean: nobg
+  - /penalty: u1000
 
   - /dynamics: default
   - /cmd: clip2x2

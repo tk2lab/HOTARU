@@ -84,7 +84,8 @@ class Model:
 
     def loss(self, x1, x2, ycov, yout, ydot, nx, ny, bx, by, py):
         x = jnp.concatenate([x1, x2], axis=0)
-        return loss_fn(x, ycov, yout, ydot, nx, ny, bx, by) + py
+        loss, sigma = loss_fn(x, ycov, yout, ydot, nx, ny, bx, by)
+        return loss + py, sigma
 
     @property
     def prox(self):
@@ -188,6 +189,10 @@ class TemporalModel(Model):
         return np.count_nonzero(self._stats.kind == "background")
 
     @property
+    def regularizers(self):
+        return self._penalty.lu[0], L1()
+
+    @property
     def prox_args(self):
         return self._penalty.lu[1], (self._lb,)
 
@@ -227,7 +232,3 @@ class TemporalModel(Model):
     def loss(self, x1, x2, ycov, yout, ydot, nx, ny, bx, by, py):
         x1 = self._dynamics(x1)
         return super().loss(x1, x2, ycov, yout, ydot, nx, ny, bx, by, py)
-
-    @property
-    def regularizers(self):
-        return self._penalty.lu[0], L1()

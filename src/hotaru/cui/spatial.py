@@ -59,13 +59,15 @@ def spatial(cfg, stage, force=False):
                 log = model.fit(**cfg.cmd.spatial.step)
                 logger.debug("%s", get_xla_stats())
 
+                loss, sigma = zip(*log)
                 df = pd.DataFrame(
                     dict(
                         stage="stage",
                         kind="spatial",
                         div=i,
                         step=np.arange(len(log)),
-                        loss=log,
+                        loss=loss,
+                        sigma=sigma,
                     )
                 )
                 logdfs.append(df)

@@ -1,0 +1,7 @@
+label: tune2fix
+args:
+  cell_range: ${init.args.cell_range}
+  thr_active_area: 0.9
+  thr_remove_sim: 1.0
+  thr_bg_udense: 0.05
+  thr_cell_bsparse: 100.0

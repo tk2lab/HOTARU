@@ -8,6 +8,10 @@ from .common import to_image
 
 def spike_image(cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=()):
     u, _, _ = load(cfg, "temporal", stage)
+    return _spike_image(u, tsel, ksel, width, lines)
+
+
+def _spike_image(u, tsel=slice(None), ksel=slice(None), width=3, lines=()):
     u /= u.max(axis=1, keepdims=True)
     u = u[ksel, tsel]
     nk, nt = u.shape

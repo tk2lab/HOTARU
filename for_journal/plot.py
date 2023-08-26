@@ -10,6 +10,7 @@ from hotaru.plot.spike import spike_image
 from hotaru.plot.num import cell_num_fig
 from hotaru.plot.spike import spike_stats_fig
 from hotaru.plot.seg import footprint_stats_fig
+from hotaru.plot.run import run_fig
 
 
 @hydra.main(version_base=None, config_path="pkg://hotaru.conf", config_name="config")
@@ -57,21 +58,28 @@ def main(cfg):
     cell_num_fig(cfg, width=400, height=200).write_image(
         fig_dir / f"{name}run_num.pdf",
     )
+    run_fig(cfg, [1, final], thr_f=-1, thr_d=1, min_val=(0, 0), max_val=(0.58, 0.4), min_r=3).write_image(
+        fig_dir / f"{name}run.pdf",
+    )
+    """
     spike_stats_fig(cfg, [0, 1, final], width=600, height=200).write_image(
         fig_dir / f"{name}run_spike.pdf",
     )
     footprint_stats_fig(cfg, [0, 1, final], width=600, height=200).write_image(
         fig_dir / f"{name}run_footprint.pdf",
     )
+    """
 
     segs_image(cfg, final, mx=10, hsize=25, pad=2).save(
         fig_dir / f"{name}finalseg.png",
         dpi=(255, 255),
     )
+    """
     seg_max_image(cfg, final, base=0.0).save(
         fig_dir / f"{name}finalsegmax.png",
         dpi=(w / 3, w / 3),
     )
+    """
     seg_max_fig(cfg, final, base=0.2).write_image(
         fig_dir / f"{name}finalsegmax.pdf",
     )

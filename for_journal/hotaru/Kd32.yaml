@@ -4,7 +4,7 @@ defaults:
   - /data: Kd32
   - /radius: miniature
   - /init: min31
-  - /clean: dup30-30
+  - /clean: dup100-0
   - /penalty: u40
 
   - /dynamics: default

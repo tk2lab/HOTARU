@@ -13,6 +13,10 @@ def seg_max_image(cfg, stage, base=0, showbg=False):
     else:
         segs, _ = load(cfg, "clean", stage)
     stats, _ = load(cfg, "evaluate", stage)
+    return _seg_max_image(segs, stats)
+
+
+def _seg_max_image(segs, stats, base, showbg):
     nk = np.count_nonzero(stats.kind == "cell")
     fp = segs[:nk]
     fp = np.maximum(0, (fp - base) / (1 - base)).max(axis=0)
@@ -28,8 +32,16 @@ def seg_max_image(cfg, stage, base=0, showbg=False):
 
 
 def seg_max_fig(cfg, stage, base=0, showbg=False, width=600):
-    img = seg_max_image(cfg, stage, base, showbg)
+    if stage == 0:
+        segs = load(cfg, "make", stage)
+    else:
+        segs, _ = load(cfg, "clean", stage)
     stats, _ = load(cfg, "evaluate", stage)
+    return _seg_max_fig(segs, stats, base, showbg, width)
+
+
+def _seg_max_fig(segs, stats, base=0, showbg=False, width=600):
+    img = _seg_max_image(segs, stats, base, showbg)
     cell = stats.query("kind == 'cell'")
     fig = go.Figure()
     fig.add_trace(
@@ -81,6 +93,15 @@ def bg_sum_image(cfg, stage):
 
 
 def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5):
+    if stage == 0:
+        segs = load(cfg, "make", stage)
+        stats = load(cfg, "init", stage)
+    else:
+        segs, stats = load(cfg, "clean", stage)
+    return _segs_image(segs, stats, select, mx, hsize, pad)
+
+
+def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5):
     def s(i):
         return pad + i * (size + pad)
 
@@ -89,11 +110,6 @@ def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5):
 
     size = 2 * hsize + 1
 
-    if stage == 0:
-        segs = load(cfg, "make", stage)
-        stats = load(cfg, "init", stage)
-    else:
-        segs, stats = load(cfg, "clean", stage)
     stats = stats.query("kind == 'cell'")
 
     nk = stats.shape[0]

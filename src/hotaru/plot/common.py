@@ -15,3 +15,11 @@ def cmap(colorscale, value):
 
 def to_image(data, cmap):
     return (255 * get_cmap(cmap)(data)).astype(np.uint8)
+
+
+def add_jitter(df):
+    radius = np.sort(np.unique(df.radius))
+    rscale = np.log(np.min(radius[1:] / radius[:-1]))
+    df["ri"] = df.radius * np.exp(rscale * (np.random.uniform(size=df.shape[0]) - 0.5))
+    df["lri"] = np.log2(df.ri)
+    return df

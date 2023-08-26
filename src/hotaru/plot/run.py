@@ -37,7 +37,7 @@ def bg_thr(
         # shared_yaxes=True,
     )
     for i, stage in enumerate(stages):
-        stats = load(cfg, "evaluate", stage)
+        stats, _ = load(cfg, "evaluate", stage)
         df = stats.query("kind != 'remove'").copy()
         df = add_jitter(df)
         cl = df.query("kind == 'cell'")

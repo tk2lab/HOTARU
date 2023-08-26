@@ -5,7 +5,7 @@ from ..cui.common import load
 from .common import add_jitter
 
 
-def bg_thr(
+def run_fig(
     cfg,
     stages,
     thr_f=0.35,

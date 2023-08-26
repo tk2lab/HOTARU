@@ -1,0 +1,4 @@
+label: max12
+args:
+  cell_range: [2.1, 12.0]
+  min_distance_ratio: 2

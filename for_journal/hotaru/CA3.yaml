@@ -4,8 +4,8 @@ defaults:
   - /data: CA3
   - /radius: miniature
   - /init: min21
-  - /clean: t11-35
-  - /penalty: u1000
+  - /clean: dup11-35
+  - /penalty: u40
 
   - /dynamics: default
   - /cmd: clip3-100

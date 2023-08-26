@@ -27,7 +27,6 @@ def clean(
     radius,
     cell_range,
     thr_active_area,
-    thr_remove_sim,
     thr_bg_udense,
     thr_bg_firmness,
     thr_cell_bsparse,
@@ -35,7 +34,13 @@ def clean(
     factor,
     prefetch,
 ):
-    logger.info("clean: %f %f %f", thr_active_area, thr_remove_sim, thr_bg_udense)
+    logger.info(
+        "clean: %f %f %f %s",
+        thr_active_area,
+        thr_bg_udense,
+        thr_bg_firmness,
+        thr_cell_bsparse,
+    )
     oldstats = oldstats.query("kind != 'remove'")
 
     segments, y, x, radius, firmness = clean_footprints(
@@ -46,8 +51,15 @@ def clean(
         prefetch,
     )
     nk, h, w = segments.shape
-    segmask = np.where(segments > thr_active_area, 1.0, 0.0).reshape(nk, h * w)
-    simmat = (segmask @ segmask.T) / segmask.sum(axis=1)
+    segmask = segments > thr_active_area
+
+    def is_dup(i, js):
+        yi, xi = y[i], x[i]
+        for j in js:
+            yj, xj = y[j], x[j]
+            if segmask[i, yj, xj] and segmask[j, yi, xi]:
+                return True
+        return False
 
     kind = oldstats.kind.to_numpy()
     udense = oldstats.udense.to_numpy()
@@ -71,7 +83,7 @@ def clean(
             or (firmness[i] < thr_bg_firmness)
             or (radius[i] > cell_range[1])
         ):
-            if bg and (simmat[i, bg].max() >= thr_remove_sim):
+            if bg and is_dup(i, bg):
                 logger.debug(
                     "remove dup bg %s %s %s %s", i, kind[i], udense[i], radius[i]
                 )
@@ -80,7 +92,7 @@ def clean(
                 logger.debug("bg %s %s %s %s", i, kind[i], udense[i], radius[i])
                 bg.append(i)
         else:
-            if cell and (simmat[i, cell].max() >= thr_remove_sim):
+            if cell and is_dup(i, cell):
                 logger.debug(
                     "remove dup cell %s %s %s %s", i, kind[i], udense[i], radius[i]
                 )
@@ -129,11 +141,13 @@ def clean(
     ]
     logger.info("clean: %d %d %d", cell.shape[0], bg.shape[0], removed.shape[0])
 
+    """
     x, y, r = cell.x.to_numpy(), cell.y.to_numpy(), cell.radius.to_numpy()
     dist = np.hypot(x - x[:, np.newaxis], y - y[:, np.newaxis]) / r
     np.fill_diagonal(dist, np.inf)
     dist = np.sort(dist.ravel())
     logger.info("small distance: %s", dist[dist < 1])
+    """
 
     stats = pd.concat([cell, bg, removed], axis=0)
     segments = segments[stats.query("kind != 'remove'").index]

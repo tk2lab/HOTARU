@@ -13,6 +13,7 @@ def run_fig(
     min_val=(0.25, 0),
     max_val=(0.58, 0.16),
     min_r=1,
+    max_r=1,
 ):
     def get_color(x):
         if x.radius < 2.1:
@@ -78,7 +79,7 @@ def run_fig(
             col=3,
         )
         fig.add_hline(y=(1 + min_r / 5), line_color="blue", row=2 * i + 2)
-        fig.add_hline(y=(19 / 5), line_color="red", row=2 * i + 2)
+        fig.add_hline(y=(4 - max_r / 5), line_color="red", row=2 * i + 2)
         for r in range(2):
             fig.add_vline(thr_f, line_color="red", col=1, row=2 * i + r + 1)
             fig.add_vline(thr_d, line_color="red", col=2, row=2 * i + r + 1)

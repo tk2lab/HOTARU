@@ -19,7 +19,7 @@ from hotaru.plot.spike import spike_image
 
 @hydra.main(version_base=None, config_path="pkg://hotaru.conf", config_name="config")
 def main(cfg):
-    name = cfg.data.label
+    name = f"{cfg.data.label}-{cfg.clean.label}"
 
     final = len(all_stats(cfg)) - 1
     # final = 15
@@ -28,10 +28,10 @@ def main(cfg):
     fig_dir = Path("figs")
     fig_dir.mkdir(parents=True, exist_ok=True)
 
+    """
     footprint_stats_fig(cfg, [0], usefind=True, width=200, height=200).write_image(
         fig_dir / f"{name}0peak.pdf",
     )
-    """
     seg_max_image(cfg, 0, base=0.5).save(
         fig_dir / f"{name}0segmax.png",
         dpi=(w / 3, w / 3),
@@ -70,7 +70,7 @@ def main(cfg):
         min_val=(0.2, 0),
         max_val=(0.58, 0.2),
         min_r=1,
-        max_r=3,
+        max_r=1,
     ).write_image(
         fig_dir / f"{name}run.pdf",
     )

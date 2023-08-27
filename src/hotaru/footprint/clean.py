@@ -28,6 +28,7 @@ def clean(
     cell_range,
     thr_active_area,
     thr_bg_udense,
+    thr_bg_signal,
     thr_bg_firmness,
     thr_cell_bsparse,
     env,
@@ -62,6 +63,7 @@ def clean(
         return False
 
     kind = oldstats.kind.to_numpy()
+    signal = oldstats.signal.to_numpy()
     udense = oldstats.udense.to_numpy()
     bsparse = oldstats.udense.to_numpy()
 
@@ -80,6 +82,7 @@ def clean(
                 and ((thr_cell_bsparse is None) or (bsparse[i] < thr_cell_bsparse))
             )
             or (udense[i] > thr_bg_udense)
+            or (signal[i] > thr_bg_signal)
             or (firmness[i] < thr_bg_firmness)
             or (radius[i] > cell_range[1])
         ):

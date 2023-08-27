@@ -28,9 +28,11 @@ def plot_stats(paths, imgs, labels, dlabels, **kwargs):
     fig.update_layout(
         coloraxis_colorbar_title_font_size=11,
         template="none",
+        font_size=11,
         margin=dict(l=50, r=20, t=20, b=50),
         annotations=[
-            dict(font=dict(size=11), text=dlabels[i]) for i in range(len(fig.layout.annotations))
+            dict(font=dict(size=11), text=dlabels[i])
+            for i in range(len(fig.layout.annotations))
         ],
     )
     return fig

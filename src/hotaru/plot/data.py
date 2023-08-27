@@ -8,8 +8,6 @@ pio.kaleido.scope.mathjax = None
 def plot_data(paths, imgs, labels, dlabels, width, margin, pad):
 
     num = len(imgs)
-    xdomainsize = (1 - (num - 1) * pad) / num
-    xstride = xdomainsize + pad
 
     hs, ws = zip(*(np.load(f"{path}/{imgs[0]}.npy").shape for path in paths))
     print(hs, ws)

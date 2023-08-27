@@ -13,7 +13,7 @@ def seg_max_image(cfg, stage, base=0, showbg=False):
     else:
         segs, _ = load(cfg, "clean", stage)
     stats, _ = load(cfg, "evaluate", stage)
-    return _seg_max_image(segs, stats)
+    return _seg_max_image(segs, stats, base, showbg)
 
 
 def _seg_max_image(segs, stats, base, showbg):

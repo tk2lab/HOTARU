@@ -12,6 +12,7 @@ from hotaru.plot.seg import (
     bg_sum_image,
     footprint_stats_fig,
     seg_max_fig,
+    seg_max_image,
     segs_image,
 )
 from hotaru.plot.spike import spike_image
@@ -19,7 +20,7 @@ from hotaru.plot.spike import spike_image
 
 @hydra.main(version_base=None, config_path="pkg://hotaru.conf", config_name="config")
 def main(cfg):
-    name = f"{cfg.data.label}-{cfg.clean.label}"
+    name = f"{cfg.data.label}-{cfg.penalty.ulabel}-{cfg.clean.label}"
 
     final = len(all_stats(cfg)) - 1
     # final = 15
@@ -75,16 +76,20 @@ def main(cfg):
         fig_dir / f"{name}run.pdf",
     )
 
-    segs_image(cfg, final, mx=10, hsize=25, pad=2).save(
-        fig_dir / f"{name}finalseg.png",
-        dpi=(255, 255),
-    )
     seg_max_fig(cfg, final, base=0.2, width=300).write_image(
         fig_dir / f"{name}finalsegmax.pdf",
+    )
+    seg_max_image(cfg, final, base=0.2).save(
+        fig_dir / f"{name}finalsegmax.png",
+        dpi=(w / 3, w / 3),
     )
     bg_sum_image(cfg, final).save(
         fig_dir / f"{name}finalbgsum.png",
         dpi=(w / 3, w / 3),
+    )
+    segs_image(cfg, final, mx=10, hsize=25, pad=2).save(
+        fig_dir / f"{name}finalseg.png",
+        dpi=(255, 255),
     )
 
     img, nt, nk = spike_image(
@@ -103,10 +108,6 @@ def main(cfg):
     )
     footprint_stats_fig(cfg, [0, 1, final], width=600, height=200).write_image(
         fig_dir / f"{name}run_footprint.pdf",
-    )
-    seg_max_image(cfg, final, base=0.0).save(
-        fig_dir / f"{name}finalsegmax.png",
-        dpi=(w / 3, w / 3),
     )
     """
 

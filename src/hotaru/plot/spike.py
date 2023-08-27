@@ -14,6 +14,7 @@ def spike_image(
 ):
     u, _, _ = load(cfg, "temporal", stage)
     stats, _ = load(cfg, "evaluate", stage)
+    stats = stats.query("kind == 'cell'")
     u = u[stats.udense <= thr_udense]
     return _spike_image(u, tsel, ksel, width, lines)
 

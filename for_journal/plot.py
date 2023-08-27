@@ -6,11 +6,9 @@ from hotaru.cui.common import (
     all_stats,
     get_data,
 )
-from hotaru.plot.num import cell_num_fig
-from hotaru.plot.run import run_fig
+from hotaru.plot.densesig import dense_sig_fig
 from hotaru.plot.seg import (
     bg_sum_image,
-    footprint_stats_fig,
     seg_max_fig,
     seg_max_image,
     segs_image,
@@ -60,6 +58,7 @@ def main(cfg):
     )
     """
 
+    """
     cell_num_fig(cfg, width=400, height=200).write_image(
         fig_dir / f"{name}run_num.pdf",
     )
@@ -74,6 +73,12 @@ def main(cfg):
         max_r=1,
     ).write_image(
         fig_dir / f"{name}run.pdf",
+    )
+    """
+    dense_sig_fig(
+        cfg, [0, 1, final], thr_sig=cfg.clean.args.thr_bg_signal, label="epoch="
+    ).write_image(
+        fig_dir / f"{name}densesig.pdf",
     )
 
     seg_max_fig(cfg, final, base=0.2, width=300).write_image(

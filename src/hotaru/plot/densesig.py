@@ -51,8 +51,8 @@ def dense_sig_fig(cfg, stages, thr_sig=0, label="", thr_udense=1.0):
 def dense_sig_multi_fig(paths, stages, thr_sig=0, thr_udense=1.0):
     num = []
     dfs = []
-    for name, path in paths.items():
-        for stage in stages:
+    for i, (name, path) in enumerate(paths.items()):
+        for stage in stages[i]:
             if stage == 0:
                 pathx = f"{path}/../../{stage:03d}stats.csv"
             else:

@@ -7,23 +7,26 @@ from ..cui.common import load
 pio.kaleido.scope.mathjax = None
 
 
-def dense_sig_fig(cfg, stages, thr_sig=0, label=""):
+def dense_sig_fig(cfg, stages, thr_sig=0, label="", thr_udense=1.0):
+    num = []
     dfs = []
     for stage in stages:
         df, _ = load(cfg, "evaluate", stage)
         df = df.query("kind != 'remove'")
         # fp = np.load(f"{path}/../../000footprint.npy")
         # df["intensity"] = df.signal * df.firmness
+        df.loc[df.udense > thr_udense, "kind"] = "background"
         df["col"] = stage
         df["size"] = 1
         df["symbol"] = 1
         dfs.append(df)
+        num.append(df.query("kind == 'cell'").shape[0])
     df = pd.concat(dfs, axis=0)
     fig = px.scatter(
         df,
         x="udense",
         y="signal",
-        color=df.signal < thr_sig,
+        color="kind",
         size="size",
         size_max=3,
         opacity=0.5,
@@ -32,9 +35,9 @@ def dense_sig_fig(cfg, stages, thr_sig=0, label=""):
     for i in range(len(fig.data)):
         fig.data[i].marker.line.width = 0
 
-    for stage in stages:
+    for n, stage in zip(num, stages):
         fig.update_annotations(
-            selector=dict(text=f"col={stage}"), y=0.8, text=f"{label}{stage}"
+            selector=dict(text=f"col={stage}"), y=0.8, text=f"{label}{stage}; num={n}"
         )
     fig.update_layout(
         template="none",

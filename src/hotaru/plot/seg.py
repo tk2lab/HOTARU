@@ -43,7 +43,7 @@ def seg_max_fig(cfg, stage, base=0, showbg=False, width=600, thr_udense=1.0):
 
 
 def _seg_max_fig(segs, stats, base=0, showbg=False, width=600, thr_udense=1.0):
-    img = _seg_max_image(segs, stats, base, showbg)
+    img = _seg_max_image(segs, stats, base, showbg, thr_udense)
     stats.loc[stats.udense > thr_udense, "kind"] = "background"
     cell = stats.query("kind == 'cell'")
     fig = go.Figure()

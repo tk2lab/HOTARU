@@ -117,7 +117,7 @@ def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5, thr_udense=1
     stats = stats.query("kind == 'cell'")
 
     nk = stats.shape[0]
-    fp = segs[:nk]
+    fp = segs[stats.index]
     ys = stats.y.to_numpy()
     xs = stats.x.to_numpy()
 

@@ -7,13 +7,13 @@ from ..footprint import get_radius
 from .common import to_image
 
 
-def seg_max_image(cfg, stage, base=0, showbg=False):
+def seg_max_image(cfg, stage, base=0, showbg=False, thr_udense=1.0):
     if stage == 0:
         segs = load(cfg, "make", stage)
     else:
         segs, _ = load(cfg, "clean", stage)
     stats, _ = load(cfg, "evaluate", stage)
-    return _seg_max_image(segs, stats, base, showbg)
+    return _seg_max_image(segs, stats, base, showbg, thr_udense)
 
 
 def _seg_max_image(segs, stats, base, showbg, thr_udense=1.0):
@@ -33,17 +33,18 @@ def _seg_max_image(segs, stats, base, showbg, thr_udense=1.0):
     return fpimg
 
 
-def seg_max_fig(cfg, stage, base=0, showbg=False, width=600):
+def seg_max_fig(cfg, stage, base=0, showbg=False, width=600, thr_udense=1.0):
     if stage == 0:
         segs = load(cfg, "make", stage)
     else:
         segs, _ = load(cfg, "clean", stage)
     stats, _ = load(cfg, "evaluate", stage)
-    return _seg_max_fig(segs, stats, base, showbg, width)
+    return _seg_max_fig(segs, stats, base, showbg, width, thr_udense)
 
 
-def _seg_max_fig(segs, stats, base=0, showbg=False, width=600):
+def _seg_max_fig(segs, stats, base=0, showbg=False, width=600, thr_udense=1.0):
     img = _seg_max_image(segs, stats, base, showbg)
+    stats.loc[stats.udense > thr_udense, "kind"] = "background"
     cell = stats.query("kind == 'cell'")
     fig = go.Figure()
     fig.add_trace(

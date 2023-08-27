@@ -1,13 +1,20 @@
 import pandas as pd
 import plotly.express as px
-from PIL import Image, ImageDraw
+from PIL import (
+    Image,
+    ImageDraw,
+)
 
 from ..cui.common import load
 from .common import to_image
 
 
-def spike_image(cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=()):
+def spike_image(
+    cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=(), thr_udense=1.0
+):
     u, _, _ = load(cfg, "temporal", stage)
+    stats, _ = load(cfg, "evaluate", stage)
+    u = u[stats.udense <= thr_udense]
     return _spike_image(u, tsel, ksel, width, lines)
 
 

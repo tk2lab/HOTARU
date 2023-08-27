@@ -16,14 +16,16 @@ def seg_max_image(cfg, stage, base=0, showbg=False):
     return _seg_max_image(segs, stats, base, showbg)
 
 
-def _seg_max_image(segs, stats, base, showbg):
-    nk = np.count_nonzero(stats.kind == "cell")
-    fp = segs[:nk]
+def _seg_max_image(segs, stats, base, showbg, thr_udense=1.0):
+    stats.loc[stats.udense > thr_udense, "kind"] = "background"
+    cell = stats.query("kind == 'cell'").index
+    bg = stats.query("kind == 'background'").index
+    fp = segs[cell]
     fp = np.maximum(0, (fp - base) / (1 - base)).max(axis=0)
     fpimg = to_image(fp, "Greens")
     fpimg = Image.fromarray(fpimg)
     if showbg:
-        bg = segs[nk:].max(axis=0)
+        bg = segs[bg].max(axis=0)
         bgimg = to_image(bg, "Reds")
         bgimg[:, :, 3] = 128
         fpimg = Image.fromarray(bgimg)

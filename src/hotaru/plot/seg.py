@@ -95,16 +95,16 @@ def bg_sum_image(cfg, stage):
     return Image.fromarray(img)
 
 
-def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5):
+def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5, thr_udense=1.0):
     if stage == 0:
         segs = load(cfg, "make", stage)
         stats = load(cfg, "init", stage)
     else:
         segs, stats = load(cfg, "clean", stage)
-    return _segs_image(segs, stats, select, mx, hsize, pad)
+    return _segs_image(segs, stats, select, mx, hsize, pad, thr_udense)
 
 
-def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5):
+def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5, thr_udense=1.0):
     def s(i):
         return pad + i * (size + pad)
 
@@ -113,6 +113,7 @@ def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5):
 
     size = 2 * hsize + 1
 
+    stats.loc[stats.udense > thr_udense, "kind"] = "background"
     stats = stats.query("kind == 'cell'")
 
     nk = stats.shape[0]

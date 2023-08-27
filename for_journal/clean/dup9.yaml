@@ -4,4 +4,5 @@ args:
   thr_active_area: 0.9
   thr_bg_udense: 1.0
   thr_bg_firmness: 0.0
+  thr_bg_signal: 0.0
   thr_cell_bsparse: null

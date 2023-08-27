@@ -82,7 +82,7 @@ def clean(
                 and ((thr_cell_bsparse is None) or (bsparse[i] < thr_cell_bsparse))
             )
             or (udense[i] > thr_bg_udense)
-            or (signal[i] > thr_bg_signal)
+            or (signal[i] < thr_bg_signal)
             or (firmness[i] < thr_bg_firmness)
             or (radius[i] > cell_range[1])
         ):

@@ -28,6 +28,10 @@ class Model:
         self._stats = stats
 
     def _try_clip(self, clip, segs):
+        fp = segs[self._stats.query("kind=='cell'").segid]
+        bg = segs[self._stats.query("kind=='background'").segid]
+        segs = np.concatenate([fp, bg], axis=0)
+
         clipped_segs = clip.clip(segs)
         clipped = np.any(clipped_segs > 0, axis=(1, 2))
         clipped_state = self._stats[clipped]
@@ -116,7 +120,7 @@ class Model:
 
 
 class SpatialModel(Model):
-    def __init__(self, data, oldx, stats, y1, y2, *args, **kwargs):
+    def __init__(self, data, stats, oldx, y1, y2, *args, **kwargs):
         super().__init__(data, False, stats, *args, **kwargs)
         self._oldx = oldx
         self._y1 = y1
@@ -179,7 +183,7 @@ class SpatialModel(Model):
 
 
 class TemporalModel(Model):
-    def __init__(self, data, y, stats, *args, **kwargs):
+    def __init__(self, data, stats, y, *args, **kwargs):
         super().__init__(data, True, stats, *args, **kwargs)
         self._y = y
 

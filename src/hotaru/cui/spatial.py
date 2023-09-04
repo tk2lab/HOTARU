@@ -44,8 +44,8 @@ def spatial(cfg, stage, force=False):
             logger.debug("%s", get_xla_stats())
             model = SpatialModel(
                 data,
-                footprints,
                 stats,
+                footprints,
                 spikes,
                 bg,
                 cfg.dynamics,
@@ -89,10 +89,11 @@ def spatial(cfg, stage, force=False):
             segments = try_load(segsfile)
         logger.info(f"exec clean ({stage})")
         footprints, stats = clean(
-            stats,
+            stats.query("kind != 'remove'"),
             segments,
             cfg.radius.filter,
-            **cfg.clean.args,
+            cfg.clean.dupfilter,
+            cfg.clean.bgfilter,
             **cfg.cmd.clean,
         )
         save((footprintsfile, statsfile), (footprints, stats))

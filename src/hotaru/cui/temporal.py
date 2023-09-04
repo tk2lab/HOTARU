@@ -45,8 +45,8 @@ def temporal(cfg, stage, force=False):
             logger.debug("%s", get_xla_stats())
             model = TemporalModel(
                 data,
+                stats,
                 footprints,
-                stats.query("kind != 'remove'"),
                 cfg.dynamics,
                 cfg.penalty,
             )
@@ -80,18 +80,25 @@ def temporal(cfg, stage, force=False):
         else:
             logger.info(f"load temporal ({stage})")
             spikes, bg, logdf = try_load((spikefile, bgfile, lossfile))
+
         logger.info(f"exec temporal stats ({stage})")
-        cell = stats.query("kind=='cell'").index
+
         sm = spikes.max(axis=1)
         sd = spikes.mean(axis=1) / sm
+        sn = np.array([si.max() / np.median(si[si > 0]) for si in spikes])
+        cell = stats.query("kind == 'cell'").index
+        stats["spkid"] = pd.Seried(np.arange(sm.size), index=cell)
         stats["signal"] = pd.Series(sm, index=cell)
         stats["udense"] = pd.Series(sd, index=cell)
+        stats["snratio"] = pd.Series(sn, index=cell)
 
-        background = stats.query("kind=='background'").index
         bmax = np.abs(bg).max(axis=1)
         bgvar = bg - np.median(bg, axis=1, keepdims=True)
         bstd = 1.4826 * np.maximum(np.median(np.abs(bgvar), axis=1), 1e-10)
+        background = stats.query("kind=='background'").index
+        stats["bgid"] = pd.Seried(np.arange(bmax.size), index=background)
         stats["bmax"] = pd.Series(bmax, index=background)
         stats["bsparse"] = pd.Series(bmax / bstd, index=background)
+
         save((statsfile, flagfile), (stats, "updated!"))
         logger.info(f"saved temporal stats ({stage})")

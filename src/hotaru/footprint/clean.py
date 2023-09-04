@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from scipy.ndimage import grey_closing
+from sklearn.mixture import GaussianMixture as CluModel
 
 from ..filter import gaussian_laplace
 from ..utils import (
@@ -21,29 +22,117 @@ logger = getLogger(__name__)
 Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
 
 
+def get_dubfilter(**args):
+    match args:
+        case dict(thr_active_area=thr):
+            return DupFilter(thr)
+        case _:
+            raise ValueError()
+
+
+def get_dupfilter(**args):
+    match args:
+        case dict():
+            return BackgroundFilter()
+        case _:
+            return OldBackgroundFilter(**args)
+
+
+class DupFilter:
+
+    def __init__(self, thr_active_area):
+        self._thr = thr_active_area
+
+    def set(self, segments, y, x):
+        self._segmask = segments > self._thr
+        self._y = y
+        self._x = x
+
+    def is_dup(self, i, js):
+        yi, xi = self._y[i], self._x[i]
+        for j in js:
+            yj, xj = self._y[j], self._x[j]
+            if self._segmask[i, yj, xj] and self._segmask[j, yi, xi]:
+                return True
+        return False
+
+
+class BackgroundFilter:
+
+    def __init__(
+        self,
+        bias=0,
+        coef_snr=0,
+        coef_firmness=0,
+    ):
+        self._bias = bias
+        self._coef_snr = coef_snr
+        self._coef_firmness = coef_firmess
+
+    def set(self, stats):
+        self._stats = stats
+
+    def is_background(self, i):
+        s = self._stats
+        si = s.at[s.index[i]]
+        score = (
+            self._biad + self._coef_snr * si.snr + self._coef_firmness * si.firmness
+        )
+        return score > 0
+
+
+class OldBackgroundFilter:
+
+    def __init__(
+        self,
+        thr_bg_udense=1,
+        thr_bg_signal=0,
+        thr_bg_firmness=0,
+        thr_bg_cluster=1,
+    ):
+        self._thr_d = thr_bg_udense
+        self._thr_s = thr_bg_signal
+        self._thr_f = thr_bg_firmness
+        self._thr_c = thr_bg_cluster
+
+    def set(self, stats):
+        """
+        cindex = oldstats.query("kind == 'cell'").cid
+        v = np.stack([udense, firmness, np.log(signal)], axis=1)
+        v = v[cindex]
+        clu = CluModel(
+            n_components=2,
+            weights_init=[0.95, 0.05],
+            means_init=[[0.03, 0.45, 0.5], [0.13, 0.35, -0.3]],
+        )
+        clu.fit(v)
+        z[cindex] = clu.predict_proba(v)[:, 1]
+        self._stats.
+        """
+        self._stats = stats
+
+    def is_background(self, i):
+        s = self._stats
+        si = s.at[s.index[i]]
+        return(
+            #(si.z > thr_bg_cluster)
+            (si.udense > self._thr_d)
+            or (si.signal < self._thr_s)
+            or (si.firmness < self._thr_f)
+        )
+
+
 def clean(
-    oldstats,
+    stats,
     segs,
     radius,
     cell_range,
-    thr_active_area,
-    thr_bg_udense,
-    thr_bg_signal,
-    thr_bg_firmness,
-    thr_cell_bsparse,
-    env,
-    factor,
-    prefetch,
+    dup_filter=None,
+    bg_filter=None,
+    env=None,
+    factor=1,
+    prefetch=1,
 ):
-    logger.info(
-        "clean: %f %f %f %s",
-        thr_active_area,
-        thr_bg_udense,
-        thr_bg_firmness,
-        thr_cell_bsparse,
-    )
-    oldstats = oldstats.query("kind != 'remove'")
-
     segments, y, x, radius, firmness = clean_footprints(
         segs,
         radius,
@@ -51,111 +140,43 @@ def clean(
         factor,
         prefetch,
     )
-    nk, h, w = segments.shape
-    segmask = segments > thr_active_area
 
-    def is_dup(i, js):
-        yi, xi = y[i], x[i]
-        for j in js:
-            yj, xj = y[j], x[j]
-            if segmask[i, yj, xj] and segmask[j, yi, xi]:
-                return True
-        return False
+    stats["y"] = y
+    stats["x"] = x
+    stats["radius"] = radius
+    stats["firmness"] = firmness
+    stats["kind"] = ""
 
-    kind = oldstats.kind.to_numpy()
-    signal = oldstats.signal.to_numpy()
-    udense = oldstats.udense.to_numpy()
-    bsparse = oldstats.udense.to_numpy()
+    dup_filter = get_dupfilter(dup_filter)
+    dup_filter.set(stats, segments)
 
-    flg = np.argsort(firmness)[::-1]
-    cell = []
+    bg_filter = get_bgfilter(bg_filter)
+    bg_filter.set(stats)
+
+    flg = np.argsort(stats.firmness.to_numpy())[::-1]
     bg = []
-    remove = []
+    cell = []
     while flg.size > 0:
         i, flg = flg[0], flg[1:]
         if radius[i] < cell_range[0]:
             logger.debug("remove small %s %s %s", i, radius[i], cell_range[0])
-            remove.append(i)
+            stats.at[stats.index[i], "kind"] = "remove"
         elif (
-            (
-                (kind[i] == "background")
-                and ((thr_cell_bsparse is None) or (bsparse[i] < thr_cell_bsparse))
-            )
-            or (udense[i] > thr_bg_udense)
-            or (signal[i] < thr_bg_signal)
-            or (firmness[i] < thr_bg_firmness)
-            or (radius[i] > cell_range[1])
+            (stats.at[stats.index[i], "old_kind"] == "background")
+            or bg_filter.is_backgournd(i)
         ):
-            if bg and is_dup(i, bg):
-                logger.debug(
-                    "remove dup bg %s %s %s %s", i, kind[i], udense[i], radius[i]
-                )
-                remove.append(i)
+            if bg and dup_filter.is_dup(i, bg):
+                stats.at[stats.index[i], "kind"] = "remove"
             else:
-                logger.debug("bg %s %s %s %s", i, kind[i], udense[i], radius[i])
                 bg.append(i)
+                stats.at[stats.index[i], "kind"] = "background"
         else:
-            if cell and is_dup(i, cell):
-                logger.debug(
-                    "remove dup cell %s %s %s %s", i, kind[i], udense[i], radius[i]
-                )
-                remove.append(i)
+            if cell and dup_filter.is_dup(i, cell):
+                stats.at[stats.index[i], "kind"] = "remove"
             else:
-                logger.debug("cell %s %s %s %s", i, kind[i], udense[i], radius[i])
                 cell.append(i)
-
-    kind = pd.Series(["remove"] * nk)
-    kind[cell] = "cell"
-    kind[bg] = "background"
-    stats = pd.DataFrame(
-        dict(
-            uid=oldstats.uid.to_numpy(),
-            kind=kind,
-            y=y,
-            x=x,
-            radius=radius,
-            firmness=firmness,
-            signal=None,
-            asum=segments.sum(axis=(1, 2)),
-            udense=None,
-            bmax=None,
-            bsparse=None,
-            **{
-                f"old_{k}": oldstats[k].to_numpy()
-                for k in (
-                    "kind",
-                    "radius",
-                    "intensity",
-                    "firmness",
-                    "signal",
-                    "asum",
-                    "udense",
-                    "bmax",
-                    "bsparse",
-                )
-                if k in oldstats.columns
-            },
-        )
-    )
-
-    cell, bg, removed = [
-        stats[stats.kind == key].sort_values("firmness", ascending=False)
-        for key in ["cell", "background", "remove"]
-    ]
-    logger.info("clean: %d %d %d", cell.shape[0], bg.shape[0], removed.shape[0])
-
-    """
-    x, y, r = cell.x.to_numpy(), cell.y.to_numpy(), cell.radius.to_numpy()
-    dist = np.hypot(x - x[:, np.newaxis], y - y[:, np.newaxis]) / r
-    np.fill_diagonal(dist, np.inf)
-    dist = np.sort(dist.ravel())
-    logger.info("small distance: %s", dist[dist < 1])
-    """
-
-    stats = pd.concat([cell, bg, removed], axis=0)
-    segments = segments[stats.query("kind != 'remove'").index]
-    logger.info("segments.shape=%s", segments.shape)
-    return segments, stats.reset_index(drop=True)
+                stats.at[stats.index[i], "kind"] = "cell"
+    return segments, stats
 
 
 def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):

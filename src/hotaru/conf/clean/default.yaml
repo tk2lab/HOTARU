@@ -1,0 +1,9 @@
+label: default
+args:
+  cell_range: ${init.args.cell_range}
+  dupfilter:
+    thr_active_area: 0.0
+  bgfilter:
+    bias:
+    coef_formness:
+    coef_log_snr:

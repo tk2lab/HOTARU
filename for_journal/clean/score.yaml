@@ -1,0 +1,9 @@
+label: score
+args:
+  cell_range: ${init.args.cell_range}
+  dupfilter:
+    thr_active_area: 0.8
+  bgfilter:
+    bias: 1
+    coef_firmness: 0
+    coef_log_snr: 0

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from scipy.ndimage import grey_closing
-from sklearn.mixture import GaussianMixture as CluModel
+#from sklearn.mixture import GaussianMixture as CluModel
 
 from ..filter import gaussian_laplace
 from ..utils import (

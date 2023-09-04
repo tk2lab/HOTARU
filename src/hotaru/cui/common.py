@@ -117,11 +117,10 @@ def finish(cfg, stage):
     reduce_log(cfg, stage)
 
     firmness = "intensity" if stage == 0 else "firmness"
-    labels = ["uid", "y", "x", "radius", firmness, "signal", "udense"]
+    labels = ["y", "x", "radius", firmness, "signal", "udense"]
     logger.info("cell: %d\n%s", cell.shape[0], cell.head()[labels])
     if bg.shape[0] > 0:
         labels = [
-            "uid",
             "y",
             "x",
             "radius",

@@ -83,22 +83,26 @@ def temporal(cfg, stage, force=False):
 
         logger.info(f"exec temporal stats ({stage})")
 
+        ci = stats.query("kind == 'cell'").index
+        bi = stats.query("kind == 'background'").index
+        stats["spkid"] = pd.Series(list(range(ci.shape[0])), index=ci)
+        stats["bgid"] = pd.Series(list(range(bi.shape[0])), index=bi)
+
         sm = spikes.max(axis=1)
         sd = spikes.mean(axis=1) / sm
-        sn = np.array([si.max() / np.median(si[si > 0]) for si in spikes])
+        sn = np.array([si.max() / (1.4826 * np.median(si[si > 0])) for si in spikes])
         cell = stats.query("kind == 'cell'").index
-        stats["spkid"] = pd.Series(np.arange(sm.size), index=cell)
         stats["signal"] = pd.Series(sm, index=cell)
         stats["udense"] = pd.Series(sd, index=cell)
         stats["snratio"] = pd.Series(sn, index=cell)
 
         bmax = np.abs(bg).max(axis=1)
-        bgvar = bg - np.median(bg, axis=1, keepdims=True)
-        bstd = 1.4826 * np.maximum(np.median(np.abs(bgvar), axis=1), 1e-10)
+        bsn = np.array(
+            [bi.max() / (1.4826 * np.median(np.abs(bi[bi != 0]))) for bi in bg]
+        )
         background = stats.query("kind=='background'").index
-        stats["bgid"] = pd.Series(np.arange(bmax.size), index=background)
         stats["bmax"] = pd.Series(bmax, index=background)
-        stats["bsparse"] = pd.Series(bmax / bstd, index=background)
+        stats["bsparse"] = pd.Series(bsn, index=background)
 
         save((statsfile, flagfile), (stats, "updated!"))
         logger.info(f"saved temporal stats ({stage})")

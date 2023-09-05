@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from scipy.ndimage import grey_closing
-#from sklearn.mixture import GaussianMixture as CluModel
 
 from ..filter import gaussian_laplace
 from ..utils import (
@@ -17,109 +16,12 @@ from ..utils import (
 from .radius import get_radius
 from .segment import get_segment_mask
 
+# from sklearn.mixture import GaussianMixture as CluModel
+
+
 logger = getLogger(__name__)
 
 Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
-
-
-def get_dubfilter(**args):
-    match args:
-        case dict(thr_active_area=thr):
-            return DupFilter(thr)
-        case _:
-            raise ValueError()
-
-
-def get_dupfilter(**args):
-    match args:
-        case dict():
-            return BackgroundFilter()
-        case _:
-            return OldBackgroundFilter(**args)
-
-
-class DupFilter:
-
-    def __init__(self, thr_active_area):
-        self._thr = thr_active_area
-
-    def set(self, segments, y, x):
-        self._segmask = segments > self._thr
-        self._y = y
-        self._x = x
-
-    def is_dup(self, i, js):
-        yi, xi = self._y[i], self._x[i]
-        for j in js:
-            yj, xj = self._y[j], self._x[j]
-            if self._segmask[i, yj, xj] and self._segmask[j, yi, xi]:
-                return True
-        return False
-
-
-class BackgroundFilter:
-
-    def __init__(
-        self,
-        bias=0,
-        coef_snr=0,
-        coef_firmness=0,
-    ):
-        self._bias = bias
-        self._coef_snr = coef_snr
-        self._coef_firmness = coef_firmess
-
-    def set(self, stats):
-        self._stats = stats
-
-    def is_background(self, i):
-        s = self._stats
-        si = s.at[s.index[i]]
-        score = (
-            self._biad + self._coef_snr * si.snr + self._coef_firmness * si.firmness
-        )
-        return score > 0
-
-
-class OldBackgroundFilter:
-
-    def __init__(
-        self,
-        thr_bg_udense=1,
-        thr_bg_signal=0,
-        thr_bg_firmness=0,
-        thr_bg_cluster=1,
-    ):
-        self._thr_d = thr_bg_udense
-        self._thr_s = thr_bg_signal
-        self._thr_f = thr_bg_firmness
-        self._thr_c = thr_bg_cluster
-
-    def set(self, stats):
-        """
-        cindex = oldstats.query("kind == 'cell'").cid
-        v = np.stack([udense, firmness, np.log(signal)], axis=1)
-        v = v[cindex]
-        clu = CluModel(
-            n_components=2,
-            weights_init=[0.95, 0.05],
-            means_init=[[0.03, 0.45, 0.5], [0.13, 0.35, -0.3]],
-        )
-        clu.fit(v)
-        z[cindex] = clu.predict_proba(v)[:, 1]
-        self._stats.
-        """
-        self._stats = stats
-
-    def is_background(self, i):
-        s = self._stats
-        si = s.at[s.index[i]]
-        return(
-            #(si.z > thr_bg_cluster)
-            (si.udense > self._thr_d)
-            or (si.signal < self._thr_s)
-            or (si.firmness < self._thr_f)
-        )
 
 
 def clean(
@@ -127,8 +29,9 @@ def clean(
     segs,
     radius,
     cell_range,
-    dup_filter=None,
-    bg_filter=None,
+    thr_move,
+    dupfilter=None,
+    bgfilter=None,
     env=None,
     factor=1,
     prefetch=1,
@@ -140,42 +43,56 @@ def clean(
         factor,
         prefetch,
     )
+    stats = stats.sort_values("segid")
+    oldy = stats.y.to_numpy()
+    oldx = stats.x.to_numpy()
+    pos_move = np.hypot(x - oldx, y - oldy) / stats.radius.to_numpy()
 
+    stats["old_kind"] = stats.kind
     stats["y"] = y
     stats["x"] = x
+    stats["pos_move"] = pos_move
     stats["radius"] = radius
     stats["firmness"] = firmness
     stats["kind"] = ""
+    stats["dup"] = -1
 
-    dup_filter = get_dupfilter(dup_filter)
+    dup_filter = get_dupfilter(**dupfilter)
     dup_filter.set(stats, segments)
 
-    bg_filter = get_bgfilter(bg_filter)
+    bg_filter = get_bgfilter(**bgfilter)
     bg_filter.set(stats)
 
     flg = np.argsort(stats.firmness.to_numpy())[::-1]
-    bg = []
     cell = []
+    bg = []
     while flg.size > 0:
         i, flg = flg[0], flg[1:]
-        if radius[i] < cell_range[0]:
-            logger.debug("remove small %s %s %s", i, radius[i], cell_range[0])
+        if (
+            (radius[i] < cell_range[0])
+            or ((stats.iloc[i].old_kind == "cell") and (pos_move[i] > thr_move))
+        ):
+            logger.debug("remove small/move %s %s %s", i, radius[i], pos_move[i])
             stats.at[stats.index[i], "kind"] = "remove"
         elif (
-            (stats.at[stats.index[i], "old_kind"] == "background")
-            or bg_filter.is_backgournd(i)
+            (stats.iloc[i].old_kind == "background")
+            or (radius[i] > cell_range[1])
+            or bg_filter.is_background(i)
         ):
-            if bg and dup_filter.is_dup(i, bg):
+            if bg and ((dup := dup_filter.dup_id(i, bg)) >= 0):
                 stats.at[stats.index[i], "kind"] = "remove"
+                stats.at[stats.index[i], "dup"] = stats.index[dup]
             else:
                 bg.append(i)
                 stats.at[stats.index[i], "kind"] = "background"
         else:
-            if cell and dup_filter.is_dup(i, cell):
+            if cell and ((dup := dup_filter.dup_id(i, cell)) >= 0):
                 stats.at[stats.index[i], "kind"] = "remove"
+                stats.at[stats.index[i], "dup"] = stats.index[dup]
             else:
                 cell.append(i)
                 stats.at[stats.index[i], "kind"] = "cell"
+    logger.info("cell/bg = %d/%d", len(cell), len(bg))
     return segments, stats
 
 
@@ -246,3 +163,125 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     out = grey_closing(out, (1, 10, 10))
     r = np.array(radius)[r]
     return Footprint(out, y, x, r, g)
+
+
+def get_dupfilter(**args):
+    match args:
+        case {"thr_active_area": thr}:
+            return DupFilter(thr)
+        case _:
+            raise ValueError()
+
+
+def get_bgfilter(**args):
+    match args:
+        case {"kind": "new", **kwargs}:
+            return BackgroundFilter(**kwargs)
+        case {"kind": "simple", **kwargs}:
+            return SimpleBackgroundFilter(**kwargs)
+        case _:
+            return OldBackgroundFilter(**args)
+
+
+class DupFilter:
+    def __init__(self, thr_active_area):
+        self._thr = thr_active_area
+
+    def set(self, stats, segments):
+        self._y = stats.y.to_numpy()
+        self._x = stats.x.to_numpy()
+        self._segmask = segments > self._thr
+
+    def dup_id(self, i, js):
+        yi, xi = self._y[i], self._x[i]
+        for j in js:
+            yj, xj = self._y[j], self._x[j]
+            if self._segmask[i, yj, xj] and self._segmask[j, yi, xi]:
+                return j
+        return -1
+
+
+class BackgroundFilter:
+    def __init__(
+        self,
+        bias=0,
+        coef_log_snr=0,
+        coef_firmness=0,
+    ):
+        self._bias = bias
+        self._coef_log_snr = coef_log_snr
+        self._coef_firmness = coef_firmness
+
+    def set(self, stats):
+        self._stats = stats
+
+    def is_background(self, i):
+        s = self._stats
+        si = s.iloc[i]
+        score = (
+            self._bias
+            + self._coef_log_snr * np.log10(si.snratio)
+            + self._coef_firmness * si.firmness
+        )
+        return score < 0
+
+
+class SimpleBackgroundFilter:
+    def __init__(
+        self,
+        thr_snr_inv=1,
+        thr_firmness=0,
+    ):
+        self._thr_s = thr_snr_inv
+        self._thr_f = thr_firmness
+
+    def set(self, stats):
+        self._stats = stats
+
+    def is_background(self, i):
+        s = self._stats
+        si = s.iloc[i]
+        return (
+            (1 / si.snratio > self._thr_s)
+            or (si.firmness < self._thr_f)
+        )
+
+
+class OldBackgroundFilter:
+    def __init__(
+        self,
+        thr_bg_udense=1,
+        thr_bg_signal=0,
+        thr_bg_firmness=0,
+        thr_bg_cluster=1,
+    ):
+        self._thr_d = thr_bg_udense
+        self._thr_s = thr_bg_signal
+        self._thr_f = thr_bg_firmness
+        self._thr_c = thr_bg_cluster
+
+    def set(self, stats):
+        """
+        cindex = oldstats.query("kind == 'cell'").cid
+        v = np.stack([udense, firmness, np.log(signal)], axis=1)
+        v = v[cindex]
+        clu = CluModel(
+            n_components=2,
+            weights_init=[0.95, 0.05],
+            means_init=[[0.03, 0.45, 0.5], [0.13, 0.35, -0.3]],
+        )
+        clu.fit(v)
+        z[cindex] = clu.predict_proba(v)[:, 1]
+        self._stats.
+        """
+        self._stats = stats
+
+    def is_background(self, i):
+        s = self._stats
+        si = s.at[s.index[i]]
+        return (
+            # (si.z > thr_bg_cluster)
+            (si.udense > self._thr_d)
+            or (si.signal < self._thr_s)
+            or (si.firmness < self._thr_f)
+        )

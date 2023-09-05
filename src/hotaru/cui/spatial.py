@@ -31,6 +31,7 @@ def spatial(cfg, stage, force=False):
         or not statsfile.exists()
     ):
         stats, flags = try_load(get_files(cfg, "evaluate", stage - 1))
+        stats = stats.query("kind != 'remove'").copy()
         segsfile, lossfile = get_files(cfg, "spatial", stage)
         if get_force(cfg, "spatial", stage) or not segsfile.exists():
             logger.info(f"exec spatial ({stage})")
@@ -40,7 +41,6 @@ def spatial(cfg, stage, force=False):
             else:
                 footprints = try_load(get_files(cfg, "clean", stage - 1)[0])
             spikes, bg, _ = try_load(get_files(cfg, "temporal", stage - 1))
-            stats = stats.query("kind != 'remove'")
             logger.debug("%s", get_xla_stats())
             model = SpatialModel(
                 data,
@@ -88,12 +88,13 @@ def spatial(cfg, stage, force=False):
             logger.info(f"load spatial ({stage})")
             segments = try_load(segsfile)
         logger.info(f"exec clean ({stage})")
+        n1 = np.count_nonzero(stats.kind == "cell")
+        stats["segid"] = np.where(stats.kind == "cell", stats.spkid, stats.bgid + n1)
         footprints, stats = clean(
-            stats.query("kind != 'remove'"),
+            stats,
             segments,
             cfg.radius.filter,
-            cfg.clean.dupfilter,
-            cfg.clean.bgfilter,
+            **cfg.clean.args,
             **cfg.cmd.clean,
         )
         save((footprintsfile, statsfile), (footprints, stats))

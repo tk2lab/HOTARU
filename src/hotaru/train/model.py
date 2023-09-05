@@ -13,6 +13,8 @@ from .penalty import get_penalty
 from .regularizer import (
     L1,
     NonNegativeL1,
+    L2,
+    NonNegativeL2,
 )
 
 logger = getLogger(__name__)
@@ -28,31 +30,34 @@ class Model:
         self._stats = stats
 
     def _try_clip(self, clip, segs):
-        fp = segs[self._stats.query("kind=='cell'").segid]
-        bg = segs[self._stats.query("kind=='background'").segid]
-        segs = np.concatenate([fp, bg], axis=0)
+        cdf = self._stats.query("kind=='cell'")
+        bdf = self._stats.query("kind=='background'")
+        fp = segs[cdf.segid.to_numpy().astype(np.int32)]
+        bg = segs[bdf.segid.to_numpy().astype(np.int32)]
 
-        clipped_segs = clip.clip(segs)
-        clipped = np.any(clipped_segs > 0, axis=(1, 2))
-        clipped_state = self._stats[clipped]
+        clipped_fp = clip.clip(fp)
+        clipped1 = np.any(clipped_fp > 0, axis=(1, 2))
+        clipped_cdf = cdf[clipped1]
+        clipped_fp = clipped_fp[clipped1]
 
-        n1 = self.n1
-        clipped_n1 = np.count_nonzero(clipped[:n1])
-        clipped_state1 = clipped_state[:clipped_n1]
-        clipped_state2 = clipped_state[clipped_n1:]
+        clipped_bg = clip.clip(bg)
+        clipped2 = np.any(clipped_bg > 0, axis=(1, 2))
+        clipped_bdf = bdf[clipped2]
+        clipped_bg = clipped_bg[clipped2]
 
-        active1 = clip.in_clipping_area(clipped_state1.y, clipped_state1.x)
-        active2 = clip.in_clipping_area(clipped_state2.y, clipped_state2.x)
-        active_index1 = clipped_state1[active1].index
-        active_index2 = clipped_state2[active2].index - n1
+        active1 = clip.in_clipping_area(clipped_cdf.y, clipped_cdf.x)
+        active2 = clip.in_clipping_area(clipped_bdf.y, clipped_bdf.x)
 
         self._clip = clip
         self._active = active1, active2
-        self._active_index = active_index1, active_index2
 
-        return clipped, clipped_segs[clipped]
+        index1 = np.where(clipped1)[0][active1]
+        index2 = np.where(clipped2)[0][active2]
+        self._active_index = index1, index2
 
-    def _prepare(self, data, yval, nx1, nx2, py, **kwargs):
+        return clipped1, clipped2, clipped_fp, clipped_bg
+
+    def _prepare(self, data, yval, py, **kwargs):
         ycov, yout, ydot = prepare_matrix(data, yval, self._trans, **kwargs)
 
         penalty = self._penalty
@@ -64,11 +69,6 @@ class Model:
             bx, by = penalty.bs, penalty.bt
         nx, ny, bx, by = (jnp.array(v, jnp.float32) for v in (nx, ny, bx, by))
 
-        active1, active2 = self._active
-        n1, n2 = active1.size, active2.size
-        x1 = jnp.zeros((n1, nx1))
-        x2 = jnp.zeros((n2, nx2))
-
         self._args = ycov, yout, ydot, nx, ny, bx, by, py
         self._loss_scale = nx * ny + nx + ny
 
@@ -76,7 +76,6 @@ class Model:
         if not np.isfinite(est):
             est = 1.0
         self._lr_scale = est / nx
-        self._x = x1, x2
 
         if not hasattr(self, "_optimizer"):
             self._optimizer = ProxOptimizer(self)
@@ -111,12 +110,12 @@ class Model:
         return history
 
     def get_x(self):
-        active1, active2 = self._active
-        active_index1, active_index2 = self._active_index
+        index1, index2 = self._active_index
         x1, x2 = self._x
+        active1, active2 = self._active
         active_x1 = np.array(x1[active1])
         active_x2 = np.array(x2[active2])
-        return active_index1, active_index2, active_x1, active_x2
+        return index1, index2, active_x1, active_x2
 
 
 class SpatialModel(Model):
@@ -146,12 +145,11 @@ class SpatialModel(Model):
         return self._try_clip(clip, self._oldx)
 
     def prepare(self, clip, **kwargs):
-        clipped, _ = self.try_clip(clip)
-        clipped_data = self._data.clip(clip.clip)
+        clipped1, clipped2, clipped_img1, clipped_img2 = self.try_clip(clip)
+        data = self._data.clip(clip.clip)
 
-        n1 = self.n1
-        clipped_y1 = self._y1[clipped[:n1]]
-        clipped_y2 = self._y2[clipped[n1:]]
+        clipped_y1 = self._y1[clipped1]
+        clipped_y2 = self._y2[clipped2]
 
         clipped_y1 = jnp.array(clipped_y1)
         clipped_y2 = jnp.array(clipped_y2)
@@ -159,16 +157,22 @@ class SpatialModel(Model):
         lu, fac = self._penalty.lu
         py = lu(clipped_y1, *fac)
 
+        lb = self._penalty.lb
+        self._lb = jnp.abs(lb * clipped_y2).sum(axis=1, keepdims=True)
+
         clipped_y1 = self._dynamics(clipped_y1)
         clipped_y1 /= clipped_y1.max(axis=1, keepdims=True)
         clipped_y2 /= clipped_y2.max(axis=1, keepdims=True)
         yval = jnp.concatenate([clipped_y1, clipped_y2], axis=0)
+        self._prepare(data, yval, py, **kwargs)
 
-        nx1, nx2 = clipped_data.ns, clipped_data.ns
-        self._prepare(clipped_data, yval, nx1, nx2, py, **kwargs)
-
-        lb = self._penalty.lb
-        self._lb = jnp.abs(lb * clipped_y2).sum(axis=1, keepdims=True)
+        clipped_x1 = data.apply_mask(clipped_img1, mask_type=True)
+        clipped_x2 = data.apply_mask(clipped_img2, mask_type=True)
+        x1 = jnp.array(clipped_x1)
+        x2 = jnp.array(clipped_x2)
+        #x1 = jnp.zeros_like(clipped_x1)
+        #x2 = jnp.zeros_like(clipped_x2)
+        self._x = x1, x2
 
     def get_x(self):
         index1, index2, x1, x2 = super().get_x()
@@ -207,34 +211,31 @@ class TemporalModel(Model):
         return self._try_clip(clip, self._y)
 
     def prepare(self, clip, **kwargs):
-        clipped, clipped_y = self.try_clip(clip)
-
-        clipped_n1 = np.count_nonzero(clipped[: self.n1])
-        clipped_n2 = np.count_nonzero(clipped[self.n1 :])
-        logger.info(
-            "clip: pos=(%d %d), size=%s, n1=%d, n2=%d",
-            clip.y0,
-            clip.x0,
-            clipped_y.shape,
-            clipped_n1,
-            clipped_n2,
-        )
-
+        _, _, clipped_y1, clipped_y2 = self.try_clip(clip)
         data = self._data.clip(clip.clip)
-        yval = data.apply_mask(clipped_y, mask_type=True)
 
-        yval = jnp.array(yval)
-        clipped_y1 = yval[:clipped_n1]
-        clipped_y2 = yval[clipped_n1:]
+        clipped_y1 = data.apply_mask(clipped_y1, mask_type=True)
+        clipped_y2 = data.apply_mask(clipped_y2, mask_type=True)
+
+        clipped_y1 = jnp.array(clipped_y1)
+        clipped_y2 = jnp.array(clipped_y2)
+
         la, fac = self._penalty.la
         py = la(clipped_y1, *fac)
 
-        nt = self._data.nt
-        nu = nt + self._dynamics.size - 1
-        self._prepare(data, yval, nu, nt, py, **kwargs)
-
         lb = self._penalty.lb
         self._lb = jnp.abs(lb * clipped_y2).sum(axis=1, keepdims=True)
+
+        yval = jnp.concatenate([clipped_y1, clipped_y2], axis=0)
+        self._prepare(data, yval, py, **kwargs)
+
+        active1, active2 = self._active
+        n1, n2 = active1.size, active2.size
+        nt = self._data.nt
+        nu = nt + self._dynamics.size - 1
+        x1 = jnp.zeros((n1, nu))
+        x2 = jnp.zeros((n2, nt))
+        self._x = x1, x2
 
     def loss(self, x1, x2, ycov, yout, ydot, nx, ny, bx, by, py):
         x1 = self._dynamics(x1)

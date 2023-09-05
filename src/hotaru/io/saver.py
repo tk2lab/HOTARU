@@ -1,8 +1,11 @@
 from collections import namedtuple
 from pathlib import Path
+from logging import getLogger
 
 import numpy as np
 import pandas as pd
+
+logger = getLogger(__name__)
 
 
 def save(path, obj):
@@ -36,7 +39,7 @@ def try_load(path):
             return [try_load(p) for p in path]
     else:
         path = Path(path)
-        print(path)
+        logger.debug("%s", path)
         try:
             match path.suffix:
                 case ".npz":
@@ -51,6 +54,5 @@ def try_load(path):
                 case _:
                     return
         except Exception as e:
-            print("fail")
-            print(e)
+            logger.debug("%s", e)
             return

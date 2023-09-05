@@ -44,14 +44,14 @@ def get_force(cfg, name, stage):
     force = (stage > cfg.force_from[0]) or (
         (stage == cfg.force_from[0]) and (name in force_dict[cfg.force_from[1]])
     )
-    print("test force: ", name, stage)
+    logger.debug("test force: %s %d", name, stage)
     return force
 
 
 def all_stats(cfg):
     out = []
     for stage in range(1000):
-        stats, flag= load(cfg, "evaluate", stage)
+        stats, flag = load(cfg, "evaluate", stage)
         if flag is None:
             break
         out.append(stats)
@@ -117,7 +117,15 @@ def finish(cfg, stage):
     reduce_log(cfg, stage)
 
     firmness = "intensity" if stage == 0 else "firmness"
-    labels = ["y", "x", "radius", firmness, "signal", "udense"]
+    labels = [
+        "y",
+        "x",
+        "radius",
+        firmness,
+        "signal",
+        "udense",
+        "snratio",
+    ]
     logger.info("cell: %d\n%s", cell.shape[0], cell.head()[labels])
     if bg.shape[0] > 0:
         labels = [
@@ -128,10 +136,20 @@ def finish(cfg, stage):
             "bmax",
             "bsparse",
         ]
-        if stage > 0:
-            labels += ["old_radius", "old_udense", "old_bsparse"]
+        # if stage > 0:
+        #    labels += ["old_radius", "old_udense", "old_bsparse"]
         logger.info("background: %d\n%s", bg.shape[0], bg.head()[labels])
     if removed.shape[0] > 0:
-        logger.info("removed: %d\n%s", removed.shape[0], removed.head())
+        labels = [
+            "y",
+            "x",
+            "radius",
+            firmness,
+            "asum",
+            "area",
+            "pos_move",
+            "dup",
+        ]
+        logger.info("removed: %d\n%s", removed.shape[0], removed.head()[labels])
 
     return (stage > 0) and removed.shape[0] == 0

@@ -11,13 +11,29 @@ def get_clip(shape, clip):
         case None:
             return [Clip(0, h, 0, w, 0)]
         case {"type": "Div", "ynum": ynum, "xnum": xnum, "margin": margin}:
-            dy = (h + ynum - 1) // ynum
-            dx = (w + xnum - 1) // xnum
-            return [
-                Clip(py * dy, (py + 1) * dy, px * dx, (px + 1) * dx, margin)
-                for py in range(ynum)
-                for px in range(xnum)
-            ]
+            dy = (h - 2 * margin + ynum - 1) // ynum
+            dx = (w - 2 * margin + xnum - 1) // xnum
+            clips = []
+            for py in range(ynum):
+                if py == 0:
+                    y0 = 0
+                else:
+                    y0 = margin + dy * py
+                if py == ynum - 1:
+                    y1 = h
+                else:
+                    y1 = margin + dy * (py + 1)
+                for px in range(xnum):
+                    if px == 0:
+                        x0 = 0
+                    else:
+                        x0 = margin + dx * px
+                    if px == xnum - 1:
+                        x1 = w
+                    else:
+                        x1 = margin + dx * (px + 1)
+                    clips.append(Clip(y0, y1, x0, x1, margin))
+            return clips
         case _:
             raise ValueError()
 

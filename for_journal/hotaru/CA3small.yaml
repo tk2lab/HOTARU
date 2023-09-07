@@ -1,15 +1,14 @@
 # @package _global_
 
 defaults:
-  - /data: Kd32
+  - /data: CA3small
   - /radius: miniature
-  - /init: min31
-
-  - /cmd: clip2x2
-  - /dynamics: default
+  - /init: min27-16
   - /penalty: ua
   - /clean: pos0
 
+  - /dynamics: default
+  - /cmd: clip3-100
   - /env: default
   - /outputs: default
   - _self_

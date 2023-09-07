@@ -1,0 +1,11 @@
+ulabel: u${penalty.lu.factor}
+label: a${penalty.la.factor}
+lu:
+  type: MaxNormNonNegativeL1
+  factor: 0
+la:
+  type: MaxNormNonNegativeL1
+  factor: 0
+lb: 0.1
+bs: 0.1
+bt: 0.1

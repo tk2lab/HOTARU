@@ -17,7 +17,7 @@ reduce:
 make:
   dir0: ${outputs.reduce.dir0}
   files:
-    - "{stage:03d}footprint.npy"
+    - "{stage:03d}footprints.npy"
 init:
   dir0: ${outputs.make.dir0}
   files:

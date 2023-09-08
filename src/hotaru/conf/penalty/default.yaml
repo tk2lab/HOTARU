@@ -1,10 +1,11 @@
-label: default
-la:
-  type: MaxNormNonNegativeL1
-  factor: 20.0
+ulabel: su{penalty.lu.factor}
+label: sa{penalty.la.factor}
 lu:
   type: MaxNormNonNegativeL1
-  factor: 30.0
+  factor: 0.001
+la:
+  type: MaxNormNonNegativeL1
+  factor: 0.1
 lb: 0.1
 bs: 0.1
 bt: 0.1

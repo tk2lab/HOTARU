@@ -71,6 +71,7 @@ class Model:
 
         self._args = ycov, yout, ydot, nx, ny, bx, by, py
         self._loss_scale = nx * ny + nx + ny
+        self._penalty_scale = nx
 
         est = np.linalg.eigh(ycov)[0].max()
         if not np.isfinite(est):
@@ -139,7 +140,7 @@ class SpatialModel(Model):
 
     @property
     def prox_args(self):
-        return self._penalty.la[1], (self._lb,)
+        return self._penalty_scale * self._penalty.la[1], (self._lb,)
 
     def try_clip(self, clip):
         return self._try_clip(clip, self._oldx)
@@ -155,7 +156,7 @@ class SpatialModel(Model):
         clipped_y2 = jnp.array(clipped_y2)
 
         lu, fac = self._penalty.lu
-        py = lu(clipped_y1, *fac)
+        py = data.nt * lu(clipped_y1, *fac)
 
         lb = self._penalty.lb
         self._lb = jnp.abs(lb * clipped_y2).sum(axis=1, keepdims=True)
@@ -205,7 +206,7 @@ class TemporalModel(Model):
 
     @property
     def prox_args(self):
-        return self._penalty.lu[1], (self._lb,)
+        return self._penalty_scale * self._penalty.lu[1], (self._lb,)
 
     def try_clip(self, clip):
         return self._try_clip(clip, self._y)

@@ -140,7 +140,7 @@ class SpatialModel(Model):
 
     @property
     def prox_args(self):
-        return self._penalty_scale * self._penalty.la[1], (self._lb,)
+        return (self._penalty_scale * self._penalty.la[1][0],), (self._lb,)
 
     def try_clip(self, clip):
         return self._try_clip(clip, self._oldx)
@@ -206,7 +206,7 @@ class TemporalModel(Model):
 
     @property
     def prox_args(self):
-        return self._penalty_scale * self._penalty.lu[1], (self._lb,)
+        return (self._penalty_scale * self._penalty.lu[1][0],), (self._lb,)
 
     def try_clip(self, clip):
         return self._try_clip(clip, self._y)

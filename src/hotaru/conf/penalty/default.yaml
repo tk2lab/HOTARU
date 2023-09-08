@@ -1,5 +1,5 @@
-ulabel: su{penalty.lu.factor}
-label: sa{penalty.la.factor}
+ulabel: su${penalty.lu.factor}
+label: sa${penalty.la.factor}
 lu:
   type: MaxNormNonNegativeL1
   factor: 0.001

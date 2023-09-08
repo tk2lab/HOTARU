@@ -71,7 +71,7 @@ class Model:
 
         self._args = ycov, yout, ydot, nx, ny, bx, by, py
         self._loss_scale = nx * ny + nx + ny
-        self._penalty_scale = nx
+        self._penalty_scale = ny
 
         est = np.linalg.eigh(ycov)[0].max()
         if not np.isfinite(est):

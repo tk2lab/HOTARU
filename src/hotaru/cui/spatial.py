@@ -99,3 +99,5 @@ def spatial(cfg, stage, force=False):
         )
         save((footprintsfile, statsfile), (footprints, stats))
         logger.info(f"saved clean ({stage})")
+        if cfg.cmd.remove_segments:
+            segsfile.unlink(missing_ok=True)

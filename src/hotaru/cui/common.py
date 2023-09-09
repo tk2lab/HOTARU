@@ -152,4 +152,4 @@ def finish(cfg, stage):
         ]
         logger.info("removed: %d\n%s", removed.shape[0], removed.head()[labels])
 
-    return (stage > 0) and removed.shape[0] == 0
+    return cfg.early_stop and (stage > 0) and removed.shape[0] == 0

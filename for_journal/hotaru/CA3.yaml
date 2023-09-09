@@ -3,13 +3,21 @@
 defaults:
   - /data: CA3
   - /radius: miniature
-  - /init: min21
-  - /clean: clu5-99
-  - /penalty: u20
+  - /init: min27
 
-  - /dynamics: default
   - /cmd: clip3-100
+  - /dynamics: default
+  - /penalty: default
+  - /clean: pos0
+
   - /env: default
   - /outputs: default
 
-max_train_step: 30
+hydra:
+  mode: MULTIRUN
+  sweeper:
+    params:
+      penalty.lu.factor: 0.000,0.015,0.010,0.005
+      penalty.la.factor: 0.00,0.15,0.10,0.05
+
+max_train_step: 10

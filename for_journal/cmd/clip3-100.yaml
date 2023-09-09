@@ -1,7 +1,7 @@
 label: clip3-100
 remove_find: false
 remove_reduce: false
-remove_segments: false
+remove_segments: true
 
 stats:
   env: ${env}

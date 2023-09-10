@@ -13,8 +13,6 @@ from .penalty import get_penalty
 from .regularizer import (
     L1,
     NonNegativeL1,
-    L2,
-    NonNegativeL2,
 )
 
 logger = getLogger(__name__)

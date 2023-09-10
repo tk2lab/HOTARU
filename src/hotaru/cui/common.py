@@ -123,10 +123,10 @@ def finish(cfg, stage):
         "radius",
         firmness,
         "signal",
+        "rsn",
         "udense",
-        "snratio",
     ]
-    logger.info("cell: %d\n%s", cell.shape[0], cell.head()[labels])
+    logger.info("cell: %d\n%s", cell.shape[0], cell[labels])
     if bg.shape[0] > 0:
         labels = [
             "y",
@@ -136,9 +136,13 @@ def finish(cfg, stage):
             "bmax",
             "bsparse",
         ]
+        if "old_signal" in bg.columns:
+            labels += ["old_signal"]
+        if "old_rsn" in bg.columns:
+            labels += ["old_rsn"]
         # if stage > 0:
         #    labels += ["old_radius", "old_udense", "old_bsparse"]
-        logger.info("background: %d\n%s", bg.shape[0], bg.head()[labels])
+        logger.info("background: %d\n%s", bg.shape[0], bg[labels])
     if removed.shape[0] > 0:
         labels = [
             "y",
@@ -150,6 +154,6 @@ def finish(cfg, stage):
             "pos_move",
             "dup",
         ]
-        logger.info("removed: %d\n%s", removed.shape[0], removed.head()[labels])
+        logger.info("removed: %d\n%s", removed.shape[0], removed[labels])
 
     return cfg.early_stop and (stage > 0) and removed.shape[0] == 0

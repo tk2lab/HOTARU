@@ -10,7 +10,7 @@ from .regularizer import (
 Penalty = namedtuple("Penalty", "la lu lb bs bt")
 
 
-def get_penalty(penalty):
+def get_penalty(penalty, stage=None):
     if isinstance(penalty, Penalty):
         return penalty
     out = []
@@ -24,6 +24,8 @@ def get_penalty(penalty):
                 out.append((NonNegativeL1(), (fac,)))
             case {"type": "MaxNormNonNegativeL1", "factor": fac}:
                 out.append((MaxNormNonNegativeL1(), (fac,)))
+            case {"type": "MaxNormNonNegativeL1", "annealing": fac}:
+                out.append((MaxNormNonNegativeL1(), (stage * fac,)))
             case _:
                 raise ValueError()
     out += [penalty.lb, penalty.bs, penalty.bt]

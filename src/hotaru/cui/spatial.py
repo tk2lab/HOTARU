@@ -8,7 +8,10 @@ from ..io import (
     save,
     try_load,
 )
-from ..train import SpatialModel
+from ..train import (
+    SpatialModel,
+    get_penalty,
+)
 from ..utils import (
     get_clip,
     get_xla_stats,
@@ -49,7 +52,7 @@ def spatial(cfg, stage, force=False):
                 spikes,
                 bg,
                 cfg.dynamics,
-                cfg.penalty,
+                get_penalty(cfg.penalty, stage),
             )
             clips = get_clip(data.shape, cfg.cmd.spatial.clip)
             logdfs = []

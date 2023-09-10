@@ -7,7 +7,10 @@ from ..io import (
     save,
     try_load,
 )
-from ..train import TemporalModel
+from ..train import (
+    TemporalModel,
+    get_penalty,
+)
 from ..utils import (
     get_clip,
     get_xla_stats,
@@ -48,7 +51,7 @@ def temporal(cfg, stage, force=False):
                 stats,
                 footprints,
                 cfg.dynamics,
-                cfg.penalty,
+                get_penalty(cfg.penalty, stage),
             )
             clips = get_clip(data.shape, cfg.cmd.temporal.clip)
             out = []
@@ -92,9 +95,14 @@ def temporal(cfg, stage, force=False):
         sd = spikes.mean(axis=1) / sm
         sn = np.array([si.max() / (1.4826 * np.median(si[si > 0])) for si in spikes])
         cell = stats.query("kind == 'cell'").index
+        if "signal" in stats.columns:
+            stats["old_signal"] = stats.signal
+        if "rsn" in stats.columns:
+            stats["old_rsn"] = stats.rsn
         stats["signal"] = pd.Series(sm, index=cell)
         stats["udense"] = pd.Series(sd, index=cell)
         stats["snratio"] = pd.Series(sn, index=cell)
+        stats["rsn"] = pd.Series(1 / sn, index=cell)
 
         bmax = np.abs(bg).max(axis=1)
         bsn = np.array(

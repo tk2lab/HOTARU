@@ -179,6 +179,8 @@ def get_bgfilter(**args):
             return BackgroundFilter(**kwargs)
         case {"kind": "simple", **kwargs}:
             return SimpleBackgroundFilter(**kwargs)
+        case {"kind": "factor", **kwargs}:
+            return FactorBackgroundFilter(**kwargs)
         case _:
             return OldBackgroundFilter(**args)
 
@@ -224,6 +226,31 @@ class BackgroundFilter:
             + self._coef_firmness * si.firmness
         )
         return score < 0
+
+
+class FactorBackgroundFilter:
+    def __init__(
+        self,
+        thr_rsn_factor=10,
+        thr_firmness=0,
+    ):
+        self._thr_s = thr_rsn_factor
+        self._thr_f = thr_firmness
+
+    def set(self, stats):
+        stats["rsn"] = 1 / stats.snratio
+        med = np.median(stats.rsn)
+        std = 1.4826 * np.median(np.abs(stats.rsn - med))
+        stats["zrsn"] = (stats.rsn - med) / std
+        self._stats = stats
+
+    def is_background(self, i):
+        s = self._stats
+        si = s.iloc[i]
+        return (
+            (si.zrsn > self._thr_s)
+            or (si.firmness < self._thr_f)
+        )
 
 
 class SimpleBackgroundFilter:

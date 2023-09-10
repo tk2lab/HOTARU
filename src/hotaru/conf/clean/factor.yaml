@@ -1,0 +1,10 @@
+label: factor
+args:
+  cell_range: ${init.args.cell_range}
+  thr_move: 2.0
+  dupfilter: 
+    thr_active_area: 0.8
+  bgfilter:
+    kind: factor
+    thr_rsn_factor: 2.0
+    thr_firmness: 0.0

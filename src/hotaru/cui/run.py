@@ -2,7 +2,11 @@ import sys
 from importlib import import_module
 from multiprocessing import Process
 
-from .common import set_env, finish
+from .common import (
+    finish,
+    print_stats,
+    set_env,
+)
 
 
 def call(name, *args, **kwargs):
@@ -27,5 +31,6 @@ def run(cfg):
             call("spatial", cfg, stage)
         call("temporal", cfg, stage)
 
+        print_stats(cfg, stage)
         if finish(cfg, stage):
             break

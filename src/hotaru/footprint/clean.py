@@ -4,7 +4,6 @@ from logging import getLogger
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 from scipy.ndimage import grey_closing
 
@@ -31,11 +30,11 @@ def clean(
     cell_range,
     thr_move,
     dupfilter=None,
-    bgfilter=None,
     env=None,
     factor=1,
     prefetch=1,
 ):
+    stats = stats.sort_values("segid")
     segments, y, x, radius, firmness = clean_footprints(
         segs,
         radius,
@@ -43,56 +42,41 @@ def clean(
         factor,
         prefetch,
     )
-    stats = stats.sort_values("segid")
-    oldy = stats.y.to_numpy()
-    oldx = stats.x.to_numpy()
-    pos_move = np.hypot(x - oldx, y - oldy) / stats.radius.to_numpy()
-
-    stats["old_kind"] = stats.kind
     stats["y"] = y
     stats["x"] = x
-    stats["pos_move"] = pos_move
     stats["radius"] = radius
     stats["firmness"] = firmness
-    stats["kind"] = ""
-    stats["dup"] = -1
 
-    dup_filter = get_dupfilter(**dupfilter)
-    dup_filter.set(stats, segments)
+    oldy = stats.y.to_numpy()
+    oldx = stats.x.to_numpy()
+    oldr = stats.radius.to_numpy()
+    stats["pos_move"] = np.hypot(x - oldx, y - oldy) / oldr
 
-    bg_filter = get_bgfilter(**bgfilter)
-    bg_filter.set(stats)
+    dist_mat = np.hypot(x[:, np.newaxis] - x, y[:, np.newaxis] - y) / radius
+    np.fill_diagonal(dist_mat, np.inf)
+    stats["min_dist_id"] = stats.index[np.argmin(dist_mat, axis=0)]
+    stats["min_dist"] = dist_mat.min(axis=0)
 
-    flg = np.argsort(stats.firmness.to_numpy())[::-1]
-    cell = []
-    bg = []
-    while flg.size > 0:
-        i, flg = flg[0], flg[1:]
-        if (
-            (radius[i] < cell_range[0])
-            or ((stats.iloc[i].old_kind == "cell") and (pos_move[i] > thr_move))
-        ):
-            logger.debug("remove small/move %s %s %s", i, radius[i], pos_move[i])
-            stats.at[stats.index[i], "kind"] = "remove"
-        elif (
-            (stats.iloc[i].old_kind == "background")
-            or (radius[i] > cell_range[1])
-            or bg_filter.is_background(i)
-        ):
-            if bg and ((dup := dup_filter.dup_id(i, bg)) >= 0):
-                stats.at[stats.index[i], "kind"] = "remove"
-                stats.at[stats.index[i], "dup"] = stats.index[dup]
-            else:
-                bg.append(i)
-                stats.at[stats.index[i], "kind"] = "background"
-        else:
-            if cell and ((dup := dup_filter.dup_id(i, cell)) >= 0):
-                stats.at[stats.index[i], "kind"] = "remove"
-                stats.at[stats.index[i], "dup"] = stats.index[dup]
-            else:
-                cell.append(i)
-                stats.at[stats.index[i], "kind"] = "cell"
-    logger.info("cell/bg = %d/%d", len(cell), len(bg))
+    val_mat = segments[:, y, x]
+    np.fill_diagonal(val_mat, 0)
+    stats["max_dup_id"] = stats.index[np.argmax(val_mat, axis=0)]
+    stats["max_dup"] = val_mat.max(axis=0)
+
+    stats["old_kind"] = stats.kind
+    stats["kind"] = "cell"
+
+    remove_cond = (stats.old_kind == "cell") & (stats.pos_move < thr_move)
+    remove_cond |= (stats.radius < cell_range[0])
+    stats.loc[remove_cond, "kind"] = "remove"
+
+    bg_cond = (stats.old_kind == "background")
+    bg_cond |= (stats.radius > cell_range[-1])
+    stats.loc[bg_cond, "kind"] = "background"
+
+    nc = np.count_nonzero(stats.kind == "cell")
+    nb = np.count_nonzero(stats.kind == "background")
+    nr = np.count_nonzero(stats.kind == "remove")
+    logger.info("cell/bg/remove = %d/%d/%d", nc, nb, nr)
     return segments, stats
 
 

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..footprint import clean
+from ..spike import fix_kind
 from ..io import (
     save,
     try_load,
@@ -27,16 +28,20 @@ logger = getLogger(__name__)
 
 
 def spatial(cfg, stage, force=False):
-    footprintsfile, statsfile = get_files(cfg, "clean", stage)
+    cleanstatsfile, footprintsfile = get_files(cfg, "clean", stage)
     if (
         get_force(cfg, "clean", stage)
+        or not cleanstatsfile.exists()
         or not footprintsfile.exists
-        or not statsfile.exists()
     ):
-        stats, flags = try_load(get_files(cfg, "evaluate", stage - 1))
+        stats, = try_load(get_files(cfg, "evaluate", stage - 1))
         stats = stats.query("kind != 'remove'").copy()
-        segsfile, lossfile = get_files(cfg, "spatial", stage)
-        if get_force(cfg, "spatial", stage) or not segsfile.exists():
+        segstatsfile, segsfile, lossfile = get_files(cfg, "spatial", stage)
+        if (
+                get_force(cfg, "spatial", stage)
+                or not segstatsfile.exists()
+                or not segsfile.exists()
+        ):
             logger.info(f"exec spatial ({stage})")
             data = get_data(cfg)
             if stage == 1:
@@ -45,6 +50,14 @@ def spatial(cfg, stage, force=False):
                 footprints = try_load(get_files(cfg, "clean", stage - 1)[0])
             spikes, bg, _ = try_load(get_files(cfg, "temporal", stage - 1))
             logger.debug("%s", get_xla_stats())
+            stats, spikes, bg = fix_kind(
+                stats,
+                footprints,
+                spikes,
+                bg,
+                cfg.dynamics,
+                **cfg.clean.temporal,
+            )
             model = SpatialModel(
                 data,
                 stats,
@@ -85,7 +98,7 @@ def spatial(cfg, stage, force=False):
             )
 
             segments = x[rev_index(index)]
-            save((segsfile, lossfile), (segments, logdf))
+            save((segstatsfile, segsfile, lossfile), (stats, segments, logdf))
             logger.info(f"saved spatial ({stage})")
         else:
             logger.info(f"load spatial ({stage})")
@@ -97,10 +110,10 @@ def spatial(cfg, stage, force=False):
             stats,
             segments,
             cfg.radius.filter,
-            **cfg.clean.args,
+            **cfg.clean.spatial,
             **cfg.cmd.clean,
         )
-        save((footprintsfile, statsfile), (footprints, stats))
+        save((cleanstatsfile, footprintsfile), (stats, footprints))
         logger.info(f"saved clean ({stage})")
         if cfg.cmd.remove_segments:
             segsfile.unlink(missing_ok=True)

@@ -15,6 +15,9 @@ from ..utils import (
     get_clip,
     get_xla_stats,
 )
+from ..spike import (
+    evaluate,
+)
 from .common import (
     get_data,
     get_files,
@@ -26,17 +29,16 @@ logger = getLogger(__name__)
 
 
 def temporal(cfg, stage, force=False):
-    statsfile, flagfile = get_files(cfg, "evaluate", stage)
+    (statsfile,) = get_files(cfg, "evaluate", stage)
     if (
         get_force(cfg, "evaluate", stage)
         or not statsfile.exists()
-        or not flagfile.exists()
     ):
         if stage == 0:
             footprints = try_load(get_files(cfg, "make", stage))
             stats = try_load(get_files(cfg, "init", stage))
         else:
-            footprints, stats = try_load(get_files(cfg, "clean", stage))
+            stats, footprints = try_load(get_files(cfg, "clean", stage))
         spikefile, bgfile, lossfile = get_files(cfg, "temporal", stage)
         if (
             get_force(cfg, "temporal", stage)
@@ -85,32 +87,6 @@ def temporal(cfg, stage, force=False):
             spikes, bg, logdf = try_load((spikefile, bgfile, lossfile))
 
         logger.info(f"exec temporal stats ({stage})")
-
-        ci = stats.query("kind == 'cell'").index
-        bi = stats.query("kind == 'background'").index
-        stats["spkid"] = pd.Series(list(range(ci.shape[0])), index=ci)
-        stats["bgid"] = pd.Series(list(range(bi.shape[0])), index=bi)
-
-        sm = spikes.max(axis=1)
-        sd = spikes.mean(axis=1) / sm
-        sn = np.array([si.max() / (1.4826 * np.median(si[si > 0])) for si in spikes])
-        cell = stats.query("kind == 'cell'").index
-        if "signal" in stats.columns:
-            stats["old_signal"] = stats.signal
-        if "rsn" in stats.columns:
-            stats["old_rsn"] = stats.rsn
-        stats["signal"] = pd.Series(sm, index=cell)
-        stats["udense"] = pd.Series(sd, index=cell)
-        stats["snratio"] = pd.Series(sn, index=cell)
-        stats["rsn"] = pd.Series(1 / sn, index=cell)
-
-        bmax = np.abs(bg).max(axis=1)
-        bsn = np.array(
-            [bi.max() / (1.4826 * np.median(np.abs(bi[bi != 0]))) for bi in bg]
-        )
-        background = stats.query("kind=='background'").index
-        stats["bmax"] = pd.Series(bmax, index=background)
-        stats["bsparse"] = pd.Series(bsn, index=background)
-
-        save((statsfile, flagfile), (stats, "updated!"))
+        stats = evaluate(stats, spikes, bg)
+        save((statsfile,), (stats,))
         logger.info(f"saved temporal stats ({stage})")

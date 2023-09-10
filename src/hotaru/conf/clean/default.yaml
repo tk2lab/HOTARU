@@ -1,9 +1,6 @@
-label: default
-args:
+label: rsn${clean.temporal.thr_bg_rsn}
+spatial:
   cell_range: ${init.args.cell_range}
-  dupfilter:
-    thr_active_area: 0.0
-  bgfilter:
-    bias:
-    coef_formness:
-    coef_log_snr:
+  thr_move: 2.0
+temporal:
+  thr_bg_rsn: 2.0

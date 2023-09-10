@@ -1,7 +1,3 @@
-from .dynamics import (
-    SpikeToCalcium,
-    get_dynamics,
-)
 from .penalty import (
     Penalty,
     get_penalty,

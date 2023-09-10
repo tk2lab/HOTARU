@@ -21,7 +21,7 @@ make:
 init:
   dir0: ${outputs.make.dir0}
   files:
-    - "{stage:03d}stats.csv"
+    - "{stage:03d}initstats.csv"
 temporal:
   dir0: ${outputs.init.dir0}/${cmd.label}/${penalty.ulabel}
   dir: ${outputs.clean.dir}
@@ -34,18 +34,18 @@ evaluate:
   dir: ${outputs.temporal.dir}
   files:
     - "{stage:03d}stats.csv"
-    - ".{stage:03d}stats.flag"
 spatial:
-  dir0: ${outputs.evaluate.dir0}/${penalty.label}
+  dir0: ${outputs.evaluate.dir0}/${clean.label}-${penalty.label}
   dir: ${outputs.evaluate.dir}
   files:
+    - "{stage:03d}segstats.csv"
     - "{stage:03d}segments.npy"
     - "{stage:03d}loss_spatial.csv"
 clean:
-  dir: ${outputs.spatial.dir0}/${clean.label}
+  dir: ${outputs.spatial.dir0}
   files:
+    - "{stage:03d}cleanstats.csv"
     - "{stage:03d}footprints.h5"
-    - "{stage:03d}stats.csv"
 figs:
   dir: figs
 trace:

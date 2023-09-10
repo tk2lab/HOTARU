@@ -7,7 +7,7 @@ from .common import (
     loss_fn,
     prepare_matrix,
 )
-from .dynamics import get_dynamics
+from ..spike import get_dynamics
 from .optimizer import ProxOptimizer
 from .penalty import get_penalty
 from .regularizer import (

@@ -92,7 +92,7 @@ def reduce_log(cfg, stage):
     if stage == 0:
         stats = try_load(get_files(cfg, "reduce", stage))
     else:
-        _, stats = try_load(get_files(cfg, "clean", stage))
+        stats, _ = try_load(get_files(cfg, "clean", stage))
     cell = stats[stats.kind == "cell"]
     bg = stats[stats.kind == "background"]
     removed = stats[stats.kind == "remove"]
@@ -108,14 +108,10 @@ def reduce_log(cfg, stage):
         )
 
 
-def finish(cfg, stage):
-    stats, _ = try_load(get_files(cfg, "evaluate", stage))
+def print_stats(cfg, stage):
+    stats = try_load(get_files(cfg, "evaluate", stage))
+
     cell = stats[stats.kind == "cell"]
-    bg = stats[stats.kind == "background"]
-    removed = stats[stats.kind == "remove"]
-
-    reduce_log(cfg, stage)
-
     firmness = "intensity" if stage == 0 else "firmness"
     labels = [
         "y",
@@ -124,9 +120,13 @@ def finish(cfg, stage):
         firmness,
         "signal",
         "rsn",
-        "udense",
+        "pos_move",
+        "min_dist",
+        "max_dup",
     ]
     logger.info("cell: %d\n%s", cell.shape[0], cell[labels])
+
+    bg = stats[stats.kind == "background"]
     if bg.shape[0] > 0:
         labels = [
             "y",
@@ -143,17 +143,24 @@ def finish(cfg, stage):
         # if stage > 0:
         #    labels += ["old_radius", "old_udense", "old_bsparse"]
         logger.info("background: %d\n%s", bg.shape[0], bg[labels])
+
+    removed = stats[stats.kind == "remove"]
     if removed.shape[0] > 0:
         labels = [
             "y",
             "x",
             "radius",
             firmness,
-            "asum",
-            "area",
             "pos_move",
-            "dup",
+            "min_dist",
+            "max_dup",
         ]
         logger.info("removed: %d\n%s", removed.shape[0], removed[labels])
 
+
+def finish(cfg, stage):
+    stats = try_load(get_files(cfg, "evaluate", stage))
+    removed = stats[stats.kind == "remove"]
+
+    reduce_log(cfg, stage)
     return cfg.early_stop and (stage > 0) and removed.shape[0] == 0

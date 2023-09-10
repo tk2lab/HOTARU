@@ -36,6 +36,10 @@ def clean(
     prefetch=1,
 ):
     stats = stats.sort_values("segid")
+    oldy = stats.y.to_numpy()
+    oldx = stats.x.to_numpy()
+    oldr = stats.radius.to_numpy()
+
     segments, y, x, radius, firmness = clean_footprints(
         segs,
         radius,
@@ -47,10 +51,6 @@ def clean(
     stats["x"] = x
     stats["radius"] = radius
     stats["firmness"] = firmness
-
-    oldy = stats.y.to_numpy()
-    oldx = stats.x.to_numpy()
-    oldr = stats.radius.to_numpy()
     stats["pos_move"] = np.hypot(x - oldx, y - oldy) / oldr
 
     stats["old_kind"] = stats.kind

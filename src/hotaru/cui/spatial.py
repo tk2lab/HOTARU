@@ -34,7 +34,7 @@ def spatial(cfg, stage, force=False):
         or not cleanstatsfile.exists()
         or not footprintsfile.exists
     ):
-        stats, = try_load(get_files(cfg, "evaluate", stage - 1))
+        stats = try_load(get_files(cfg, "evaluate", stage - 1))
         stats = stats.query("kind != 'remove'").copy()
         segstatsfile, segsfile, lossfile = get_files(cfg, "spatial", stage)
         if (

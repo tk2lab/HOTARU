@@ -112,6 +112,11 @@ def print_stats(cfg, stage):
     stats = try_load(get_files(cfg, "evaluate", stage))
 
     cell = stats[stats.kind == "cell"]
+    rsn = cell.rsn
+    med = np.median(rsn)
+    std = 1.4826 * np.median(np.abs(rsn - med))
+    thr = med + 2 * std
+    logger.info("rsn: med=%.3f std=%.3f thr=%.3f", med, std, thr)
     firmness = "intensity" if stage == 0 else "firmness"
     labels = [
         "y",
@@ -120,11 +125,14 @@ def print_stats(cfg, stage):
         firmness,
         "signal",
         "rsn",
-        "pos_move",
-        "min_dist",
-        "max_dup",
     ]
-    logger.info("cell: %d\n%s", cell.shape[0], cell[labels])
+    if stage > 0:
+        labels += [
+            "pos_move",
+            "min_dist",
+            "max_dup",
+        ]
+    logger.info("cell: %d\n%s", cell.shape[0], cell[labels].sort_values("rsn"))
 
     bg = stats[stats.kind == "background"]
     if bg.shape[0] > 0:
@@ -136,10 +144,8 @@ def print_stats(cfg, stage):
             "bmax",
             "bsparse",
         ]
-        if "old_signal" in bg.columns:
-            labels += ["old_signal"]
-        if "old_rsn" in bg.columns:
-            labels += ["old_rsn"]
+        if stage > 0:
+            labels += ["old_signal", "old_rsn"]
         # if stage > 0:
         #    labels += ["old_radius", "old_udense", "old_bsparse"]
         logger.info("background: %d\n%s", bg.shape[0], bg[labels])

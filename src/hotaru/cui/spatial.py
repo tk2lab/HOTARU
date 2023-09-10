@@ -45,9 +45,9 @@ def spatial(cfg, stage, force=False):
             logger.info(f"exec spatial ({stage})")
             data = get_data(cfg)
             if stage == 1:
-                footprints = try_load(get_files(cfg, "make", stage - 1)[0])
+                footprints = try_load(get_files(cfg, "make", stage - 1))
             else:
-                footprints = try_load(get_files(cfg, "clean", stage - 1)[0])
+                _, footprints = try_load(get_files(cfg, "clean", stage - 1))
             spikes, bg, _ = try_load(get_files(cfg, "temporal", stage - 1))
             logger.debug("%s", get_xla_stats())
             stats, spikes, bg = fix_kind(
@@ -98,15 +98,14 @@ def spatial(cfg, stage, force=False):
             )
 
             segments = x[rev_index(index)]
+            stats["segid"] = np.arange(stats.shape[0])
             save((segstatsfile, segsfile, lossfile), (stats, segments, logdf))
             logger.info(f"saved spatial ({stage})")
         else:
             logger.info(f"load spatial ({stage})")
             segments = try_load(segsfile)
         logger.info(f"exec clean ({stage})")
-        n1 = np.count_nonzero(stats.kind == "cell")
-        stats["segid"] = np.where(stats.kind == "cell", stats.spkid, stats.bgid + n1)
-        footprints, stats = clean(
+        stats, footprints = clean(
             stats,
             segments,
             cfg.radius.filter,

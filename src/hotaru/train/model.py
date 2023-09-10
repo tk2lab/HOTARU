@@ -30,8 +30,10 @@ class Model:
     def _try_clip(self, clip, segs):
         cdf = self._stats.query("kind=='cell'")
         bdf = self._stats.query("kind=='background'")
-        fp = segs[cdf.segid.to_numpy().astype(np.int32)]
-        bg = segs[bdf.segid.to_numpy().astype(np.int32)]
+        cid = cdf.segid.to_numpy().astype(np.int32)
+        bid = bdf.segid.to_numpy().astype(np.int32)
+        fp = segs[cid]
+        bg = segs[bid]
 
         clipped_fp = clip.clip(fp)
         clipped1 = np.any(clipped_fp > 0, axis=(1, 2))
@@ -62,9 +64,11 @@ class Model:
         if self._trans:
             nx, ny = data.nt, data.ns
             bx, by = penalty.bt, penalty.bs
+            logger.info("lu: %f", self._penalty.lu[1][0])
         else:
             nx, ny = data.ns, data.nt
             bx, by = penalty.bs, penalty.bt
+            logger.info("la: %f", self._penalty.la[1][0])
         nx, ny, bx, by = (jnp.array(v, jnp.float32) for v in (nx, ny, bx, by))
 
         self._args = ycov, yout, ydot, nx, ny, bx, by, py

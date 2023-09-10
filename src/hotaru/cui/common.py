@@ -3,6 +3,7 @@ from logging import getLogger
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from hydra.core.hydra_config import HydraConfig
 
 from ..io import (
@@ -117,22 +118,29 @@ def print_stats(cfg, stage):
     std = 1.4826 * np.median(np.abs(rsn - med))
     thr = med + 2 * std
     logger.info("rsn: med=%.3f std=%.3f thr=%.3f", med, std, thr)
-    firmness = "intensity" if stage == 0 else "firmness"
     labels = [
         "y",
         "x",
         "radius",
-        firmness,
+        "firmness",
         "signal",
+        # "udense",
+        "unz",
         "rsn",
     ]
     if stage > 0:
         labels += [
-            "pos_move",
+            "min_dist_id",
             "min_dist",
+            "max_dup_id",
             "max_dup",
         ]
-    logger.info("cell: %d\n%s", cell.shape[0], cell[labels].sort_values("rsn"))
+    with pd.option_context("display.max_rows", None):
+        logger.info(
+            "cell: %d\n%s",
+            cell.shape[0],
+            cell[labels].sort_values("signal", ascending=False),
+        )
 
     bg = stats[stats.kind == "background"]
     if bg.shape[0] > 0:
@@ -140,15 +148,18 @@ def print_stats(cfg, stage):
             "y",
             "x",
             "radius",
-            firmness,
+            "firmness",
             "bmax",
             "bsparse",
         ]
-        if stage > 0:
-            labels += ["old_signal", "old_rsn"]
         # if stage > 0:
         #    labels += ["old_radius", "old_udense", "old_bsparse"]
-        logger.info("background: %d\n%s", bg.shape[0], bg[labels])
+        with pd.option_context("display.max_rows", None):
+            logger.info(
+                "background: %d\n%s",
+                bg.shape[0],
+                bg[labels].sort_values("bmax", ascending=False),
+            )
 
     removed = stats[stats.kind == "remove"]
     if removed.shape[0] > 0:
@@ -156,12 +167,15 @@ def print_stats(cfg, stage):
             "y",
             "x",
             "radius",
-            firmness,
             "pos_move",
-            "min_dist",
-            "max_dup",
+            "firmness",
         ]
-        logger.info("removed: %d\n%s", removed.shape[0], removed[labels])
+        with pd.option_context("display.max_rows", None):
+            logger.info(
+                "removed: %d\n%s",
+                removed.shape[0],
+                removed[labels].sort_values("firmness", ascending=False),
+            )
 
 
 def finish(cfg, stage):

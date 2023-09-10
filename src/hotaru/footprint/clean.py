@@ -4,6 +4,7 @@ from logging import getLogger
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pandas  as pd
 import tensorflow as tf
 from scipy.ndimage import grey_closing
 
@@ -52,32 +53,47 @@ def clean(
     oldr = stats.radius.to_numpy()
     stats["pos_move"] = np.hypot(x - oldx, y - oldy) / oldr
 
-    dist_mat = np.hypot(x[:, np.newaxis] - x, y[:, np.newaxis] - y) / radius
-    np.fill_diagonal(dist_mat, np.inf)
-    stats["min_dist_id"] = stats.index[np.argmin(dist_mat, axis=0)]
-    stats["min_dist"] = dist_mat.min(axis=0)
-
-    val_mat = segments[:, y, x]
-    np.fill_diagonal(val_mat, 0)
-    stats["max_dup_id"] = stats.index[np.argmax(val_mat, axis=0)]
-    stats["max_dup"] = val_mat.max(axis=0)
-
     stats["old_kind"] = stats.kind
     stats["kind"] = "cell"
-
-    remove_cond = (stats.old_kind == "cell") & (stats.pos_move < thr_move)
-    remove_cond |= (stats.radius < cell_range[0])
-    stats.loc[remove_cond, "kind"] = "remove"
 
     bg_cond = (stats.old_kind == "background")
     bg_cond |= (stats.radius > cell_range[-1])
     stats.loc[bg_cond, "kind"] = "background"
 
-    nc = np.count_nonzero(stats.kind == "cell")
-    nb = np.count_nonzero(stats.kind == "background")
-    nr = np.count_nonzero(stats.kind == "remove")
+    remove_cond = (stats.old_kind == "cell") & (stats.pos_move > thr_move)
+    remove_cond |= (stats.radius < cell_range[0])
+    stats.loc[remove_cond, "kind"] = "remove"
+    stats["min_dist_id"] = -1
+    stats["max_dup_id"] = -1
+
+    cell_cond = (stats.kind == "cell").to_numpy()
+    cell_df = stats.loc[cell_cond].copy()
+
+    ys = y[cell_cond]
+    xs = x[cell_cond]
+    rs = radius[cell_cond]
+
+    dist_mat = np.hypot(xs[:, np.newaxis] - xs, ys[:, np.newaxis] - ys) / rs
+    np.fill_diagonal(dist_mat, np.inf)
+    cell_df["min_dist_id"] = cell_df.index[np.argmin(dist_mat, axis=0)]
+    cell_df["min_dist"] = dist_mat.min(axis=0)
+
+    val_mat = segments[cell_cond][:, ys, xs]
+    np.fill_diagonal(val_mat, 0)
+    cell_df["max_dup_id"] = cell_df.index[np.argmax(val_mat, axis=0)]
+    cell_df["max_dup"] = val_mat.max(axis=0)
+
+    bg_df = stats.query("kind == 'background'").copy()
+    remove_df = stats.query("kind == 'remove'").copy()
+    stats = pd.concat([cell_df, bg_df, remove_df], axis=0)
+    stats["spkid"] = -1
+    stats["bgid"] = -1
+
+    nc = cell_df.shape[0]
+    nb = bg_df.shape[0]
+    nr = remove_df.shape[0]
     logger.info("cell/bg/remove = %d/%d/%d", nc, nb, nr)
-    return segments, stats
+    return stats, segments
 
 
 def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
@@ -121,7 +137,7 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     r = jnp.empty((nk + 1,), jnp.int32)
     g = jnp.empty((nk + 1,), jnp.float32)
 
-    logger.info("clean: %s %s", (factor, h, w), batch)
+    logger.debug("clean: %s %s", (factor, h, w), batch)
     logger.info("%s: %s %s %d", "pbar", "start", "clean", nk)
     for data in dataset:
         data = (from_tf(v) for v in data)

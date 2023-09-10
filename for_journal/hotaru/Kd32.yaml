@@ -5,16 +5,17 @@ defaults:
   - /radius: miniature
   - /init: min31
 
-  - /cmd: clip2x2
+  - /cmd: Kd32
   - /dynamics: default
-  - /penalty: ua
-  - /clean: pos0
+  - /penalty: annealing
+  - /clean: default
 
   - /env: default
   - /outputs: default
   - _self_
 
-outputs:
-  dir: /scratch/acc13056eo/outputs
-
+clean:
+  temporal:
+    thr_bg_rsn: 10.0
+early_stop: false
 max_train_step: 30

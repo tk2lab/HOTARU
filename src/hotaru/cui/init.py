@@ -26,10 +26,10 @@ def init(cfg):
     (statsfile,) = get_files(cfg, "init", 0)
     if get_force(cfg, "init", 0) or not statsfile.exists():
         (makefile,) = get_files(cfg, "make", 0)
+        (reducefile,) = get_files(cfg, "reduce", 0)
         if get_force(cfg, "make", 0) or not makefile.exists():
             logger.debug("%s", get_xla_stats())
             data = get_data(cfg)
-            (reducefile,) = get_files(cfg, "reduce", 0)
             if get_force(cfg, "reduce", 0) or not reducefile.exists():
                 (findfile,) = get_files(cfg, "find", 0)
                 if get_force(cfg, "find", 0) or not findfile.exists():

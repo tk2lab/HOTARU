@@ -116,10 +116,10 @@ def reduce_peaks(peakval, cell_range, min_distance_ratio, block_size):
                 x=x,
                 t=ts[y, x],
                 radius=rs[y, x],
-                intensity=vs[y, x],
+                firmness=vs[y, x],
             )
         )
-        return df.sort_values("intensity", ascending=False)
+        return df.sort_values("firmness", ascending=False)
 
     cell = make_dataframe(celly, cellx)
     cell["kind"] = "cell"
@@ -131,7 +131,7 @@ def reduce_peaks(peakval, cell_range, min_distance_ratio, block_size):
     nk = np.count_nonzero(peaks.kind == "cell")
     nb = np.count_nonzero(peaks.kind == "background")
     logger.info("num cell/bg: %d/%d", nk, nb)
-    return peaks
+    return peaks[["segid", "kind", "y", "x", "t", "radius", "firmness"]]
 
 
 def _reduce_peaks(args):

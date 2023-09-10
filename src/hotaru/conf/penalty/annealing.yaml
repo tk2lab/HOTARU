@@ -5,7 +5,8 @@ la:
   factor: 0.02
 lu:
   type: MaxNormNonNegativeL1
-  annealing: 0.001
+  annealing: 0.0002
+  max: 0.002
 lb: 0.1
 bs: 0.1
 bt: 0.1

@@ -5,19 +5,17 @@ defaults:
   - /radius: miniature
   - /init: min27
 
-  - /cmd: clip3-100
+  - /cmd: CA3
   - /dynamics: default
-  - /penalty: default
-  - /clean: pos0
+  - /penalty: annealing
+  - /clean: default
 
   - /env: default
   - /outputs: default
+  - _self_
 
-hydra:
-  mode: MULTIRUN
-  sweeper:
-    params:
-      penalty.lu.factor: 0.000,0.015,0.010,0.005
-      penalty.la.factor: 0.00,0.15,0.10,0.05
-
-max_train_step: 10
+clean:
+  temporal:
+    thr_bg_rsn: 3.0
+early_stop: false
+max_train_step: 30

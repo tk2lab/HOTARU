@@ -1,5 +1,0 @@
-label: clu5-99
-args:
-  cell_range: ${init.args.cell_range}
-  thr_active_area: 0.5
-  thr_bg_cluster: 0.99

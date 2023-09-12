@@ -1,7 +1,0 @@
-label: nobg
-args:
-  cell_range: ${init.args.cell_range}
-  thr_active_area: 0.9
-  thr_remove_sim: 1.0
-  thr_bg_udense: 10.0
-  thr_cell_bsparse: null

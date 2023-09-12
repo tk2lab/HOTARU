@@ -1,8 +1,0 @@
-label: dup0.9-sig1.0
-args:
-  cell_range: ${init.args.cell_range}
-  thr_active_area: 0.9
-  thr_bg_signal: 1.0
-  thr_bg_udense: 1.0
-  thr_bg_firmness: 0.0
-  thr_cell_bsparse: null

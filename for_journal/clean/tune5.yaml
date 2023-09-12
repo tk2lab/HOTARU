@@ -1,7 +1,0 @@
-label: tune4
-args:
-  cell_range: ${init.args.cell_range}
-  thr_active_area: 0.9
-  thr_remove_sim: 1.0
-  thr_bg_udense: 0.1
-  thr_cell_bspars: null

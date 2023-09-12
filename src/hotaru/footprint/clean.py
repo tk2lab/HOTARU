@@ -30,7 +30,6 @@ def clean(
     radius,
     cell_range,
     thr_move,
-    dupfilter=None,
     env=None,
     factor=1,
     prefetch=1,

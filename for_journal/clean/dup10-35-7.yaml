@@ -1,7 +1,0 @@
-label: dup10-35-7
-args:
-  cell_range: ${init.args.cell_range}
-  thr_bg_udense: 0.1
-  thr_bg_firmness: 0.35
-  thr_active_area: 0.7
-  thr_cell_bsparse: null

@@ -1,4 +1,4 @@
-ulabel: sua${penalty.lu.annealing}
+ulabel: sua${penalty.lu.annealing}-lb${penalty.lb}
 label: sa${penalty.la.factor}
 la:
   type: MaxNormNonNegativeL1
@@ -7,6 +7,6 @@ lu:
   type: MaxNormNonNegativeL1
   annealing: 0.0002
   max: 0.002
-lb: 0.1
+lb: 0.01
 bs: 0.1
 bt: 0.1

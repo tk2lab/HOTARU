@@ -127,6 +127,7 @@ def print_stats(cfg, stage):
         # "udense",
         "unz",
         "rsn",
+        "zrsn",
     ]
     if stage > 0:
         labels += [

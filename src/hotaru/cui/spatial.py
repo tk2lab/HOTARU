@@ -56,7 +56,7 @@ def spatial(cfg, stage, force=False):
                 spikes,
                 bg,
                 cfg.dynamics,
-                **cfg.clean.temporal,
+                **cfg.clean.thr_bg,
             )
             model = SpatialModel(
                 data,

@@ -1,8 +1,0 @@
-label: t11-35
-args:
-  cell_range: ${init.args.cell_range}
-  thr_active_area: 0.9
-  thr_remove_sim: 1.0
-  thr_bg_udense: 0.11
-  thr_bg_firmness: 0.35
-  thr_cell_bsparse: null

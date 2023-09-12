@@ -1,7 +1,0 @@
-label: dup30-30
-args:
-  cell_range: ${init.args.cell_range}
-  thr_active_area: 0.0
-  thr_bg_udense: 0.30
-  thr_bg_firmness: 0.30
-  thr_cell_bsparse: null

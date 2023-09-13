@@ -81,7 +81,7 @@ def reduce_peaks_mesh(rs, vs, *args, **kwargs):
     return ys[cell], xs[cell], ys[bg], xs[bg]
 
 
-def reduce_peaks(peakval, cell_range, min_distance_ratio, block_size):
+def reduce_peaks(peakval, cell_range, min_distance_ratio, block_size, no_bg=False):
     logger.info("reduce_peaks: %s %f %d", cell_range, min_distance_ratio, block_size)
     static_args = cell_range, min_distance_ratio
 
@@ -123,9 +123,12 @@ def reduce_peaks(peakval, cell_range, min_distance_ratio, block_size):
 
     cell = make_dataframe(celly, cellx)
     cell["kind"] = "cell"
-    bg = make_dataframe(bgy, bgx)
-    bg["kind"] = "background"
-    peaks = pd.concat([cell, bg], axis=0)
+    if no_bg:
+        peaks = cell
+    else:
+        bg = make_dataframe(bgy, bgx)
+        bg["kind"] = "background"
+        peaks = pd.concat([cell, bg], axis=0)
     peaks = peaks.reset_index(drop=True)
     peaks.insert(0, "segid", peaks.index)
     nk = np.count_nonzero(peaks.kind == "cell")

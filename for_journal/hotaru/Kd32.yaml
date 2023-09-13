@@ -14,8 +14,5 @@ defaults:
   - /outputs: default
   - _self_
 
-clean:
-  temporal:
-    thr_bg_rsn: 10.0
-early_stop: false
-max_train_step: 30
+early_stop: true
+max_train_step: 20

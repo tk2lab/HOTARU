@@ -33,6 +33,7 @@ def clean(
     env=None,
     factor=1,
     prefetch=1,
+    no_bg=False,
 ):
     stats = stats.sort_values("segid")
     oldy = stats.y.to_numpy()
@@ -56,11 +57,14 @@ def clean(
     stats["kind"] = "cell"
 
     bg_cond = (stats.old_kind == "background")
-    bg_cond |= (stats.radius > cell_range[-1])
-    stats.loc[bg_cond, "kind"] = "background"
-
     remove_cond = (stats.old_kind == "cell") & (stats.pos_move > thr_move)
+    if no_bg:
+        remove_cond |= (stats.radius > cell_range[-1])
+    else:
+        bg_cond |= (stats.radius > cell_range[-1])
     remove_cond |= (stats.radius < cell_range[0])
+
+    stats.loc[bg_cond, "kind"] = "background"
     stats.loc[remove_cond, "kind"] = "remove"
     stats["min_dist_id"] = -1
     stats["max_dup_id"] = -1

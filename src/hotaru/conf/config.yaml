@@ -5,6 +5,8 @@ defaults:
 
 mode: test
 
+no_bg: false
+
 max_train_step: 10
 early_stop: true
 force_from:

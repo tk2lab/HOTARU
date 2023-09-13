@@ -2,5 +2,6 @@ label: default
 spatial:
   cell_range: ${init.args.cell_range}
   thr_move: 2.0
+  no_bg: ${no_bg}
 thr_bg: {}
 thr_cell: {}

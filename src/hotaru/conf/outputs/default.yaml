@@ -11,7 +11,7 @@ find:
   files:
     - "{stage:03d}find.npz"
 reduce:
-  dir0: ${outputs.find.dir0}/${init.label}
+  dir0: ${outputs.find.dir0}/${init.label}-${no_bg}
   files:
     - "{stage:03d}reduce.csv"
 make:

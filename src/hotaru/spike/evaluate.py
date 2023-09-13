@@ -72,9 +72,10 @@ def evaluate(stats, spikes, bg):
     return stats[[k for k in labels if k in stats.columns]]
 
 
-def fix_kind(stats, footprints, spikes, bg, dynamics, **thr_bg):
+def fix_kind(stats, footprints, spikes, bg, dynamics, thr_bg, thr_cell):
     dynamics = get_dynamics(dynamics)
     cell_df = stats.query("kind == 'cell'")
+    bg_df = stats.query("kind == 'background'")
     logger.info("thr %s", thr_bg)
     with np.printoptions(precision=3, suppress=True):
         bins = [-np.inf, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, np.inf]
@@ -93,17 +94,33 @@ def fix_kind(stats, footprints, spikes, bg, dynamics, **thr_bg):
         else:
             to_bg_mask |= cell_df[k] < thr
 
+    if len(thr_cell) == 0:
+        to_cell_mask = np.zeros(bg_df.shape[0], bool)
+    else:
+        to_cell_mask = np.ones(bg_df.shape[0], bool)
+        for k, thr in thr_cell.items():
+            to_cell_mask &= bg_df[k] > thr
+
     spikes, to_bg = spikes[~to_bg_mask], spikes[to_bg_mask]
     cell_df, to_bg_df = cell_df.loc[~to_bg_mask], cell_df.loc[to_bg_mask].copy()
+    bg, to_cell = bg[~to_cell_mask], bg[to_cell_mask]
+    bg_df, to_cell_df = bg_df.loc[~to_cell_mask], bg_df.loc[to_cell_mask].copy()
     to_bg = np.array(dynamics(to_bg))
+    to_cell = np.array(dynamics.reverse(to_cell))
+    spikes = np.concatenate([spikes, to_cell], axis=0)
     bg = np.concatenate([bg, to_bg], axis=0)
 
-    bg_df = stats.query("kind == 'background'")
+    nc = cell_df.shape[0]
     nb = bg_df.shape[0]
-    nn = np.count_nonzero(to_bg_mask)
+    nn = to_bg_df.shape[0]
+    nm = to_cell_df.shape[0]
     cell_df["spkid"] = np.arange(cell_df.shape[0])
+    bg_df["bgid"] = np.arange(bg_df.shape[0])
     to_bg_df["kind"] = "background"
     to_bg_df["spkid"] = -1
     to_bg_df["bgid"] = np.arange(nb, nb + nn, dtype=np.int32)
-    stats = pd.concat([cell_df, bg_df, to_bg_df], axis=0)
+    to_bg_df["kind"] = "cell"
+    to_bg_df["spkid"] = np.arange(nc, nc + nm, dtype=np.int32)
+    to_bg_df["bgd"] = -1
+    stats = pd.concat([cell_df, to_cell_df, bg_df, to_bg_df], axis=0)
     return stats, spikes, bg

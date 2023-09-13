@@ -30,10 +30,11 @@ def clean(
     radius,
     cell_range,
     thr_move,
+    no_bg=False,
+    fix_top=False,
     env=None,
     factor=1,
     prefetch=1,
-    no_bg=False,
 ):
     stats = stats.sort_values("segid")
     oldy = stats.y.to_numpy()
@@ -46,6 +47,7 @@ def clean(
         env,
         factor,
         prefetch,
+        fix_top,
     )
     stats["y"] = y
     stats["x"] = x
@@ -99,9 +101,17 @@ def clean(
     return stats, segments
 
 
-def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
+def clean_footprints(segs, radius, env=None, factor=1, prefetch=1, fix_top=False):
     @jax.jit
     def calc(imgs):
+        if fix_top:
+            nk, h, w = imgs.shape
+            print(nk)
+            imgs = imgs.reshape(nk, h * w)
+            idx1 = jnp.arange(nk)
+            idx2 = jnp.argsort(imgs, axis=1)
+            imgs = imgs.at[idx1, idx2[:, -1]].set(imgs[idx1, idx2[:, -2]])
+            imgs = imgs.reshape(nk, h, w)
         imgs /= imgs.max(axis=(1, 2), keepdims=True)
         gl = gaussian_laplace(imgs, radius, -3)
         nk, nr, h, w = gl.shape
@@ -110,9 +120,9 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
         r, y, x = idx // (h * w), (idx // w) % h, idx % w
         g = gl[k, r, y, x]
         seg = jax.vmap(get_segment_mask)(gl[k, r], y, x)
-        imgs = jnp.where(seg, imgs, jnp.nan)
-        dmin = jnp.nanmin(jnp.where(seg, imgs, jnp.nan), axis=(1, 2), keepdims=True)
-        dmax = jnp.nanmax(jnp.where(seg, imgs, jnp.nan), axis=(1, 2), keepdims=True)
+        imgs = jnp.where(seg, imgs, 0)
+        dmin = jnp.min(jnp.where(seg, imgs, jnp.inf), axis=(1, 2), keepdims=True)
+        dmax = jnp.max(jnp.where(seg, imgs, -jnp.inf), axis=(1, 2), keepdims=True)
         imgs = jnp.where(seg, (imgs - dmin) / (dmax - dmin), 0)
         return imgs, y, x, r, g
 

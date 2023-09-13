@@ -6,6 +6,7 @@ defaults:
 mode: test
 
 no_bg: false
+fix_top: false
 
 max_train_step: 10
 early_stop: true

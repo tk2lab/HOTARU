@@ -12,6 +12,12 @@ logger = getLogger(__name__)
 
 
 def evaluate(stats, spikes, bg):
+    cond_remove = stats.kind == "cell"
+    cond_remove_cell = spikes.max(axis=1) == 0
+    cond_remove[cond_remove] = cond_remove_cell
+    stats.loc[cond_remove, "kind"] = "remove"
+    spikes = spikes[~cond_remove_cell]
+
     sm = spikes.max(axis=1)
     sd = spikes.mean(axis=1) / sm
     nonzero = np.count_nonzero(spikes > 0, axis=1)
@@ -26,7 +32,7 @@ def evaluate(stats, spikes, bg):
 
     ci = stats.kind == "cell"
     stats["spkid"] = -1
-    stats.loc[ci, "spkid"] = list(range(np.count_nonzero(ci)))
+    stats.loc[ci, "spkid"] = np.where(~cond_remove_cell)[0]
     stats["signal"] = None
     stats.loc[ci, "signal"] = sm
     stats["udense"] = None
@@ -75,10 +81,11 @@ def evaluate(stats, spikes, bg):
     return stats[[k for k in labels if k in stats.columns]]
 
 
-def fix_kind(stats, footprints, spikes, bg, dynamics, thr_bg, thr_cell):
+def fix_kind(stats, spikes, bg, dynamics, thr_bg, thr_cell):
     fdynamics = get_dynamics(dynamics)
     rdynamics = get_rdynamics(dynamics)
     cell_df = stats.query("kind == 'cell'")
+    spikes = spikes[cell_df.spkid.to_numpy()]
     bg_df = stats.query("kind == 'background'")
     logger.info("thr %s", thr_bg)
     with np.printoptions(precision=3, suppress=True):
@@ -105,6 +112,9 @@ def fix_kind(stats, footprints, spikes, bg, dynamics, thr_bg, thr_cell):
         for k, thr in thr_cell.items():
             to_cell_mask &= bg_df[k] > thr
 
+    print(spikes.shape)
+    print(to_bg_mask.shape)
+    print(np.count_nonzero(to_bg_mask))
     spikes, to_bg = spikes[~to_bg_mask], spikes[to_bg_mask]
     cell_df, to_bg_df = cell_df.loc[~to_bg_mask], cell_df.loc[to_bg_mask].copy()
     bg, to_cell = bg[~to_cell_mask], bg[to_cell_mask]

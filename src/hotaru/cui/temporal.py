@@ -80,6 +80,10 @@ def temporal(cfg, stage, force=False):
             index1, index2, x1, x2 = (np.concatenate(v, axis=0) for v in zip(*out))
             spikes = np.array(x1[rev_index(index1)])
             bg = np.array(x2[rev_index(index2)])
+            if cfg.fix_top:
+                nk, nu = spikes.shape
+                idx = np.argpartition(spikes, -2, axis=1)
+                spikes[np.arange(nk), idx[:, -1]] = spikes[np.arange(nk), idx[:, -2]]
             save((spikefile, bgfile, lossfile), (spikes, bg, logdf))
             logger.info(f"saved temporal ({stage})")
         else:

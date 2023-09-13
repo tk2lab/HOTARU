@@ -1,8 +1,10 @@
-label: default
+label: cellbg
 spatial:
   cell_range: ${init.args.cell_range}
   thr_move: 2.0
   no_bg: ${no_bg}
-  fix_top: ${fix_top}
-thr_bg: {}
-thr_cell: {}
+thr_bg:
+  rsn: 0.2
+thr_cell:
+  bmax: 10.0
+  bsparse: 10.0

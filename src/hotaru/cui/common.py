@@ -168,9 +168,12 @@ def print_stats(cfg, stage):
             "y",
             "x",
             "radius",
-            "pos_move",
             "firmness",
         ]
+        if stage > 0:
+            labels += [
+                "pos_move",
+            ]
         with pd.option_context("display.max_rows", None):
             logger.info(
                 "removed: %d\n%s",

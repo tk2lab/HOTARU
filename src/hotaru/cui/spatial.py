@@ -52,7 +52,6 @@ def spatial(cfg, stage, force=False):
             logger.debug("%s", get_xla_stats())
             stats, spikes, bg = fix_kind(
                 stats,
-                footprints,
                 spikes,
                 bg,
                 cfg.dynamics,

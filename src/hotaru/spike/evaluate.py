@@ -3,7 +3,10 @@ from logging import getLogger
 import numpy as np
 import pandas as pd
 
-from .dynamics import get_dynamics
+from .dynamics import (
+    get_dynamics,
+    get_rdynamics,
+)
 
 logger = getLogger(__name__)
 
@@ -73,7 +76,8 @@ def evaluate(stats, spikes, bg):
 
 
 def fix_kind(stats, footprints, spikes, bg, dynamics, thr_bg, thr_cell):
-    dynamics = get_dynamics(dynamics)
+    fdynamics = get_dynamics(dynamics)
+    rdynamics = get_rdynamics(dynamics)
     cell_df = stats.query("kind == 'cell'")
     bg_df = stats.query("kind == 'background'")
     logger.info("thr %s", thr_bg)
@@ -105,8 +109,8 @@ def fix_kind(stats, footprints, spikes, bg, dynamics, thr_bg, thr_cell):
     cell_df, to_bg_df = cell_df.loc[~to_bg_mask], cell_df.loc[to_bg_mask].copy()
     bg, to_cell = bg[~to_cell_mask], bg[to_cell_mask]
     bg_df, to_cell_df = bg_df.loc[~to_cell_mask], bg_df.loc[to_cell_mask].copy()
-    to_bg = np.array(dynamics(to_bg))
-    to_cell = np.array(dynamics.reverse(to_cell))
+    to_bg = np.array(fdynamics(to_bg))
+    to_cell = np.array(rdynamics(to_cell))
     spikes = np.concatenate([spikes, to_cell], axis=0)
     bg = np.concatenate([bg, to_bg], axis=0)
 

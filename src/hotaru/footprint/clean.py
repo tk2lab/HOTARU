@@ -2,6 +2,7 @@ from collections import namedtuple
 from logging import getLogger
 
 import jax
+import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
 import pandas  as pd
@@ -30,6 +31,7 @@ def clean(
     radius,
     cell_range,
     thr_move,
+    thr_aratio,
     no_bg=False,
     fix_top=False,
     env=None,
@@ -49,9 +51,23 @@ def clean(
         prefetch,
         fix_top,
     )
+
+    ratio = []
+    for ai in range(segments):
+        gy, gx = np.where(ai > 0)
+        w = ai[gy, gx]
+        try:
+            s = np.sqrt(np.linalg.eigvals(np.cov(gy, gx, awieghts=w)))
+            v = s.max() / s.min()
+        except np.linalg.LinAlgError:
+            v = np.nan
+        ratio.append(v)
+    ratio = np.array(ratio, np.float32)
+
     stats["y"] = y
     stats["x"] = x
     stats["radius"] = radius
+    stats["aratio"] = ratio
     stats["firmness"] = firmness
     stats["pos_move"] = np.hypot(x - oldx, y - oldy) / oldr
 
@@ -60,11 +76,13 @@ def clean(
 
     bg_cond = (stats.old_kind == "background")
     remove_cond = (stats.old_kind == "cell") & (stats.pos_move > thr_move)
-    if no_bg:
-        remove_cond |= (stats.radius > cell_range[-1])
-    else:
-        bg_cond |= (stats.radius > cell_range[-1])
     remove_cond |= (stats.radius < cell_range[0])
+    tmp_cond = (stats.radius > cell_range[-1])
+    tmp_cond |= (stats.aratio > thr_aratio)
+    if no_bg:
+        remove_cond |= tmp_cond
+    else:
+        bg_cond |= tmp_cond
 
     stats.loc[bg_cond, "kind"] = "background"
     stats.loc[remove_cond, "kind"] = "remove"
@@ -104,19 +122,16 @@ def clean(
 def clean_footprints(segs, radius, env=None, factor=1, prefetch=1, fix_top=False):
     @jax.jit
     def calc(imgs):
+        nk, h, w = imgs.shape
+        k = jnp.arange(nk)
         if fix_top:
-            nk, h, w = imgs.shape
-            print(nk)
-            imgs = imgs.reshape(nk, h * w)
-            idx1 = jnp.arange(nk)
-            idx2 = jnp.argsort(imgs, axis=1)
-            imgs = imgs.at[idx1, idx2[:, -1]].set(imgs[idx1, idx2[:, -2]])
-            imgs = imgs.reshape(nk, h, w)
+            rimgs = imgs.reshape(nk, h * w)
+            _, idx = jax.vmap(lax.top_k, in_axes=(0, None))(rimgs, 2)
+            imgs = rimgs.at[k, idx[:, 0]].set(rimgs[k, idx[:, 1]]).reshape(nk, h, w)
         imgs /= imgs.max(axis=(1, 2), keepdims=True)
         gl = gaussian_laplace(imgs, radius, -3)
         nk, nr, h, w = gl.shape
         idx = jnp.argmax(gl.reshape(nk, nr * h * w), axis=1)
-        k = jnp.arange(nk)
         r, y, x = idx // (h * w), (idx // w) % h, idx % w
         g = gl[k, r, y, x]
         seg = jax.vmap(get_segment_mask)(gl[k, r], y, x)

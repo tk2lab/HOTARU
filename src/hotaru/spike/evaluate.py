@@ -78,6 +78,7 @@ def evaluate(stats, spikes, bg):
         "y",
         "x",
         "radius",
+        "aratio",
         "firmness",
         "pos_move",
         "min_dist_id",
@@ -104,7 +105,7 @@ def fix_kind(stats, spikes, bg, dynamics, thr_bg, thr_cell):
     cell_df = stats.query("kind == 'cell'")
     spikes = spikes[cell_df.spkid.to_numpy()]
     bg_df = stats.query("kind == 'background'")
-    logger.info("thr %s", thr_bg, thr_cell)
+    logger.info("thr %s %s", thr_bg, thr_cell)
     with np.printoptions(precision=3, suppress=True):
         bins = [-np.inf, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, np.inf]
         hist, bins = np.histogram(cell_df.zrsn, bins=bins)

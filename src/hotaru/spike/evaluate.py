@@ -11,6 +11,17 @@ from .dynamics import (
 logger = getLogger(__name__)
 
 
+def calc_sn(spikes):
+    return np.array([si.max() / (1.4826 * np.median(si[si > 0])) for si in spikes])
+
+
+def robust_zscore(x):
+    medx = np.median(x)
+    diff = x - medx
+    stdx = 1.4826 * np.median(np.abs(x - medx))
+    return diff / stdx
+
+
 def evaluate(stats, spikes, bg):
     cond_remove = stats.kind == "cell"
     cond_remove_cell = spikes.max(axis=1) == 0
@@ -18,19 +29,19 @@ def evaluate(stats, spikes, bg):
     stats.loc[cond_remove, "kind"] = "remove"
     spikes = spikes[~cond_remove_cell]
 
+    ci = stats.kind == "cell"
+
     sm = spikes.max(axis=1)
     sd = spikes.mean(axis=1) / sm
     nonzero = np.count_nonzero(spikes > 0, axis=1)
-    sn = np.array([si.max() / (1.4826 * np.median(si[si > 0])) for si in spikes])
+    sn = calc_sn(spikes)
     rsn = 1 / sn
-    med = np.median(rsn)
-    std = 1.4826 * np.median(np.abs(rsn - med))
-    zrsn = (rsn - med) / std
+    zrsn = robust_zscore(rsn)
 
-    bmax = np.abs(bg).max(axis=1)
-    bsn = np.array([bi.max() / (1.4826 * np.median(np.abs(bi[bi != 0]))) for bi in bg])
+    x = stats.loc[ci, "firmness"].to_numpy()
+    y = rsn
+    hypot = np.hypot(robust_zscore(x), robust_zscore(y))
 
-    ci = stats.kind == "cell"
     stats["spkid"] = -1
     stats.loc[ci, "spkid"] = np.where(~cond_remove_cell)[0]
     stats["signal"] = None
@@ -45,8 +56,13 @@ def evaluate(stats, spikes, bg):
     stats.loc[ci, "rsn"] = rsn
     stats["zrsn"] = None
     stats.loc[ci, "zrsn"] = zrsn
+    stats["hypot"] = None
+    stats.loc[ci, "hypot"] = hypot
 
     bi = stats.kind == "background"
+    bmax = np.abs(bg).max(axis=1)
+    bsn = np.array([bi.max() / (1.4826 * np.median(np.abs(bi[bi != 0]))) for bi in bg])
+
     stats["bgid"] = -1
     stats.loc[bi, "bgid"] = list(range(np.count_nonzero(bi)))
     stats["bmax"] = None
@@ -75,6 +91,7 @@ def evaluate(stats, spikes, bg):
         "unz",
         "rsn",
         "zrsn",
+        "hypot",
         "bmax",
         "bsparse",
     ]
@@ -87,7 +104,7 @@ def fix_kind(stats, spikes, bg, dynamics, thr_bg, thr_cell):
     cell_df = stats.query("kind == 'cell'")
     spikes = spikes[cell_df.spkid.to_numpy()]
     bg_df = stats.query("kind == 'background'")
-    logger.info("thr %s", thr_bg)
+    logger.info("thr %s", thr_bg, thr_cell)
     with np.printoptions(precision=3, suppress=True):
         bins = [-np.inf, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, np.inf]
         hist, bins = np.histogram(cell_df.zrsn, bins=bins)
@@ -100,7 +117,7 @@ def fix_kind(stats, spikes, bg, dynamics, thr_bg, thr_cell):
 
     to_bg_mask = np.zeros(cell_df.shape[0], bool)
     for k, thr in thr_bg.items():
-        if k in ["rsn", "zrsn"]:
+        if k in ["rsn", "zrsn", "hypot"]:
             to_bg_mask |= cell_df[k] > thr
         else:
             to_bg_mask |= cell_df[k] < thr
@@ -112,15 +129,13 @@ def fix_kind(stats, spikes, bg, dynamics, thr_bg, thr_cell):
         for k, thr in thr_cell.items():
             to_cell_mask &= bg_df[k] > thr
 
-    print(spikes.shape)
-    print(to_bg_mask.shape)
-    print(np.count_nonzero(to_bg_mask))
     spikes, to_bg = spikes[~to_bg_mask], spikes[to_bg_mask]
-    cell_df, to_bg_df = cell_df.loc[~to_bg_mask], cell_df.loc[to_bg_mask].copy()
+    cell_df, to_bg_df = cell_df.loc[~to_bg_mask].copy(), cell_df.loc[to_bg_mask].copy()
     bg, to_cell = bg[~to_cell_mask], bg[to_cell_mask]
-    bg_df, to_cell_df = bg_df.loc[~to_cell_mask], bg_df.loc[to_cell_mask].copy()
+    bg_df, to_cell_df = bg_df.loc[~to_cell_mask].copy(), bg_df.loc[to_cell_mask].copy()
     to_bg = np.array(fdynamics(to_bg))
     to_cell = np.array(rdynamics(to_cell))
+
     spikes = np.concatenate([spikes, to_cell], axis=0)
     bg = np.concatenate([bg, to_bg], axis=0)
 
@@ -128,13 +143,17 @@ def fix_kind(stats, spikes, bg, dynamics, thr_bg, thr_cell):
     nb = bg_df.shape[0]
     nn = to_bg_df.shape[0]
     nm = to_cell_df.shape[0]
+
     cell_df["spkid"] = np.arange(cell_df.shape[0])
     bg_df["bgid"] = np.arange(bg_df.shape[0])
+
     to_bg_df["kind"] = "background"
     to_bg_df["spkid"] = -1
     to_bg_df["bgid"] = np.arange(nb, nb + nn, dtype=np.int32)
-    to_bg_df["kind"] = "cell"
-    to_bg_df["spkid"] = np.arange(nc, nc + nm, dtype=np.int32)
-    to_bg_df["bgd"] = -1
+
+    to_cell_df["kind"] = "cell"
+    to_cell_df["spkid"] = np.arange(nc, nc + nm, dtype=np.int32)
+    to_cell_df["bgid"] = -1
+
     stats = pd.concat([cell_df, to_cell_df, bg_df, to_bg_df], axis=0)
     return stats, spikes, bg

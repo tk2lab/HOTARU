@@ -55,8 +55,8 @@ def spatial(cfg, stage, force=False):
                 spikes,
                 bg,
                 cfg.dynamics,
-                cfg.clean.thr_bg,
-                cfg.clean.thr_cell,
+                cfg.clean.thr_bg if stage > 1 else {},
+                cfg.clean.thr_cell if stage > 1 else {},
             )
             model = SpatialModel(
                 data,

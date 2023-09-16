@@ -1,7 +1,7 @@
 label: "Sato1"
 imgs:
   type: raw
-  file: Data/839_091113am.raw
+  file: Data/Sato1.raw
   height: 512
   width: 512
   dtype: uint16

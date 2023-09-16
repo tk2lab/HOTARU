@@ -1,0 +1,12 @@
+ulabel: sua${penalty.lu.max}
+label: sa${penalty.la.factor}
+la:
+  type: MaxNormNonNegativeL1
+  factor: 0.01
+lu:
+  type: MaxNormNonNegativeL1
+  annealing: 0.00005
+  max: 0.0005
+lb: 0.0001
+bs: 0.1
+bt: 0.1

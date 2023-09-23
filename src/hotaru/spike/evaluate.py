@@ -3,23 +3,17 @@ from logging import getLogger
 import numpy as np
 import pandas as pd
 
+from ..utils.math import (
+    calc_sn,
+    robust_zscore,
+    calc_mah,
+)
 from .dynamics import (
     get_dynamics,
     get_rdynamics,
 )
 
 logger = getLogger(__name__)
-
-
-def calc_sn(spikes):
-    return np.array([si.max() / (1.4826 * np.median(si[si > 0])) for si in spikes])
-
-
-def robust_zscore(x):
-    medx = np.median(x)
-    diff = x - medx
-    stdx = 1.4826 * np.median(np.abs(x - medx))
-    return diff / stdx
 
 
 def evaluate(stats, spikes, bg):
@@ -41,6 +35,7 @@ def evaluate(stats, spikes, bg):
     x = stats.loc[ci, "firmness"].to_numpy()
     y = rsn
     hypot = np.hypot(robust_zscore(x), robust_zscore(y))
+    mah = calc_mah(x, y)
 
     stats["spkid"] = -1
     stats.loc[ci, "spkid"] = np.where(~cond_remove_cell)[0]
@@ -58,6 +53,8 @@ def evaluate(stats, spikes, bg):
     stats.loc[ci, "zrsn"] = zrsn
     stats["hypot"] = None
     stats.loc[ci, "hypot"] = hypot
+    stats["mah"] = None
+    stats.loc[ci, "mah"] = mah
 
     bi = stats.kind == "background"
     bmax = np.abs(bg).max(axis=1)
@@ -72,6 +69,7 @@ def evaluate(stats, spikes, bg):
 
     labels = [
         "kind",
+        "old_kind",
         "segid",
         "spkid",
         "bgid",
@@ -93,13 +91,19 @@ def evaluate(stats, spikes, bg):
         "rsn",
         "zrsn",
         "hypot",
+        "mah",
         "bmax",
         "bsparse",
     ]
     return stats[[k for k in labels if k in stats.columns]]
 
 
-def fix_kind(stats, spikes, bg, dynamics, thr_bg, thr_cell):
+def fix_kind(stats, spikes, bg, dynamics, bg_type="bg", thr_bg=None, thr_cell=None):
+    if thr_bg is None:
+        thr_bg = {}
+    if thr_cell is None:
+        thr_cell = {}
+
     fdynamics = get_dynamics(dynamics)
     rdynamics = get_rdynamics(dynamics)
     cell_df = stats.query("kind == 'cell'")
@@ -116,45 +120,64 @@ def fix_kind(stats, spikes, bg, dynamics, thr_bg, thr_cell):
         for s, e, c in zip(bins[:-1], bins[1:], hist):
             logger.info("[%f %f): %d", s, e, c)
 
-    to_bg_mask = np.zeros(cell_df.shape[0], bool)
-    for k, thr in thr_bg.items():
-        if k in ["rsn", "zrsn", "hypot"]:
-            to_bg_mask |= cell_df[k] > thr
+    if bg_type == "remove":
+        remove_mask = np.zeros(cell_df.shape[0], bool)
+        for k, thr in thr_bg.items():
+            if k in ["rsn", "zrsn", "hypot", "mah"]:
+                remove_mask |= cell_df[k] > thr
+            else:
+                remove_mask |= cell_df[k] < thr
+        spikes = spikes[~remove_mask]
+        cell_df = cell_df.loc[~remove_mask].copy()
+        cell_df["spkid"] = np.arange(cell_df.shape[0])
+
+        stats = cell_df
+    elif bg_type == "bg":
+        to_bg_mask = np.zeros(cell_df.shape[0], bool)
+        for k, thr in thr_bg.items():
+            if k in ["rsn", "zrsn", "hypot", "mah"]:
+                to_bg_mask |= cell_df[k] > thr
+            else:
+                to_bg_mask |= cell_df[k] < thr
+
+        if len(thr_cell) == 0:
+            to_cell_mask = np.zeros(bg_df.shape[0], bool)
         else:
-            to_bg_mask |= cell_df[k] < thr
+            to_cell_mask = np.ones(bg_df.shape[0], bool)
+            for k, thr in thr_cell.items():
+                to_cell_mask &= bg_df[k] > thr
 
-    if len(thr_cell) == 0:
-        to_cell_mask = np.zeros(bg_df.shape[0], bool)
+        spikes, to_bg = spikes[~to_bg_mask], spikes[to_bg_mask]
+        cell_df, to_bg_df = (
+            cell_df.loc[~to_bg_mask].copy(), cell_df.loc[to_bg_mask].copy(),
+        )
+        bg, to_cell = bg[~to_cell_mask], bg[to_cell_mask]
+        bg_df, to_cell_df = (
+            bg_df.loc[~to_cell_mask].copy(), bg_df.loc[to_cell_mask].copy(),
+        )
+        to_bg = np.array(fdynamics(to_bg))
+        to_cell = np.array(rdynamics(to_cell))
+
+        spikes = np.concatenate([spikes, to_cell], axis=0)
+        bg = np.concatenate([bg, to_bg], axis=0)
+
+        nc = cell_df.shape[0]
+        nb = bg_df.shape[0]
+        nn = to_bg_df.shape[0]
+        nm = to_cell_df.shape[0]
+
+        cell_df["spkid"] = np.arange(cell_df.shape[0])
+        bg_df["bgid"] = np.arange(bg_df.shape[0])
+
+        to_bg_df["kind"] = "background"
+        to_bg_df["spkid"] = -1
+        to_bg_df["bgid"] = np.arange(nb, nb + nn, dtype=np.int32)
+
+        to_cell_df["kind"] = "cell"
+        to_cell_df["spkid"] = np.arange(nc, nc + nm, dtype=np.int32)
+        to_cell_df["bgid"] = -1
+
+        stats = pd.concat([cell_df, to_cell_df, bg_df, to_bg_df], axis=0)
     else:
-        to_cell_mask = np.ones(bg_df.shape[0], bool)
-        for k, thr in thr_cell.items():
-            to_cell_mask &= bg_df[k] > thr
-
-    spikes, to_bg = spikes[~to_bg_mask], spikes[to_bg_mask]
-    cell_df, to_bg_df = cell_df.loc[~to_bg_mask].copy(), cell_df.loc[to_bg_mask].copy()
-    bg, to_cell = bg[~to_cell_mask], bg[to_cell_mask]
-    bg_df, to_cell_df = bg_df.loc[~to_cell_mask].copy(), bg_df.loc[to_cell_mask].copy()
-    to_bg = np.array(fdynamics(to_bg))
-    to_cell = np.array(rdynamics(to_cell))
-
-    spikes = np.concatenate([spikes, to_cell], axis=0)
-    bg = np.concatenate([bg, to_bg], axis=0)
-
-    nc = cell_df.shape[0]
-    nb = bg_df.shape[0]
-    nn = to_bg_df.shape[0]
-    nm = to_cell_df.shape[0]
-
-    cell_df["spkid"] = np.arange(cell_df.shape[0])
-    bg_df["bgid"] = np.arange(bg_df.shape[0])
-
-    to_bg_df["kind"] = "background"
-    to_bg_df["spkid"] = -1
-    to_bg_df["bgid"] = np.arange(nb, nb + nn, dtype=np.int32)
-
-    to_cell_df["kind"] = "cell"
-    to_cell_df["spkid"] = np.arange(nc, nc + nm, dtype=np.int32)
-    to_cell_df["bgid"] = -1
-
-    stats = pd.concat([cell_df, to_cell_df, bg_df, to_bg_df], axis=0)
+        raise ValueError()
     return stats, spikes, bg

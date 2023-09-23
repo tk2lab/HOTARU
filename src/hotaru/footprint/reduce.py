@@ -7,11 +7,11 @@ import pandas as pd
 logger = getLogger(__name__)
 
 
-def reduce_peaks_simple(ys, xs, rs, vs, cell_range, min_distance_ratio, old_bg=None):
+def reduce_peaks_simple(
+    ys, xs, rs, vs, min_radius, max_radius, min_distance_ratio, old_bg=None
+):
     if old_bg is None:
         old_bg = []
-
-    min_radius, max_radius = cell_range
 
     n = np.count_nonzero(np.isfinite(vs))
     flg = np.argsort(vs)[::-1][:n]
@@ -81,8 +81,11 @@ def reduce_peaks_mesh(rs, vs, *args, **kwargs):
     return ys[cell], xs[cell], ys[bg], xs[bg]
 
 
-def reduce_peaks(peakval, cell_range, min_distance_ratio, block_size, no_bg=False):
+def reduce_peaks(
+    peakval, bg_type="bg", cell_range=None, min_distance_ratio=None, block_size=None
+):
     logger.info("reduce_peaks: %s %f %d", cell_range, min_distance_ratio, block_size)
+    logger.info("bg_type %s", bg_type)
     static_args = cell_range, min_distance_ratio
 
     radius, ts, ri, vs = peakval
@@ -123,12 +126,14 @@ def reduce_peaks(peakval, cell_range, min_distance_ratio, block_size, no_bg=Fals
 
     cell = make_dataframe(celly, cellx)
     cell["kind"] = "cell"
-    if no_bg:
+    if bg_type == "remove":
         peaks = cell
-    else:
+    elif bg_type == "bg":
         bg = make_dataframe(bgy, bgx)
         bg["kind"] = "background"
         peaks = pd.concat([cell, bg], axis=0)
+    else:
+        raise ValueError()
     peaks = peaks.reset_index(drop=True)
     peaks.insert(0, "segid", peaks.index)
     nk = np.count_nonzero(peaks.kind == "cell")

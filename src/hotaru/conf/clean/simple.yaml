@@ -1,0 +1,11 @@
+label: simple
+spatial:
+  thr_remove:
+    radius: ${init.args.min_radius}
+    pos_move: 2.0
+  thr_bg:
+    radius: ${init.args.max_radius}
+  thr_cell: {}
+temporal:
+  thr_bg: {}
+  thr_cell: {}

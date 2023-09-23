@@ -4,12 +4,17 @@ defaults:
   - /data: Sato1
   - /radius: twophoton
   - /init: tmin21
-  - /clean: dup100-0
-  - /penalty: u30
 
+  - /cmd: Sato
   - /dynamics: default
-  - /cmd: clip2x2
+  - /penalty: a10u10
+  - /clean: simple
+
   - /env: default
   - /outputs: default
+  - _self_
 
+bg_type: remove
+fix_top: true
+early_stop: false
 max_train_step: 20

@@ -1,9 +1,0 @@
-label: noratio
-spatial:
-  cell_range: ${init.args.cell_range}
-  thr_move: 2.0
-  thr_aratio: 1000.0
-  no_bg: ${no_bg}
-  fix_top: ${fix_top}
-thr_bg: {}
-thr_cell: {}

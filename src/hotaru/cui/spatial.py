@@ -55,8 +55,8 @@ def spatial(cfg, stage, force=False):
                 spikes,
                 bg,
                 cfg.dynamics,
-                cfg.clean.thr_bg if stage > 1 else {},
-                cfg.clean.thr_cell if stage > 1 else {},
+                bg_type=cfg.bg_type,
+                **(cfg.clean.temporal if stage > 1 else {}),
             )
             model = SpatialModel(
                 data,
@@ -98,6 +98,13 @@ def spatial(cfg, stage, force=False):
             )
 
             segments = x[rev_index(index)]
+            if cfg.fix_top:
+                nk, h, w = segments.shape
+                rseg = segments.reshape(nk, h * w)
+                idx = np.argpartition(rseg, -2, axis=1)
+                k = np.arange(nk)
+                rseg[k, idx[:, -1]] = rseg[k, idx[:, -2]]
+                segments = rseg.reshape(nk, h, w)
             stats["segid"] = np.arange(stats.shape[0])
             save((segstatsfile, segsfile, lossfile), (stats, segments, logdf))
             logger.info(f"saved spatial ({stage})")
@@ -109,6 +116,7 @@ def spatial(cfg, stage, force=False):
             stats,
             segments,
             cfg.radius.filter,
+            bg_type=cfg.bg_type,
             **cfg.clean.spatial,
             **cfg.cmd.clean,
         )

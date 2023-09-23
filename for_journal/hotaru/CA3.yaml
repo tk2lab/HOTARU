@@ -7,24 +7,14 @@ defaults:
 
   - /cmd: CA3
   - /dynamics: default
-  - /penalty: annealing
-  - /clean: default
+  - /penalty: a10u10
+  - /clean: ratio3y
 
   - /env: default
   - /outputs: default
   - _self_
 
-clean:
-  label: rsn${clean.thr_bg.rsn}
-  thr_bg:
-    rsn: 0.2
-penalty:
-  la:
-    factor: 0.01
-  lu:
-    type: MaxNormNonNegativeL1
-    annealing: 0.00005
-    max: 0.0005
-  lb: 0.0001
+bg_type: "remove"
+fix_top: true
 early_stop: false
-max_train_step: 30
+max_train_step: 20

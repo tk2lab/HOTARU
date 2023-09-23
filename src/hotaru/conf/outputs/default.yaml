@@ -11,7 +11,7 @@ find:
   files:
     - "{stage:03d}find.npz"
 reduce:
-  dir0: ${outputs.find.dir0}/${init.label}-${no_bg}
+  dir0: ${outputs.find.dir0}/${init.label}-${bg_type}
   files:
     - "{stage:03d}reduce.csv"
 make:
@@ -23,7 +23,7 @@ init:
   files:
     - "{stage:03d}initstats.csv"
 temporal:
-  dir0: ${outputs.init.dir0}/${cmd.label}/${penalty.ulabel}-${fix_top}
+  dir0: ${outputs.init.dir0}/${cmd.label}/${penalty.ulabel}
   dir: ${outputs.clean.dir}
   files:
     - "{stage:03d}spike.npy"

@@ -7,12 +7,14 @@ defaults:
 
   - /cmd: Kd32
   - /dynamics: default
-  - /penalty: annealing
-  - /clean: default
+  - /penalty: a100u1
+  - /clean: simple
 
   - /env: default
   - /outputs: default
   - _self_
 
-early_stop: true
-max_train_step: 20
+bg_type: "remove"
+fix_top: true
+early_stop: false
+max_train_step: 80

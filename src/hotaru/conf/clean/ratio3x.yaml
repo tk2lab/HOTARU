@@ -1,0 +1,12 @@
+label: xratio${clean.spatial.thr_bg.aratio}
+spatial:
+  thr_remove:
+    radius: ${init.args.min_radius}
+    pos_move: 2.0
+  thr_bg:
+    radius: ${init.args.max_radius}
+    aratio: 3.0
+  thr_cell: {}
+temporal:
+  thr_bg: {}
+  thr_cell: {}

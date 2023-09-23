@@ -1,0 +1,13 @@
+label: bgtocell
+spatial:
+  thr_remove:
+    radius: ${init.args.min_radius}
+    pos_move: 2.0
+  thr_bg:
+    radius: ${init.args.max_radius}
+  thr_cell:
+    bmax: 10.0
+    bsparse: 10.0
+temporal:
+  thr_bg: {}
+  thr_cell: {}

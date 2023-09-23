@@ -14,6 +14,11 @@ from ..utils import (
     from_tf,
     get_gpu_env,
 )
+from ..utils.math import (
+    calc_sn,
+    robust_zscore,
+    calc_mah,
+)
 from .radius import get_radius
 from .segment import get_segment_mask
 
@@ -29,41 +34,44 @@ def clean(
     stats,
     segs,
     radius,
-    cell_range,
-    thr_move,
-    thr_aratio,
-    no_bg=False,
-    fix_top=False,
+    bg_type="bg",
+    cell_range=None,
+    thr_remove=None,
+    thr_bg=None,
+    thr_cell=None,
     env=None,
     factor=1,
     prefetch=1,
 ):
-    stats = stats.sort_values("segid")
-    oldy = stats.y.to_numpy()
-    oldx = stats.x.to_numpy()
-    oldr = stats.radius.to_numpy()
-
     segments, y, x, radius, firmness = clean_footprints(
         segs,
         radius,
         env,
         factor,
         prefetch,
-        fix_top,
     )
 
     ratio = []
-    for ai in range(segments):
+    for ai in segments:
         gy, gx = np.where(ai > 0)
         w = ai[gy, gx]
-        try:
-            s = np.sqrt(np.linalg.eigvals(np.cov(gy, gx, awieghts=w)))
-            v = s.max() / s.min()
-        except np.linalg.LinAlgError:
+        if w.size > 0:
+            try:
+                s = np.sqrt(np.linalg.eigvalsh(np.cov(gy, gx, aweights=w, ddof=0)))
+                v = s.max() / s.min()
+            except np.linalg.LinAlgError:
+                v = np.nan
+        else:
             v = np.nan
         ratio.append(v)
     ratio = np.array(ratio, np.float32)
 
+    stats = stats.sort_values("segid")
+    oldy = stats.y.to_numpy()
+    oldx = stats.x.to_numpy()
+    oldr = stats.radius.to_numpy()
+
+    stats["old_kind"] = stats.kind
     stats["y"] = y
     stats["x"] = x
     stats["radius"] = radius
@@ -71,44 +79,72 @@ def clean(
     stats["firmness"] = firmness
     stats["pos_move"] = np.hypot(x - oldx, y - oldy) / oldr
 
-    stats["old_kind"] = stats.kind
-    stats["kind"] = "cell"
+    cell_df = stats.query("old_kind == 'cell'")
+    firmness = cell_df.firmness.to_numpy()
+    rsn = cell_df.rsn.to_numpy()
+    hypot = np.hypot(robust_zscore(firmness), robust_zscore(rsn))
+    mah = calc_mah(firmness, rsn)
+    stats["hypot"] = None
+    stats.loc[cell_df.index, "hypot"] = hypot
+    stats["mah"] = None
+    stats.loc[cell_df.index, "mah"] = mah
 
     bg_cond = (stats.old_kind == "background")
-    remove_cond = (stats.old_kind == "cell") & (stats.pos_move > thr_move)
-    remove_cond |= (stats.radius < cell_range[0])
-    tmp_cond = (stats.radius > cell_range[-1])
-    tmp_cond |= (stats.aratio > thr_aratio)
-    if no_bg:
-        remove_cond |= tmp_cond
-    else:
-        bg_cond |= tmp_cond
+    to_cell_cond = bg_cond.copy()
+    for k, thr in thr_cell.items():
+        to_cell_cond &= (stats[k] > thr)
+    bg_cond &= ~to_cell_cond
 
+    remove_cond = np.zeros(stats.shape[0], bool)
+    for k, thr in thr_remove.items():
+        if k == "pos_move":
+            remove_cond |= (stats.old_kind == "cell") & (stats[k] > thr)
+        elif k == "radius":
+            remove_cond |= (stats[k] < thr)
+        else:
+            raise ValueError()
+
+    tmp_cond = np.zeros(stats.shape[0], bool)
+    for k, thr in thr_bg.items():
+        tmp_cond |= (stats[k] > thr)
+    if bg_type == "remove":
+        remove_cond |= tmp_cond
+    elif bg_type == "bg":
+        bg_cond |= tmp_cond
+    else:
+        raise ValueError()
+
+    bg_cond = bg_cond.to_numpy()
+    remove_cond = remove_cond.to_numpy()
+
+    stats["kind"] = "cell"
     stats.loc[bg_cond, "kind"] = "background"
     stats.loc[remove_cond, "kind"] = "remove"
-    stats["min_dist_id"] = -1
-    stats["max_dup_id"] = -1
+    with pd.option_context("display.max_rows", None):
+        print(stats[["kind", "old_kind", "segid", "radius", "pos_move", "aratio"]])
 
     cell_cond = (stats.kind == "cell").to_numpy()
-    cell_df = stats.loc[cell_cond].copy()
-
     ys = y[cell_cond]
     xs = x[cell_cond]
     rs = radius[cell_cond]
 
     dist_mat = np.hypot(xs[:, np.newaxis] - xs, ys[:, np.newaxis] - ys) / rs
     np.fill_diagonal(dist_mat, np.inf)
-    cell_df["min_dist_id"] = cell_df.index[np.argmin(dist_mat, axis=0)]
-    cell_df["min_dist"] = dist_mat.min(axis=0)
 
     val_mat = segments[cell_cond][:, ys, xs]
     np.fill_diagonal(val_mat, 0)
+
+    stats["max_dup_id"] = -1
+    stats["min_dist_id"] = -1
+    cell_df = stats.loc[cell_cond].copy()
+    cell_df["min_dist_id"] = cell_df.index[np.argmin(dist_mat, axis=0)]
+    cell_df["min_dist"] = dist_mat.min(axis=0)
     cell_df["max_dup_id"] = cell_df.index[np.argmax(val_mat, axis=0)]
     cell_df["max_dup"] = val_mat.max(axis=0)
-
     bg_df = stats.query("kind == 'background'").copy()
     remove_df = stats.query("kind == 'remove'").copy()
     stats = pd.concat([cell_df, bg_df, remove_df], axis=0)
+
     stats["spkid"] = -1
     stats["bgid"] = -1
 
@@ -119,15 +155,11 @@ def clean(
     return stats, segments
 
 
-def clean_footprints(segs, radius, env=None, factor=1, prefetch=1, fix_top=False):
+def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     @jax.jit
     def calc(imgs):
         nk, h, w = imgs.shape
         k = jnp.arange(nk)
-        if fix_top:
-            rimgs = imgs.reshape(nk, h * w)
-            _, idx = jax.vmap(lax.top_k, in_axes=(0, None))(rimgs, 2)
-            imgs = rimgs.at[k, idx[:, 0]].set(rimgs[k, idx[:, 1]]).reshape(nk, h, w)
         imgs /= imgs.max(axis=(1, 2), keepdims=True)
         gl = gaussian_laplace(imgs, radius, -3)
         nk, nr, h, w = gl.shape

@@ -44,7 +44,7 @@ def init(cfg):
 
                 logger.info("exec reduce")
                 peaks = reduce_peaks(
-                    findval, **cfg.init.args, **cfg.cmd.reduce
+                    findval, bg_type=cfg.bg_type, **cfg.init.args, **cfg.cmd.reduce,
                 )
                 logger.debug("%s", get_xla_stats())
                 save(reducefile, peaks)

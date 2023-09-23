@@ -5,7 +5,7 @@ defaults:
 
 mode: test
 
-no_bg: false
+bg_type: "bg"
 fix_top: false
 
 max_train_step: 10

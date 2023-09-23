@@ -1,0 +1,63 @@
+label: Sato
+remove_find: false
+remove_reduce: false
+remove_segments: false
+
+stats:
+  env: ${env}
+  factor: 1000.0
+  prefetch: 1
+
+find:
+  env: ${env}
+  factor: 1000.0
+  prefetch: 1
+
+reduce:
+  block_size: 100
+
+make:
+  env: ${env}
+  factor: 1000.0
+  prefetch: 1
+
+clean:
+  env: ${env}
+  factor: 1000.0
+  prefetch: 1
+
+clip:
+  type: Div
+  ynum: 2
+  xnum: 2
+  margin: 30
+
+spatial:
+  clip: ${cmd.clip}
+  prepare:
+    env: ${env}
+    factor: 10.0
+    prefetch: 1
+  step:
+    env: ${env}
+    lr: 1e-6
+    nesterov: 20
+    max_epoch: 1000
+    steps_par_epoch: 100
+    tol: 1e-4
+    patience: 3
+
+temporal:
+  clip: ${cmd.clip}
+  prepare:
+    env: ${env}
+    factor: 10.0
+    prefetch: 1
+  step:
+    env: ${env}
+    lr: 1e-7
+    nesterov: 20
+    max_epoch: 1000
+    steps_par_epoch: 100
+    tol: 1e-4
+    patience: 3

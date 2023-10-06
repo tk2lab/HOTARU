@@ -1,4 +1,4 @@
-label: default
+label: ${radius.filter.type}${radius.filter.num}-min${radius.filter.min}-max${radius.filter.max}
 filter:
   type: logscale
   num: 16

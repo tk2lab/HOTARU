@@ -186,5 +186,5 @@ def finish(cfg, stage):
     stats = try_load(get_files(cfg, "evaluate", stage))
     removed = stats[stats.kind == "remove"]
 
-    reduce_log(cfg, stage)
+    #reduce_log(cfg, stage)
     return cfg.early_stop and (stage > 0) and removed.shape[0] == 0

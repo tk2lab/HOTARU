@@ -1,4 +1,4 @@
-label: ${data.imgs.hz}-${data.mask.type}
+label: ${data.imgs.file}-${data.imgs.hz}-${data.mask.type}
 imgs:
   type: tif
   file: imgs.tif

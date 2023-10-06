@@ -95,12 +95,21 @@ def multi_peak_stats_fig(cfg, stage, stats, rmin, rmax):
     return fig
 
 
-def peak_stats_fig(cfg, stage, rmin, rmax, peakval=None):
-    stats, _ = load(cfg, "evaluate", stage)
-    if stage == 0 and not cfg.init.remove_find:
-        peakval = load(cfg, "find", stage)
+def peak_stats_fig(cfg, stage, rmin=None, rmax=None, peakval=None):
+    if stage == 0:
+        stats = load(cfg, "init", stage)
     else:
-        peakval = None
+        stats, _ = load(cfg, "evaluate", stage)
+    if rmin is None:
+        rmin = cfg.init.args.min_radius
+    if rmax is None:
+        rmax = cfg.init.args.max_radius
+    peakval = None
+    if stage == 0:
+        try:
+            peakval = load(cfg, "find", stage)
+        except FileNotFoundError:
+            pass
 
     fig = go.Figure().set_subplots(2, 1, row_heights=(1, 2))
     if peakval is None:
@@ -148,8 +157,6 @@ def peak_stats_fig(cfg, stage, rmin, rmax, peakval=None):
         row=2,
     )
     r, c = np.unique(cell.radius, return_counts=True)
-    print(r)
-    print(c)
     fig.add_trace(
         go.Bar(
             x=np.log(r),
@@ -167,7 +174,6 @@ def peak_stats_fig(cfg, stage, rmin, rmax, peakval=None):
         col=1,
         row=1,
     )
-    print(rmin, rmax)
     fig.update_xaxes(
         title_text="radius",
         type="log",

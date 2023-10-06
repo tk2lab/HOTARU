@@ -64,7 +64,6 @@ def temporal(cfg, stage, force=False):
                 logger.debug("%s", get_xla_stats())
                 out.append(model.get_x())
                 i1, i2, x1, x2 = out[-1]
-                print(i, x1.shape, len(i1), i1)
 
                 loss, sigma = zip(*log)
                 df = pd.DataFrame(
@@ -80,10 +79,6 @@ def temporal(cfg, stage, force=False):
                 logdfs.append(df)
             logdf = pd.concat(logdfs, axis=0)
             index1, index2, x1, x2 = (np.concatenate(v, axis=0) for v in zip(*out))
-            print("input", stats.shape, footprints.shape)
-            print("x1", x1.shape)
-            print("index1", index1, len(index1))
-            print("rindex1", rev_index(index1))
             spikes = np.array(x1[rev_index(index1)])
             bg = np.array(x2[rev_index(index2)])
             if cfg.fix_top:

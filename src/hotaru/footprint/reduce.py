@@ -82,11 +82,22 @@ def reduce_peaks_mesh(rs, vs, *args, **kwargs):
 
 
 def reduce_peaks(
-    peakval, bg_type="bg", cell_range=None, min_distance_ratio=None, block_size=None
+    peakval,
+    bg_type="bg",
+    min_radius=None,
+    max_radius=None,
+    min_distance_ratio=None,
+    block_size=None,
 ):
-    logger.info("reduce_peaks: %s %f %d", cell_range, min_distance_ratio, block_size)
+    logger.info(
+        "reduce_peaks: %f %f %f %d",
+        min_radius,
+        max_radius,
+        min_distance_ratio,
+        block_size,
+    )
     logger.info("bg_type %s", bg_type)
-    static_args = cell_range, min_distance_ratio
+    static_args = min_radius, max_radius, min_distance_ratio
 
     radius, ts, ri, vs = peakval
     rs = radius[ri]

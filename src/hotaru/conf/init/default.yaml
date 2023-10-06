@@ -1,4 +1,4 @@
-label: default
+label: min${init.args.min_radius}-max${init.args.max_radius}-dist${init.args.min_distance_ratio}
 args:
   min_radius: 2.1
   max_radius: 15.9

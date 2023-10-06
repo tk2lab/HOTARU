@@ -6,16 +6,19 @@ from PIL import (
 )
 
 from ..cui.common import load
+from ..spike import get_dynamics
 from .common import to_image
 
 
 def spike_image(
     cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=(), thr_udense=1.0
 ):
+    pad = get_dynamics(cfg.dynamics).size - 1
     u, _, _ = load(cfg, "temporal", stage)
-    stats, _ = load(cfg, "evaluate", stage)
+    u = u[:, pad:]
+    stats = load(cfg, "evaluate", stage)
     stats = stats.query("kind == 'cell'")
-    u = u[stats.udense <= thr_udense]
+    #u = u[stats.udense <= thr_udense]
     return _spike_image(u, tsel, ksel, width, lines)
 
 

@@ -7,7 +7,7 @@ from ..footprint import get_radius
 from .common import to_image
 
 
-def seg_max_image(cfg, stage, base=0, showbg=False, thr_udense=1.0):
+def seg_max_image(cfg, stage, base=0.5, showbg=False, thr_udense=1.0):
     if stage == 0:
         segs = load(cfg, "make", stage)
     else:
@@ -16,10 +16,10 @@ def seg_max_image(cfg, stage, base=0, showbg=False, thr_udense=1.0):
     return _seg_max_image(segs, stats, base, showbg, thr_udense)
 
 
-def _seg_max_image(segs, stats, base, showbg, thr_udense=1.0):
-    stats.loc[stats.udense > thr_udense, "kind"] = "background"
-    cell = stats.query("kind == 'cell'").index
-    bg = stats.query("kind == 'background'").index
+def _seg_max_image(segs, stats, base=0.5, showbg=False, thr_udense=1.0):
+    #stats.loc[stats.udense > thr_udense, "kind"] = "background"
+    cell = stats.query("kind == 'cell'").segid.to_numpy()
+    bg = stats.query("kind == 'background'").segid.to_numpy()
     fp = segs[cell]
     fp = np.maximum(0, (fp - base) / (1 - base)).max(axis=0)
     fpimg = to_image(fp, "Greens")
@@ -33,18 +33,19 @@ def _seg_max_image(segs, stats, base, showbg, thr_udense=1.0):
     return fpimg
 
 
-def seg_max_fig(cfg, stage, base=0, showbg=False, width=600, thr_udense=1.0):
+def seg_max_fig(cfg, stage, base=0.5, showbg=False, width=600, thr_udense=1.0):
     if stage == 0:
         segs = load(cfg, "make", stage)
+        stats = load(cfg, "init", stage)
     else:
-        segs, _ = load(cfg, "clean", stage)
-    stats, _ = load(cfg, "evaluate", stage)
+        _, segs = load(cfg, "clean", stage)
+        stats = load(cfg, "evaluate", stage)
     return _seg_max_fig(segs, stats, base, showbg, width, thr_udense)
 
 
-def _seg_max_fig(segs, stats, base=0, showbg=False, width=600, thr_udense=1.0):
+def _seg_max_fig(segs, stats, base=0.5, showbg=False, width=600, thr_udense=1.0):
     img = _seg_max_image(segs, stats, base, showbg, thr_udense)
-    stats.loc[stats.udense > thr_udense, "kind"] = "background"
+    #stats.loc[stats.udense > thr_udense, "kind"] = "background"
     cell = stats.query("kind == 'cell'")
     fig = go.Figure()
     fig.add_trace(

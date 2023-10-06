@@ -6,21 +6,17 @@ import hydra
 
 from .cui import (
     run,
-    plotter,
+    test,
 )
 
 
 @hydra.main(version_base=None, config_path="pkg://hotaru.conf", config_name="config")
 def _main(cfg):
     match cfg.mode:
-        case "test" | "run":
+        case "test":
+            test(cfg)
+        case "run":
             run(cfg)
-        case "plot":
-            plotter(cfg)
-        case "gui":
-            pass
-            if cfg.gui.open_brower:
-                webbrowser.open_new(f"http://{cfg.gui.userver.host}:{cfg.gpu.server.port}")
         case _:
             raise ValueError()
 

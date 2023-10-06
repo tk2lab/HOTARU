@@ -61,6 +61,7 @@ def main(cfg):
 
     thr_udense = 0.18
 
+    """
     cell_num_fig(cfg, width=400, height=200).write_image(
         fig_dir / f"{name}run_num.pdf",
     )
@@ -69,6 +70,7 @@ def main(cfg):
     ).write_image(
         fig_dir / f"{name}densesig.pdf",
     )
+    """
 
     seg_max_fig(cfg, final, base=0.2, width=300, thr_udense=thr_udense).write_image(
         fig_dir / f"{name}finalsegmax.pdf",

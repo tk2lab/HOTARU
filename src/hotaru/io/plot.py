@@ -13,7 +13,6 @@ def plot_imgs_subplots(imgs, labels, width=500, pad=0.05):
     num = len(imgs)
     xdomainsize = (1 - (num - 1) * pad) / num
     xstride = xdomainsize + pad
-    print(xdomainsize, xstride)
     fig = go.Figure().set_subplots(1, len(imgs), subplot_titles=labels)
     for i, (img, label) in enumerate(zip(imgs, labels)):
         h, w = img.shape
@@ -77,10 +76,7 @@ def plot_simgs(simgs, labels, scale=1, margin=30, label=None):
 def plot_gl(data, radius, idx, scale=1, margin=30, label=""):
     radius = get_radius(radius)
     imgs = data.select(idx)
-    print(imgs.shape)
-    print(radius)
     gl = gaussian_laplace(imgs, radius, 0)
-    print(gl.shape)
     gl = np.transpose(gl, (1, 2, 0, 3))
     gl = np.pad(gl, ((0, 0), (0, 1), (0, 0), (0, 1)))
     nt, h, nr, w = gl.shape

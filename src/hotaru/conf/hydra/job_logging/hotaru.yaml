@@ -18,7 +18,7 @@ handlers:
     level: DEBUG
     filters: [droppbar]
     formatter: simple
-    filename: ${hydra.runtime.output_dir}/${now:%Y-%m-%dT%H:%M:%S}.log
+    filename: ${hydra.runtime.output_dir}/${mode}.log
 loggers:
   hotaru:
     handlers: [hotaru, logfile]

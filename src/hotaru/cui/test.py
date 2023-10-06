@@ -4,14 +4,10 @@ from importlib import import_module
 from multiprocessing import Process
 
 from ..plot import (
+    peak_stats_fig,
     seg_max_fig,
-    spike_image,
 )
-from .common import (
-    finish,
-    print_stats,
-    set_env,
-)
+from .common import set_env
 
 
 def call(name, *args, **kwargs):
@@ -27,20 +23,11 @@ def call(name, *args, **kwargs):
         sys.exit()
 
 
-def run(cfg):
-    for stage in range(cfg.max_train_step + 1):
-        if stage == 0:
-            call("normalize", cfg)
-            call("init", cfg)
-        else:
-            call("spatial", cfg, stage)
-        call("temporal", cfg, stage)
-
-        print_stats(cfg, stage)
-        if finish(cfg, stage):
-            break
+def test(cfg):
+    call("normalize", cfg)
+    call("init", cfg)
 
     path = Path(cfg.outputs.figs.dir)
     path.mkdir(parents=True, exist_ok=True)
-    seg_max_fig(cfg, stage).write_image(path / "run_footprints.pdf")
-    spike_image(cfg, stage)[0].save(path / "run_spike.pdf")
+    peak_stats_fig(cfg, 0).write_image(path / "test_stats.pdf")
+    seg_max_fig(cfg, 0).write_image(path / "test_footprints.pdf")

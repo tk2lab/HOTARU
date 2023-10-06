@@ -35,7 +35,8 @@ for i, (name, path) in enumerate(paths.items()):
             pathx = f"{path}/{stage:03d}stats.csv"
         df = pd.read_csv(pathx)
         df = df.query("kind != 'remove'")
-        df.loc[df.udense > thr_udense, "kind"] = "background"
+        if j == 2:
+            df.loc[df.udense > thr_udense, "kind"] = "background"
         fig.add_trace(
             go.Scatter(
                 x=df.udense,
@@ -43,8 +44,8 @@ for i, (name, path) in enumerate(paths.items()):
                 mode="markers",
                 marker=dict(
                     color=[dict(cell="blue", background="red")[k] for k in df.kind],
-                    size=5,
-                    opacity=0.5,
+                    size=3,
+                    opacity=0.2,
                     line_width=0,
                 )
             ),

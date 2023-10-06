@@ -8,13 +8,13 @@ defaults:
   - /cmd: CA3
   - /dynamics: default
   - /penalty: a10u10
-  - /clean: ratio3y
+  - /clean: ratio3z4
 
   - /env: default
   - /outputs: default
   - _self_
 
-bg_type: "remove"
+bg_type: "bg"
 fix_top: true
-early_stop: false
-max_train_step: 20
+early_stop: true
+max_train_step: 10

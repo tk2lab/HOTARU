@@ -1,4 +1,4 @@
-dir: outputs
+dir: work
 normalize:
   dir0: ${data.label}
   files:

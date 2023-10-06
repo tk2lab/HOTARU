@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hotaru"
-version = "5.0.0-rc0"
+version = "5.0.0"
 description = "High performance Optimizer to extract spike Timing And cell location from calcium imaging data via lineaR impUlse"
 license = "GPL-3.0-only"
 authors = [
@@ -52,6 +52,7 @@ av = "^10.0"
 
 plotly = "^5.0.0"
 kaleido = "0.2.1"
+matplotlib = "^3.7.2"
 
 hydra-core = "^1.3"
 tqdm = "^4.64"
@@ -59,14 +60,13 @@ tqdm = "^4.64"
 dash = { version = "^2.8.1", extras=["diskcache"] }
 dash-bootstrap-components = "^1.4.1"
 dash-mantine-components = "^0.12.1"
-matplotlib = "^3.7.2"
-scikit-learn = "^1.3.0"
 
 [tool.poetry.scripts]
 hotaru = "hotaru.__main__:main"
 
 [tool.poetry.group.dev.dependencies]
 jupyterlab = "^4.0.5"
+scikit-learn = "^1.3.0"
 tensorboard-plugin-profile = "^2.13.1"
 
 ruff = "^0.0.277"

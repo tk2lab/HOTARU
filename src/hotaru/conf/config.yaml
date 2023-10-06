@@ -3,24 +3,16 @@ defaults:
   - hydra/local
   - hotaru: default
 
-mode: test
+bg_type: bg
+fix_top: true
 
-bg_type: "bg"
-fix_top: false
-
+mode: run
 max_train_step: 10
 early_stop: true
 force_from:
   - 100
   - spatial
 trace: false
-
-plot:
-  stage: ${max_train_step}
-  time: null
-  seg_max:
-    base: 0.5
-    plot_bg: false
 
 gui:
   server:
@@ -32,6 +24,7 @@ gui:
 hydra:
   searchpath:
     - file://
+  output_subdir: hydra
   job:
     name: hotaru
     env_set:

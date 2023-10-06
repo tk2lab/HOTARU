@@ -1,12 +1,12 @@
 # @package _global_
 
 defaults:
-  - data: default
-  - radius: default
-  - dynamics: default
-  - penalty: default
-  - init: default
-  - clean: default
-  - cmd: default
-  - env: default
-  - outputs: default
+  - /data: default
+  - /radius: default
+  - /init: default
+  - /cmd: default
+  - /dynamics: default
+  - /penalty: a10u10
+  - /clean: simple
+  - /env: default
+  - /outputs: default

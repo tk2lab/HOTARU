@@ -9,7 +9,7 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 - Takekawa., T, et. al.,
   bioRxiv, https://biorxiv.org/content/10.1101/2022.04.05.487077v2 (2023).
 - Takekawa., T, et. al.,
-  bioRxiv, https://biorxiv.org/content/10.1101/2022.04.05.487077 (2022).
+  bioRxiv, https://biorxiv.org/content/10.1101/2022.04.05.487077v1 (2022).
 - Takekawa., T, et. al.,
   bioRxiv, https://www.biorxiv.org/content/10.1101/215145 (2017).
 

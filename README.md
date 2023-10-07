@@ -48,11 +48,11 @@ hotaru --help
 
 
 ## Demonstration
+Download [sample.tif](https://drive.google.com/drive/u/0/folders/1yZK8vU1WOyCMuU-ogiSB7FJcZUxU8QtP)
 ```shell
-cd sample
-hotaru mode=test
+hotaru data.imgs.file=sample.tif mode=test
 # see figs/test_*.pdf
-hotaru mode=run
+hotaru data.imgs.file=sample.tif mode=run
 # see figs/run_*.pdf
 ```
 

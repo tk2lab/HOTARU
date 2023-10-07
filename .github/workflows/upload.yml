@@ -26,14 +26,14 @@ jobs:
 
     - name: Cache Poetry virtualenv
       id: cached-poetry-dependencies
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: .venv
         key: venv-${{ runner.os}}-${{ hashFiles('**/poetry.lock') }}
 
     - name: Install Decendencies
-      run: poetry install
       if: steps.cached-poetroy-dependencies.outputs.cache-hit != 'true'
+      run: poetry install
 
     - name: Build and Publish
       run: |

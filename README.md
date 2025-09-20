@@ -48,7 +48,7 @@ hotaru --help
 
 
 ## Demonstration
-Download [sample.tif](https://drive.google.com/drive/u/0/folders/1yZK8vU1WOyCMuU-ogiSB7FJcZUxU8QtP)
+Download [sample.tif](https://drive.google.com/file/d/12pRyoWFRu-h15BaAAscLyoziAjiY5nP6/view?usp=drive_link)
 ```shell
 hotaru data.imgs.file=sample.tif mode=test
 # see figs/test_*.pdf

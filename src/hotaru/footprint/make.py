@@ -45,7 +45,8 @@ def make_footprints(data, peaks, env=None, factor=1, prefetch=1):
         dataset = dataset.prefetch(prefetch)
         for d in dataset:
             d = (from_tf(v) for v in d)
-            idx, imgs, y, x = (jax.device_put(v, sharding) for v in d)
+            #idx, imgs, y, x = (jax.device_put(v, sharding) for v in d)
+            idx, imgs, y, x = (jnp.array(v) for v in d)
 
             count = idx.size
             diff = batch - count

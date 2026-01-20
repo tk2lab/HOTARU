@@ -1,6 +1,6 @@
-from .test import test
-from .run import run
 from .plotter import plotter
+from .run import run
+from .test import test
 
 __all__ = [
     "test",

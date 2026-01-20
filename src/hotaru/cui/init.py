@@ -2,22 +2,16 @@ from logging import getLogger
 
 import numpy as np
 
-from ..footprint import (
-    find_peaks,
-    make_footprints,
-    reduce_peaks,
-)
-from ..io import (
-    save,
-    try_load,
-)
+from ..footprint import find_peaks
+from ..footprint import make_footprints
+from ..footprint import reduce_peaks
+from ..io import save
+from ..io import try_load
 from ..utils import get_xla_stats
-from .common import (
-    get_data,
-    get_files,
-    get_force,
-    reduce_log,
-)
+from .common import get_data
+from .common import get_files
+from .common import get_force
+from .common import reduce_log
 
 logger = getLogger(__name__)
 

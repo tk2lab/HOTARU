@@ -1,5 +1,5 @@
-import plotly.graph_objects as go
 import numpy as np
+import plotly.graph_objects as go
 
 from ..cui.common import load
 from .common import add_jitter
@@ -58,7 +58,7 @@ def run_fig(
                 y=df.lri,
                 x=df.firmness,
                 mode="markers",
-                marker=dict(size=3, color=color, opacity=0.5),
+                marker={"size": 3, "color": color, "opacity": 0.5},
             ),
             row=2 * i + 2,
             col=1,
@@ -68,7 +68,7 @@ def run_fig(
                 y=df.lri,
                 x=df.old_udense,
                 mode="markers",
-                marker=dict(size=3, color=color, opacity=0.5),
+                marker={"size": 3, "color": color, "opacity": 0.5},
             ),
             row=2 * i + 2,
             col=2,
@@ -83,7 +83,7 @@ def run_fig(
         for r in range(2):
             fig.add_vline(thr_f, line_color="red", col=1, row=2 * i + r + 1)
             fig.add_vline(thr_d, line_color="red", col=2, row=2 * i + r + 1)
-            for c in range(2):
+            for _c in range(2):
                 fig.update_xaxes(
                     range=(min_val[r], max_val[r]),
                     row=2 * i + 1,
@@ -174,6 +174,6 @@ def run_fig(
         width=600,
         height=200 * len(stages),
         showlegend=False,
-        margin=dict(t=0, r=0, l=40, b=40),
+        margin={"t": 0, "r": 0, "l": 40, "b": 40},
     )
     return fig

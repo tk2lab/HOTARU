@@ -4,30 +4,22 @@ import numpy as np
 import pandas as pd
 
 from ..footprint import clean
+from ..io import save
+from ..io import try_load
 from ..spike import fix_kind
-from ..io import (
-    save,
-    try_load,
-)
-from ..train import (
-    SpatialModel,
-    get_penalty,
-)
-from ..utils import (
-    get_clip,
-    get_xla_stats,
-)
-from .common import (
-    get_data,
-    get_files,
-    get_force,
-    rev_index,
-)
+from ..train import SpatialModel
+from ..train import get_penalty
+from ..utils import get_clip
+from ..utils import get_xla_stats
+from .common import get_data
+from .common import get_files
+from .common import get_force
+from .common import rev_index
 
 logger = getLogger(__name__)
 
 
-def spatial(cfg, stage, force=False):
+def spatial(cfg, stage, *, force=False):
     cleanstatsfile, footprintsfile = get_files(cfg, "clean", stage)
     if (
         get_force(cfg, "clean", stage)
@@ -74,21 +66,21 @@ def spatial(cfg, stage, force=False):
                 log = model.fit(**cfg.cmd.spatial.step)
                 logger.debug("%s", get_xla_stats())
 
-                loss, sigma = zip(*log)
+                loss, sigma = zip(*log, strict=False)
                 df = pd.DataFrame(
-                    dict(
-                        stage="stage",
-                        kind="spatial",
-                        div=i,
-                        step=np.arange(len(log)),
-                        loss=loss,
-                        sigma=sigma,
-                    )
+                    {
+                        "stage": "stage",
+                        "kind": "spatial",
+                        "div": i,
+                        "step": np.arange(len(log)),
+                        "loss": loss,
+                        "sigma": sigma,
+                    }
                 )
                 logdfs.append(df)
                 out.append(model.get_x())
             logdf = pd.concat(logdfs, axis=0)
-            index, x = (np.concatenate(v, axis=0) for v in zip(*out))
+            index, x = (np.concatenate(v, axis=0) for v in zip(*out, strict=False))
             logger.debug(
                 "%d %d\n%s",
                 index.size,

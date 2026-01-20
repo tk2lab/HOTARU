@@ -1,12 +1,10 @@
-from pathlib import Path
 from logging import getLogger
+from pathlib import Path
 
 import numpy as np
-from tifffile import (
-    TiffFile,
-    imread,
-    memmap,
-)
+from tifffile import TiffFile
+from tifffile import imread
+from tifffile import memmap
 
 logger = getLogger(__name__)
 

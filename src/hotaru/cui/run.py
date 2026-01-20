@@ -1,17 +1,13 @@
 import sys
-from pathlib import Path
 from importlib import import_module
 from multiprocessing import Process
+from pathlib import Path
 
-from ..plot import (
-    seg_max_fig,
-    spike_image,
-)
-from .common import (
-    finish,
-    print_stats,
-    set_env,
-)
+from ..plot import seg_max_fig
+from ..plot import spike_image
+from .common import finish
+from .common import print_stats
+from .common import set_env
 
 
 def call(name, *args, **kwargs):

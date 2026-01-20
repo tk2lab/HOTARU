@@ -1,10 +1,10 @@
 from collections import namedtuple
-from pathlib import Path
 from logging import getLogger
+from pathlib import Path
 
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
 
 logger = getLogger(__name__)
 
@@ -33,7 +33,7 @@ def save(path, obj):
         if len(path) == 1:
             save(path[0], obj[0])
         else:
-            for p, o in zip(path, obj):
+            for p, o in zip(path, obj, strict=False):
                 save(p, o)
     else:
         path = Path(path)

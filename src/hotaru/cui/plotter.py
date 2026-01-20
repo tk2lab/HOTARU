@@ -3,20 +3,16 @@ from pathlib import Path
 
 import numpy as np
 
-from ..io import (
-    apply_mask,
-    load_imgs,
-    try_load,
-)
+from ..io import apply_mask
+from ..io import load_imgs
+from ..io import try_load
 
 # from hotaru.io.movie import gen_normalize_movie
-from ..io.plot import (
-    plot_peak_stats,
-    plot_seg,
-    plot_seg_max,
-    plot_simgs,
-    plot_spike,
-)
+from ..io.plot import plot_peak_stats
+from ..io.plot import plot_seg
+from ..io.plot import plot_seg_max
+from ..io.plot import plot_simgs
+from ..io.plot import plot_spike
 
 logger = getLogger(__name__)
 

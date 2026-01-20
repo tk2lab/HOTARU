@@ -1,15 +1,12 @@
 from logging import getLogger
 
-import jax
-import jax.numpy as jnp
 import av
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import (
-    Image,
-    ImageDraw,
-    ImageFont,
-)
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 
 logger = getLogger(__name__)
 

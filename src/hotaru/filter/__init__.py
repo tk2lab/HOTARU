@@ -1,7 +1,5 @@
-from .laplace import (
-    gaussian_laplace,
-    gaussian_laplace_single,
-)
+from .laplace import gaussian_laplace
+from .laplace import gaussian_laplace_single
 from .map import mapped_imgs
 from .pool import max_pool
 from .stats import movie_stats

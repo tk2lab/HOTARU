@@ -1,9 +1,7 @@
 import pandas as pd
 import plotly.express as px
-from PIL import (
-    Image,
-    ImageDraw,
-)
+from PIL import Image
+from PIL import ImageDraw
 
 from ..cui.common import load
 from ..spike import get_dynamics
@@ -14,9 +12,9 @@ def spike_image(
     cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=(), thr_udense=1.0
 ):
     pad = get_dynamics(cfg.dynamics).size - 1
-    u, _, _ = load(cfg, "temporal", stage)
+    u, _, _, _ = load(cfg, "temporal", stage)
     u = u[:, pad:]
-    stats = load(cfg, "evaluate", stage)
+    _, _, _, stats = load(cfg, "temporal", stage)
     stats = stats.query("kind == 'cell'")
     #u = u[stats.udense <= thr_udense]
     return _spike_image(u, tsel, ksel, width, lines)
@@ -45,11 +43,11 @@ def _spike_image(u, tsel=slice(None), ksel=slice(None), width=3, lines=()):
 
 def spike_stats_fig(cfg, stages, **kwargs):
     kwargs.setdefault("template", "none")
-    kwargs.setdefault("margin", dict(l=40, r=10, t=20, b=35))
+    kwargs.setdefault("margin", {"l": 40, "r": 10, "t": 20, "b": 35})
 
     dfs = []
     for stage in stages:
-        stats, _ = load(cfg, "evaluate", stage)
+        _, _, stats, _ = load(cfg, "temporal", stage)
         stats["epoch"] = stage
         dfs.append(stats)
     stats = pd.concat(dfs, axis=0)
@@ -59,7 +57,7 @@ def spike_stats_fig(cfg, stages, **kwargs):
         y="udense",
         opacity=0.3,
         facet_col="epoch",
-        labels=dict(signal="signal intensity", udense="spike density"),
+        labels={"signal": "signal intensity", "udense": "spike density"},
     )
     fig.update_layout(
         **kwargs,

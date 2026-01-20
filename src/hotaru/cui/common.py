@@ -6,11 +6,9 @@ import numpy as np
 import pandas as pd
 from hydra.core.hydra_config import HydraConfig
 
-from ..io import (
-    apply_mask,
-    load_imgs,
-    try_load,
-)
+from ..io import apply_mask
+from ..io import load_imgs
+from ..io import try_load
 from .data import Data
 
 logger = getLogger(__name__)
@@ -23,8 +21,8 @@ def set_env(cfg):
 
 
 def get_force(cfg, name, stage):
-    force_dict = dict(
-        normalize=[
+    force_dict = {
+        "normalize": [
             "normalize",
             "find",
             "reduce",
@@ -32,14 +30,14 @@ def get_force(cfg, name, stage):
             "init",
             "temporal",
         ],
-        find=["find", "reduce", "make", "init", "temporal"],
-        reduce=["reduce", "make", "init", "temporal"],
-        make=["make", "init", "temporal"],
-        init=["init", "temporal"],
-        spatial=["spatial", "clean", "temporal"],
-        clean=["clean", "temporal"],
-        temporal=["temporal"],
-    )
+        "find": ["find", "reduce", "make", "init", "temporal"],
+        "reduce": ["reduce", "make", "init", "temporal"],
+        "make": ["make", "init", "temporal"],
+        "init": ["init", "temporal"],
+        "spatial": ["spatial", "clean", "temporal"],
+        "clean": ["clean", "temporal"],
+        "temporal": ["temporal"],
+    }
     force = (stage > cfg.force_from[0]) or (
         (stage == cfg.force_from[0]) and (name in force_dict[cfg.force_from[1]])
     )
@@ -60,10 +58,7 @@ def all_stats(cfg):
 def get_files(cfg, name, stage):
     odir = Path(cfg.outputs.dir)
     path = cfg.outputs[name]
-    if (stage == 0) or ((stage == 1) and (name == "spatial")):
-        fdir = odir / path.dir0
-    else:
-        fdir = odir / path.dir
+    fdir = odir / path.dir0 if stage == 0 or stage == 1 and name == "spatial" else odir / path.dir
     files = [fdir / file.format(stage=stage) for file in path.files]
     return files
 

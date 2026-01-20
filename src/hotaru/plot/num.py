@@ -6,7 +6,7 @@ from ..cui.common import all_stats
 
 def cell_num_fig(cfg, **kwargs):
     kwargs.setdefault("template", "none")
-    kwargs.setdefault("margin", dict(l=40, r=10, t=20, b=35))
+    kwargs.setdefault("margin", {"l": 40, "r": 10, "t": 20, "b": 35})
 
     num = [np.count_nonzero(s.kind == "cell") for s in all_stats(cfg)]
 

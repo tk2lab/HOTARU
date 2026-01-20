@@ -6,17 +6,19 @@ from ..cui.common import load
 from ..footprint import get_radius
 from .common import to_image
 
+_rng = np.random.default_rng()
 
-def seg_max_image(cfg, stage, base=0.5, showbg=False, thr_udense=1.0):
+
+def seg_max_image(cfg, stage, *, base=0.5, showbg=False, thr_udense=1.0):
     if stage == 0:
         segs = load(cfg, "make", stage)
     else:
         segs, _ = load(cfg, "clean", stage)
-    stats, _ = load(cfg, "evaluate", stage)
-    return _seg_max_image(segs, stats, base, showbg, thr_udense)
+    _, _, _, stats = load(cfg, "temporal", stage)
+    return _seg_max_image(segs, stats, base=base, showbg=showbg, thr_udense=thr_udense)
 
 
-def _seg_max_image(segs, stats, base=0.5, showbg=False, thr_udense=1.0):
+def _seg_max_image(segs, stats, *, base=0.5, showbg=False, thr_udense=1.0):
     #stats.loc[stats.udense > thr_udense, "kind"] = "background"
     cell = stats.query("kind == 'cell'").segid.to_numpy()
     bg = stats.query("kind == 'background'").segid.to_numpy()
@@ -33,18 +35,18 @@ def _seg_max_image(segs, stats, base=0.5, showbg=False, thr_udense=1.0):
     return fpimg
 
 
-def seg_max_fig(cfg, stage, base=0.5, showbg=False, width=600, thr_udense=1.0):
+def seg_max_fig(cfg, stage, *, base=0.5, showbg=False, width=600, thr_udense=1.0):
     if stage == 0:
         segs = load(cfg, "make", stage)
         stats = load(cfg, "init", stage)
     else:
         _, segs = load(cfg, "clean", stage)
-        stats = load(cfg, "evaluate", stage)
-    return _seg_max_fig(segs, stats, base, showbg, width, thr_udense)
+        _, _, _, stats = load(cfg, "temporal", stage)
+    return _seg_max_fig(segs, stats, base=base, showbg=showbg, width=width, thr_udense=thr_udense)
 
 
-def _seg_max_fig(segs, stats, base=0.5, showbg=False, width=600, thr_udense=1.0):
-    img = _seg_max_image(segs, stats, base, showbg, thr_udense)
+def _seg_max_fig(segs, stats, *, base=0.5, showbg=False, width=600, thr_udense=1.0):
+    img = _seg_max_image(segs, stats, base=base, showbg=showbg, thr_udense=thr_udense)
     #stats.loc[stats.udense > thr_udense, "kind"] = "background"
     cell = stats.query("kind == 'cell'")
     fig = go.Figure()
@@ -57,7 +59,7 @@ def _seg_max_fig(segs, stats, base=0.5, showbg=False, width=600, thr_udense=1.0)
             y=cell.y,
             text=cell.index,
             mode="text",
-            textfont=dict(size=5, color="red"),
+            textfont={"size": 5, "color": "red"},
         ),
     )
     w, h = img.size
@@ -76,7 +78,7 @@ def _seg_max_fig(segs, stats, base=0.5, showbg=False, width=600, thr_udense=1.0)
     fig.update_layout(
         width=width,
         height=int(width * h / w),
-        margin=dict(l=0, r=0, b=0, t=0),
+        margin={"l": 0, "r": 0, "b": 0, "t": 0},
     )
     return fig
 
@@ -86,7 +88,7 @@ def bg_sum_image(cfg, stage):
         segs = load(cfg, "make", stage)
     else:
         segs, _ = load(cfg, "clean", stage)
-    stats, _ = load(cfg, "evaluate", stage)
+    _, _, _, stats = load(cfg, "temporal", stage)
     st = stats.query("kind == 'background'")
     bg = segs[st.index]
     bg *= st.bmax.to_numpy()[:, np.newaxis, np.newaxis]
@@ -148,7 +150,7 @@ def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5, thr_udense=1
         en = st + pad
         clip[st:en] = [0, 0, 0, 255]
 
-    for i, (img, y, x) in enumerate(zip(fp, ys, xs)):
+    for i, (img, y, x) in enumerate(zip(fp, ys, xs, strict=False)):
         u, w = divmod(i, mx)
         clip[s(u) : e(u), s(w) : e(w)] = to_image(
             img[y : y + size, x : x + size],
@@ -160,13 +162,13 @@ def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5, thr_udense=1
 def jitter(r):
     radius = np.sort(np.unique(r))
     rscale = np.log((radius[1:] / radius[:-1]).min())
-    jitter = np.exp(rscale * (np.random.uniform(size=r.size) - 0.5))
+    jitter = np.exp(rscale * (_rng.uniform(size=r.size) - 0.5))
     return r * jitter
 
 
-def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
+def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
     kwargs.setdefault("template", "none")
-    kwargs.setdefault("margin", dict(l=40, r=10, t=20, b=35))
+    kwargs.setdefault("margin", {"l": 40, "r": 10, "t": 20, "b": 35})
     kwargs.setdefault("showlegend", False)
 
     radius = get_radius(cfg.radius.filter)
@@ -189,7 +191,7 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
                         x=jitter(rs),
                         y=vs,
                         mode="markers",
-                        marker=dict(opacity=0.2, size=1, color="blue"),
+                        marker={"opacity": 0.2, "size": 1, "color": "blue"},
                         name="all pixels",
                     ),
                     col=i + 1,
@@ -197,7 +199,7 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
                 )
         else:
             intensity = "firmness"
-        stats, _ = load(cfg, "evaluate", stage)
+        _, _, _, stats = load(cfg, "temporal", stage)
         cell = stats.query("kind == 'cell'")
         v = cell[intensity]
         print(intensity, v)
@@ -207,7 +209,7 @@ def footprint_stats_fig(cfg, stages, usefind=False, **kwargs):
                 x=cell.radius if usefind else jitter(cell.radius),
                 y=v,
                 mode="markers",
-                marker=dict(opacity=0.3, size=5, color="green"),
+                marker={"opacity": 0.3, "size": 5, "color": "green"},
                 name="all pixels",
             ),
             col=i + 1,

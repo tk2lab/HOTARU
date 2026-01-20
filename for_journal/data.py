@@ -1,7 +1,6 @@
 from hotaru.plot.data import plot_data
 from hotaru.plot.stats import plot_stats
 
-
 paths = [
     "outputs/Kd32",
     "outputs/Sato1",
@@ -17,11 +16,11 @@ labels = [
     "Max", "Std", "Cor",
 ]
 
-args = dict(
-    width = 600,
-margin = dict(l=10, r=25, t=25, b=10),
-pad=10,
-)
+args = {
+    "width": 600,
+"margin": {"l": 10, "r": 25, "t": 25, "b": 10},
+"pad": 10,
+}
 
 
 """

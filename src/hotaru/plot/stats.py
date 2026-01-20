@@ -8,9 +8,9 @@ pio.kaleido.scope.mathjax = None
 
 def plot_stats(paths, imgs, labels, dlabels, **kwargs):
     dfs = []
-    for dlabel, path in zip(dlabels, paths):
+    for dlabel, path in zip(dlabels, paths, strict=False):
         df = pd.DataFrame()
-        for label, img in zip(labels, imgs):
+        for label, img in zip(labels, imgs, strict=False):
             img = np.load(f"{path}/{img}.npy")
             df[label] = img.ravel()
         df["Data"] = dlabel
@@ -29,9 +29,9 @@ def plot_stats(paths, imgs, labels, dlabels, **kwargs):
         coloraxis_colorbar_title_font_size=11,
         template="none",
         font_size=11,
-        margin=dict(l=50, r=20, t=20, b=50),
+        margin={"l": 50, "r": 20, "t": 20, "b": 50},
         annotations=[
-            dict(font=dict(size=11), text=dlabels[i])
+            {"font": {"size": 11}, "text": dlabels[i]}
             for i in range(len(fig.layout.annotations))
         ],
     )

@@ -1,13 +1,12 @@
 from logging import getLogger
 
 from ..filter import movie_stats
-from ..io import (
-    apply_mask,
-    load_imgs,
-    save,
-)
+from ..io import apply_mask
+from ..io import load_imgs
+from ..io import save
 from ..utils import get_xla_stats
-from .common import get_force, get_files
+from .common import get_files
+from .common import get_force
 
 logger = getLogger(__name__)
 

@@ -3,32 +3,22 @@ from logging import getLogger
 import numpy as np
 import pandas as pd
 
-from ..io import (
-    save,
-    try_load,
-)
-from ..train import (
-    TemporalModel,
-    get_penalty,
-)
-from ..utils import (
-    get_clip,
-    get_xla_stats,
-)
-from ..spike import (
-    evaluate,
-)
-from .common import (
-    get_data,
-    get_files,
-    get_force,
-    rev_index,
-)
+from ..io import save
+from ..io import try_load
+from ..spike import evaluate
+from ..train import TemporalModel
+from ..train import get_penalty
+from ..utils import get_clip
+from ..utils import get_xla_stats
+from .common import get_data
+from .common import get_files
+from .common import get_force
+from .common import rev_index
 
 logger = getLogger(__name__)
 
 
-def temporal(cfg, stage, force=False):
+def temporal(cfg, stage, *, force=False):
     spikefile, bgfile, lossfile, statsfile = get_files(cfg, "temporal", stage)
     if (
         get_force(cfg, "temporal", stage)
@@ -59,21 +49,21 @@ def temporal(cfg, stage, force=False):
             log = model.fit(**cfg.cmd.temporal.step)
             logger.debug("%s", get_xla_stats())
 
-            loss, sigma = zip(*log)
+            loss, sigma = zip(*log, strict=False)
             df = pd.DataFrame(
-                dict(
-                    stage=stage,
-                    kind="temporal",
-                    div=i,
-                    step=np.arange(len(log)),
-                    loss=loss,
-                    sigma=sigma,
-                ),
+                {
+                    "stage": stage,
+                    "kind": "temporal",
+                    "div": i,
+                    "step": np.arange(len(log)),
+                    "loss": loss,
+                    "sigma": sigma,
+                },
             )
             logdfs.append(df)
             out.append(model.get_x())
         logdf = pd.concat(logdfs, axis=0)
-        index1, index2, x1, x2 = (np.concatenate(v, axis=0) for v in zip(*out))
+        index1, index2, x1, x2 = (np.concatenate(v, axis=0) for v in zip(*out, strict=False))
         spikes = np.array(x1[rev_index(index1)])
         bg = np.array(x2[rev_index(index2)])
         if cfg.fix_top:

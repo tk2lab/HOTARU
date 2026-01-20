@@ -5,10 +5,8 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-from ..utils import (
-    from_tf,
-    get_gpu_env,
-)
+from ..utils import from_tf
+from ..utils import get_gpu_env
 
 logger = getLogger(__name__)
 

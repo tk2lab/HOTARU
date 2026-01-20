@@ -16,13 +16,13 @@ class ProxOptimizer:
         self._step_fn = jax.jit(self._step, static_argnames=("n_step",))
 
     def loss(self, *x):
-        loss_args = dict(
-            args=tuple(jnp.array(v) for v in self._model.args),
-            loss_scale=jnp.array(self._model.loss_scale),
-            prox_args=tuple(
+        loss_args = {
+            "args": tuple(jnp.array(v) for v in self._model.args),
+            "loss_scale": jnp.array(self._model.loss_scale),
+            "prox_args": tuple(
                 tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args
             ),
-        )
+        }
         x = tuple(jnp.array(xi) for xi in x)
         loss, aux = self._loss_fn(*x, **loss_args)
         return np.array(loss), np.array(aux)
@@ -36,18 +36,18 @@ class ProxOptimizer:
         return self._step_fn(x, args, prox_args, lr, nesterov, n_step)
 
     def fit(self, x, max_epoch, steps_par_epoch, lr, nesterov, tol, patience, env):
-        common_args = dict(
-            args=tuple(jnp.array(v) for v in self._model.args),
-            prox_args=tuple(
+        common_args = {
+            "args": tuple(jnp.array(v) for v in self._model.args),
+            "prox_args": tuple(
                 tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args
             ),
-        )
-        loss_args = common_args | dict(loss_scale=jnp.array(self._model.loss_scale))
-        step_args = common_args | dict(
-            lr=jnp.array(lr, jnp.float32),
-            nesterov=jnp.array(nesterov, jnp.float32),
-            n_step=steps_par_epoch,
-        )
+        }
+        loss_args = common_args | {"loss_scale": jnp.array(self._model.loss_scale)}
+        step_args = common_args | {
+            "lr": jnp.array(lr, jnp.float32),
+            "nesterov": jnp.array(nesterov, jnp.float32),
+            "n_step": steps_par_epoch,
+        }
 
         def loss_fn(*x):
             loss, aux = self._loss_fn(*x, **loss_args)
@@ -67,7 +67,7 @@ class ProxOptimizer:
 
         patience_count = 0
         min_loss = np.inf
-        for i in range(max_epoch):
+        for _i in range(max_epoch):
             x = self._step_fn(x, **step_args)
 
             (loss, aux), old_loss = loss_fn(*x), loss
@@ -90,7 +90,7 @@ class ProxOptimizer:
     def _loss_sep(self, *x, args, loss_scale, prox_args):
         loss, aux = self._model.loss(*x, *args)
         penalty = sum(
-            ri(xi, *ai) for xi, ri, ai in zip(x, self._model.regularizers, prox_args)
+            ri(xi, *ai) for xi, ri, ai in zip(x, self._model.regularizers, prox_args, strict=False)
         )
         return loss / loss_scale, penalty / loss_scale, aux
 
@@ -106,10 +106,10 @@ class ProxOptimizer:
             t1 = (nesterov + 1) / (nesterov + i + 1)
             newx = tuple(
                 p(y - lr * g, lr, *a)
-                for p, a, y, g in zip(prox, prox_args, oldy, grady)
+                for p, a, y, g in zip(prox, prox_args, oldy, grady, strict=False)
             )
-            tmpx = tuple((1 - t0) * xo + t0 * xn for xo, xn in zip(oldx, newx))
-            newy = tuple((1 - t1) * xn + t1 * xt for xn, xt in zip(newx, tmpx))
+            tmpx = tuple((1 - t0) * xo + t0 * xn for xo, xn in zip(oldx, newx, strict=False))
+            newy = tuple((1 - t1) * xn + t1 * xt for xn, xt in zip(newx, tmpx, strict=False))
             return newx, newy
 
         grad_loss_fn = jax.grad(self._model.loss, range(len(x)), has_aux=True)

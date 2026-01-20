@@ -6,10 +6,8 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-from ..utils import (
-    from_tf,
-    get_gpu_env,
-)
+from ..utils import from_tf
+from ..utils import get_gpu_env
 from .neighbor import neighbor
 
 logger = getLogger(__name__)
@@ -20,10 +18,7 @@ Stats = namedtuple("Stats", "avgx avgt std0 min0 max0 min1 max1")
 def movie_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     @jax.jit
     def update(avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax, index, imgs):
-        if mask is None:
-            masked = imgs.reshape(batch, h * w)
-        else:
-            masked = imgs[:, mask]
+        masked = imgs.reshape(batch, h * w) if mask is None else imgs[:, mask]
 
         avgti = jnp.nanmean(masked, axis=1)
         avgt = avgt.at[index].set(avgti)
@@ -54,7 +49,7 @@ def movie_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
 
     logger.info("stats batch: %d", batch)
     dataset = tf.data.Dataset.from_generator(
-        lambda: zip(range(nt), raw_imgs),
+        lambda: zip(range(nt), raw_imgs, strict=False),
         output_signature=(
             tf.TensorSpec((), tf.int32),
             tf.TensorSpec((h, w), tf.float32),
@@ -108,10 +103,7 @@ def movie_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     avgt = avgt[:-1]
     avgx = sumi / nt
     varx = sqi / nt - jnp.square(avgx)
-    if mask is None:
-        varx_masked = varx.ravel()
-    else:
-        varx_masked = varx[mask]
+    varx_masked = varx.ravel() if mask is None else varx[mask]
 
     std0 = jnp.sqrt(varx_masked.mean())
     stdx = jnp.sqrt(varx)

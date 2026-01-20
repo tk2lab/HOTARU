@@ -6,15 +6,11 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-from ..filter import (
-    gaussian,
-    gaussian_laplace,
-    max_pool,
-)
-from ..utils import (
-    from_tf,
-    get_gpu_env,
-)
+from ..filter import gaussian
+from ..filter import gaussian_laplace
+from ..filter import max_pool
+from ..utils import from_tf
+from ..utils import get_gpu_env
 from .radius import get_radius
 
 logger = getLogger(__name__)
@@ -50,7 +46,7 @@ def find_peaks(data, radius, env=None, factor=1, prefetch=1):
         batch,
     )
     dataset = tf.data.Dataset.from_generator(
-        lambda: zip(range(nt), data.data(mask_type=False)),
+        lambda: zip(range(nt), data.data(mask_type=False), strict=False),
         output_signature=(
             tf.TensorSpec((), tf.int32),
             tf.TensorSpec((h, w), tf.float32),

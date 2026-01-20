@@ -1,11 +1,9 @@
 from collections import namedtuple
 
-from .regularizer import (
-    Regularizer,
-    L2,
-    NonNegativeL1,
-    MaxNormNonNegativeL1,
-)
+from .regularizer import L2
+from .regularizer import MaxNormNonNegativeL1
+from .regularizer import NonNegativeL1
+from .regularizer import Regularizer
 
 Penalty = namedtuple("Penalty", "la lu lb bs bt")
 

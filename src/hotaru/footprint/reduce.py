@@ -121,17 +121,17 @@ def reduce_peaks(
     with mp.Pool() as pool:
         for o in pool.imap_unordered(_reduce_peaks, args):
             out.append(o)
-    celly, cellx, bgy, bgx = [np.concatenate(v, axis=0) for v in zip(*out)]
+    celly, cellx, bgy, bgx = [np.concatenate(v, axis=0) for v in zip(*out, strict=False)]
 
     def make_dataframe(y, x):
         df = pd.DataFrame(
-            dict(
-                y=y,
-                x=x,
-                t=ts[y, x],
-                radius=rs[y, x],
-                firmness=vs[y, x],
-            )
+            {
+                "y": y,
+                "x": x,
+                "t": ts[y, x],
+                "radius": rs[y, x],
+                "firmness": vs[y, x],
+            }
         )
         return df.sort_values("firmness", ascending=False)
 

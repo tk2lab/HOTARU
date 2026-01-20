@@ -2,23 +2,17 @@ from collections import namedtuple
 from logging import getLogger
 
 import jax
-import jax.lax as lax
 import jax.numpy as jnp
 import numpy as np
-import pandas  as pd
+import pandas as pd
 import tensorflow as tf
 from scipy.ndimage import grey_closing
 
 from ..filter import gaussian_laplace
-from ..utils import (
-    from_tf,
-    get_gpu_env,
-)
-from ..utils.math import (
-    calc_sn,
-    robust_zscore,
-    calc_mah,
-)
+from ..utils import from_tf
+from ..utils import get_gpu_env
+from ..utils.math import calc_mah
+from ..utils.math import robust_zscore
 from .radius import get_radius
 from .segment import get_segment_mask
 
@@ -182,7 +176,7 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     batch = env.batch(float(factor) * h * w * len(radius), nk)
 
     dataset = tf.data.Dataset.from_generator(
-        lambda: zip(range(nk), segs),
+        lambda: zip(range(nk), segs, strict=False),
         output_signature=(
             tf.TensorSpec((), tf.int32),
             tf.TensorSpec((h, w), tf.float32),

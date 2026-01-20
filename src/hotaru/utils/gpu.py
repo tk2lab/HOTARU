@@ -1,14 +1,14 @@
-import os
 import math
+import os
 import subprocess
-import psutil
 from logging import getLogger
 
-import tensorflow as tf
 import jax
+import psutil
+import tensorflow as tf
+from jax.dlpack import from_dlpack
 from jax.experimental.mesh_utils import create_device_mesh
 from jax.sharding import PositionalSharding
-from jax.dlpack import from_dlpack
 
 logger = getLogger(__name__)
 
@@ -92,7 +92,7 @@ def get_xla_stats():
     lbs = backend.live_buffers()
     les = backend.live_executables()
     mem = psutil.Process().memory_info().rss
-    return dict(mem=mem * 1e-6, executable=len(les), buffer=[lb.shape for lb in lbs])
+    return {"mem": mem * 1e-6, "executable": len(les), "buffer": [lb.shape for lb in lbs]}
 
 
 def delete_xla_buffers():

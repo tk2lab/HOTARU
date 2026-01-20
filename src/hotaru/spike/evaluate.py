@@ -3,15 +3,11 @@ from logging import getLogger
 import numpy as np
 import pandas as pd
 
-from ..utils.math import (
-    calc_sn,
-    robust_zscore,
-    calc_mah,
-)
-from .dynamics import (
-    get_dynamics,
-    get_rdynamics,
-)
+from ..utils.math import calc_mah
+from ..utils.math import calc_sn
+from ..utils.math import robust_zscore
+from .dynamics import get_dynamics
+from .dynamics import get_rdynamics
 
 logger = getLogger(__name__)
 
@@ -117,11 +113,11 @@ def fix_kind(stats, spikes, bg, dynamics, bg_type="bg", thr_bg=None, thr_cell=No
     with np.printoptions(precision=3, suppress=True):
         bins = [-np.inf, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, np.inf]
         hist, bins = np.histogram(cell_df.zrsn, bins=bins)
-        for s, e, c in zip(bins[:-1], bins[1:], hist):
+        for s, e, c in zip(bins[:-1], bins[1:], hist, strict=False):
             logger.info("[%f %f): %d", s, e, c)
         bins = [0.0, 0.2, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, np.inf]
         hist, bins = np.histogram(cell_df.firmness, bins=bins)
-        for s, e, c in zip(bins[:-1], bins[1:], hist):
+        for s, e, c in zip(bins[:-1], bins[1:], hist, strict=False):
             logger.info("[%f %f): %d", s, e, c)
 
     if bg_type == "remove":

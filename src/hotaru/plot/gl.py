@@ -1,12 +1,9 @@
 import numpy as np
-import jax.numpy as jnp
 import plotly.graph_objects as go
 import plotly.io as pio
 
-from hotaru.filter import (
-    gaussian_laplace,
-    max_pool,
-)
+from hotaru.filter import gaussian_laplace
+from hotaru.filter import max_pool
 from hotaru.footprint import get_radius
 
 pio.kaleido.scope.mathjax = None
@@ -56,9 +53,9 @@ def plot_gl(data, radius, idx, width):
         shared_xaxes=True,
         shared_yaxes=True,
     )
-    margin = dict(l=15, r=30, t=30, b=15)
+    margin = {"l": 15, "r": 30, "t": 30, "b": 15}
     mod_width = width - margin["l"] - margin["r"]
-    for j, (img, glr) in enumerate(zip(imgs, glrt)):
+    for j, (img, glr) in enumerate(zip(imgs, glrt, strict=False)):
         fig.add_trace(
             go.Heatmap(z=img, colorscale="Greens", showscale=False, zmin=-1, zmax=1),
             row=j + 1,
@@ -69,14 +66,14 @@ def plot_gl(data, radius, idx, width):
         xj = x[cond]
         rj = r[cond]
         gj = g[cond]
-        marker = dict(
-            symbol="circle",
-            color="blue",
-            opacity=0.8 * (gj + 0.3) / 1.3,
-            line_width=0,
-            size=5 * rj * mod_width / (nr + 2) / w,
-            sizemode="diameter",
-        )
+        marker = {
+            "symbol": "circle",
+            "color": "blue",
+            "opacity": 0.8 * (gj + 0.3) / 1.3,
+            "line_width": 0,
+            "size": 5 * rj * mod_width / (nr + 2) / w,
+            "sizemode": "diameter",
+        }
         fig.add_trace(
             go.Scatter(mode="markers", x=xj, y=yj, marker=marker),
             row=j + 1,
@@ -103,7 +100,7 @@ def plot_gl(data, radius, idx, width):
     fig.update_layout(
         showlegend=False,
         annotations=[
-            dict(font=dict(size=11)) for _ in range(len(fig.layout.annotations))
+            {"font": {"size": 11}} for _ in range(len(fig.layout.annotations))
         ],
         width=width,
         height=np.ceil(margin["t"] + margin["b"] + mod_width * nt * h / (nr + 2) / w),

@@ -2,7 +2,6 @@ import pandas as pd
 
 from hotaru.plot.complu import compare_lu_fig
 
-
 paths = [
     "outputs/CA3/miniature/min21/default/u0/000stats.csv",
     "outputs/CA3/miniature/min21/default/u20/000stats.csv",

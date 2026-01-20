@@ -15,23 +15,11 @@ def get_clip(shape, clip):
             dx = (w - 2 * margin + xnum - 1) // xnum
             clips = []
             for py in range(ynum):
-                if py == 0:
-                    y0 = 0
-                else:
-                    y0 = margin + dy * py
-                if py == ynum - 1:
-                    y1 = h
-                else:
-                    y1 = margin + dy * (py + 1)
+                y0 = 0 if py == 0 else margin + dy * py
+                y1 = h if py == ynum - 1 else margin + dy * (py + 1)
                 for px in range(xnum):
-                    if px == 0:
-                        x0 = 0
-                    else:
-                        x0 = margin + dx * px
-                    if px == xnum - 1:
-                        x1 = w
-                    else:
-                        x1 = margin + dx * (px + 1)
+                    x0 = 0 if px == 0 else margin + dx * px
+                    x1 = w if px == xnum - 1 else margin + dx * (px + 1)
                     clips.append(Clip(y0, y1, x0, x1, margin))
             return clips
         case _:

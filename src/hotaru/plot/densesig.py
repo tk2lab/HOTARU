@@ -33,9 +33,9 @@ def dense_sig_fig(cfg, stages, thr_sig=0, label="", thr_udense=1.0):
     for i in range(len(fig.data)):
         fig.data[i].marker.line.width = 0
 
-    for n, stage in zip(num, stages):
+    for n, stage in zip(num, stages, strict=False):
         fig.update_annotations(
-            selector=dict(text=f"col={stage}"), y=0.8, text=f"{label}{stage}; num={n}"
+            selector={"text": f"col={stage}"}, y=0.8, text=f"{label}{stage}; num={n}"
         )
     fig.update_layout(
         template="none",
@@ -43,7 +43,7 @@ def dense_sig_fig(cfg, stages, thr_sig=0, label="", thr_udense=1.0):
         showlegend=False,
         width=600,
         height=150,
-        margin=dict(l=35, r=10, t=20, b=32),
+        margin={"l": 35, "r": 10, "t": 20, "b": 32},
     )
     return fig
 
@@ -80,14 +80,14 @@ def dense_sig_multi_fig(paths, stages, thr_sig=0, thr_udense=1.0):
     )
     for i in range(len(fig.data)):
         fig.data[i].marker.line.width = 0
-    for i, name in enumerate(paths.keys()):
+    for _i, name in enumerate(paths.keys()):
         fig.update_annotation(
-            selector=dict(text=f"naem={name}"),
+            selector={"text": f"naem={name}"},
             text=name,
         )
-    for j, stage in enumerate(paths.keys()):
+    for _j, _stage in enumerate(paths.keys()):
         fig.update_annotation(
-            selector=dict(text=f"naem={name}"),
+            selector={"text": f"naem={name}"},
             text="",
         )
     fig.update_layout(
@@ -96,6 +96,6 @@ def dense_sig_multi_fig(paths, stages, thr_sig=0, thr_udense=1.0):
         showlegend=False,
         width=600,
         height=300,
-        margin=dict(l=35, r=10, t=20, b=32),
+        margin={"l": 35, "r": 10, "t": 20, "b": 32},
     )
     return fig

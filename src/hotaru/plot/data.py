@@ -9,7 +9,7 @@ def plot_data(paths, imgs, labels, dlabels, width, margin, pad):
 
     num = len(imgs)
 
-    hs, ws = zip(*(np.load(f"{path}/{imgs[0]}.npy").shape for path in paths))
+    hs, ws = zip(*(np.load(f"{path}/{imgs[0]}.npy").shape for path in paths), strict=False)
     print(hs, ws)
     aspects = np.array(hs) / np.array(ws)
 
@@ -52,7 +52,7 @@ def plot_data(paths, imgs, labels, dlabels, width, margin, pad):
             )
     mod_width = width - margin["l"] - margin["r"]
     fig.update_layout(
-        annotations=[dict(font=dict(size=11)) for _ in range(num)],
+        annotations=[{"font": {"size": 11}} for _ in range(num)],
         width=width,
         height=np.ceil(margin["t"] + margin["b"] + mod_width * aspects.sum() / num),
         margin=margin,

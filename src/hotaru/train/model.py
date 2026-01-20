@@ -3,23 +3,19 @@ from logging import getLogger
 import jax.numpy as jnp
 import numpy as np
 
-from .common import (
-    loss_fn,
-    prepare_matrix,
-)
 from ..spike import get_dynamics
+from .common import loss_fn
+from .common import prepare_matrix
 from .optimizer import ProxOptimizer
 from .penalty import get_penalty
-from .regularizer import (
-    L1,
-    NonNegativeL1,
-)
+from .regularizer import L1
+from .regularizer import NonNegativeL1
 
 logger = getLogger(__name__)
 
 
 class Model:
-    def __init__(self, data, trans, stats, dynamics, penalty, **kwargs):
+    def __init__(self, data, stats, dynamics, penalty, *, trans: bool, **kwargs):
         self._dynamics = get_dynamics(dynamics)
         self._penalty = get_penalty(penalty)
 
@@ -127,7 +123,7 @@ class Model:
 
 class SpatialModel(Model):
     def __init__(self, data, stats, oldx, y1, y2, *args, **kwargs):
-        super().__init__(data, False, stats, *args, **kwargs)
+        super().__init__(data, stats, *args, trans=False, **kwargs)
         self._oldx = oldx
         self._y1 = y1
         self._y2 = y2
@@ -188,7 +184,7 @@ class SpatialModel(Model):
 
 class TemporalModel(Model):
     def __init__(self, data, stats, y, *args, **kwargs):
-        super().__init__(data, True, stats, *args, **kwargs)
+        super().__init__(data, stats, *args, trans=True, **kwargs)
         self._y = y
 
     @property

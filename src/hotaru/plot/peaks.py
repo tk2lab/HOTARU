@@ -1,3 +1,5 @@
+import contextlib
+
 import numpy as np
 import plotly.graph_objects as go
 import plotly.io as pio
@@ -5,11 +7,12 @@ import plotly.io as pio
 from ..cui.common import load
 
 pio.kaleido.scope.mathjax = None
+_rng = np.random.default_rng()
 
 
 def jitter(r, radius, scale):
     dscale = np.log((radius[1:] / radius[:-1]).min())
-    jitter = np.exp(scale * dscale * np.random.randn(r.size))
+    jitter = np.exp(scale * dscale * _rng.normal(r.size))
     return r * jitter
 
 
@@ -19,10 +22,7 @@ def multi_peak_stats_fig(cfg, stage, stats, rmin, rmax):
     vmax = 0
     for i, peaks in enumerate(stats):
         cell = peaks.query("kind == 'cell'")
-        if i == 0:
-            intensity = "intensity"
-        else:
-            intensity = "firmness"
+        intensity = "intensity" if i == 0 else "firmness"
         v = cell[intensity]
         vmax = max(v.max(), vmax)
         fig.add_trace(
@@ -30,7 +30,7 @@ def multi_peak_stats_fig(cfg, stage, stats, rmin, rmax):
                 x=cell.radius, #jitter(rs),
                 y=v,
                 mode="markers",
-                marker=dict(opacity=0.3, size=5, color="green"),
+                marker={"opacity": 0.3, "size": 5, "color": "green"},
                 name="all pixels",
             ),
             col=i + 1,
@@ -106,10 +106,8 @@ def peak_stats_fig(cfg, stage, rmin=None, rmax=None, peakval=None):
         rmax = cfg.init.args.max_radius
     peakval = None
     if stage == 0:
-        try:
+        with contextlib.suppress(FileNotFoundError):
             peakval = load(cfg, "find", stage)
-        except FileNotFoundError:
-            pass
 
     fig = go.Figure().set_subplots(2, 1, row_heights=(1, 2))
     if peakval is None:
@@ -127,7 +125,7 @@ def peak_stats_fig(cfg, stage, rmin=None, rmax=None, peakval=None):
                 x=jitter(rs, peakval.radius, 0.3),
                 y=vs,
                 mode="markers",
-                marker=dict(opacity=0.2, size=1, color="blue"),
+                marker={"opacity": 0.2, "size": 1, "color": "blue"},
                 name="all pixels",
             ),
             col=1,
@@ -150,7 +148,7 @@ def peak_stats_fig(cfg, stage, rmin=None, rmax=None, peakval=None):
             x=cell.radius, #jitter(rs),
             y=cell[intensity],
             mode="markers",
-            marker=dict(opacity=0.3, size=5, color="green"),
+            marker={"opacity": 0.3, "size": 5, "color": "green"},
             name="all pixels",
         ),
         col=1,
@@ -202,24 +200,24 @@ def peak_stats_fig(cfg, stage, rmin=None, rmax=None, peakval=None):
 def peak_stats_trace(peaks, peakval=None, label=""):
 
     radius = np.sort(np.unique(peaks.radius))
-    dscale = np.log((radius[1:] / radius[:-1]).min())
+    np.log((radius[1:] / radius[:-1]).min())
     data = []
     if peakval is None:
         intensity = "firmness"
-        vmax = peaks[intensity].max()
+        peaks[intensity].max()
     else:
         intensity = "intensity"
         ri = peakval.r
         cond = ri > 0
         rs = peakval.radius[ri[cond]]
         vs = peakval.v[cond]
-        vmax = vs.max()
+        vs.max()
         data.append(
             go.Scattergl(
                 x=jitter(rs),
                 y=vs,
                 mode="markers",
-                marker=dict(opacity=0.01, color="blue"),
+                marker={"opacity": 0.01, "color": "blue"},
                 name="all pixels",
             )
         )
@@ -230,14 +228,14 @@ def peak_stats_trace(peaks, peakval=None, label=""):
             x=jitter(cell.radius),
             y=cell[intensity],
             mode="markers",
-            marker=dict(size=10, symbol="star", color="green", opacity=0.1),
+            marker={"size": 10, "symbol": "star", "color": "green", "opacity": 0.1},
             name="cell",
         ),
         go.Scattergl(
             x=jitter(bg.radius),
             y=bg[intensity],
             mode="markers",
-            marker=dict(size=10, symbol="pentagon", color="red", opacity=0.5),
+            marker={"size": 10, "symbol": "pentagon", "color": "red", "opacity": 0.5},
             name="background",
         ),
     ]

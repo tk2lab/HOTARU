@@ -1,12 +1,10 @@
 import sys
-from pathlib import Path
 from importlib import import_module
 from multiprocessing import Process
+from pathlib import Path
 
-from ..plot import (
-    peak_stats_fig,
-    seg_max_fig,
-)
+from ..plot import peak_stats_fig
+from ..plot import seg_max_fig
 from .common import set_env
 
 

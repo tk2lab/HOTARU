@@ -1,8 +1,6 @@
-import plotly.graph_objects as go
 import pandas as pd
-import numpy as np
+import plotly.graph_objects as go
 
-from ..cui.common import load
 from .common import add_jitter
 
 
@@ -30,7 +28,7 @@ def compare_lu_fig(paths, labels):
                 y=df.intensity,
                 x=df.udense,
                 mode="markers",
-                marker=dict(size=3, color="blue", opacity=0.5),
+                marker={"size": 3, "color": "blue", "opacity": 0.5},
             ),
             row=2,
             col=i + 1,
@@ -79,6 +77,6 @@ def compare_lu_fig(paths, labels):
         width=600,
         height=200,
         showlegend=False,
-        margin=dict(t=0, r=10, l=40, b=40),
+        margin={"t": 0, "r": 10, "l": 40, "b": 40},
     )
     return fig

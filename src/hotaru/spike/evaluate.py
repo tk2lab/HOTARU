@@ -17,13 +17,8 @@ logger = getLogger(__name__)
 
 
 def evaluate(stats, spikes, bg):
-    cond_remove = stats.kind == "cell"
+    cond_cell = (stats.kind == "cell").to_numpy()
     cond_remove_cell = spikes.max(axis=1) == 0
-    cond_remove[cond_remove] = cond_remove_cell
-    stats.loc[cond_remove, "kind"] = "remove"
-    spikes = spikes[~cond_remove_cell]
-
-    ci = stats.kind == "cell"
 
     sm = spikes.max(axis=1)
     sd = spikes.mean(axis=1) / sm
@@ -32,29 +27,29 @@ def evaluate(stats, spikes, bg):
     rsn = 1 / sn
     zrsn = robust_zscore(rsn)
 
-    x = stats.loc[ci, "firmness"].to_numpy()
+    x = stats.loc[cond_cell, "firmness"].to_numpy()
     y = rsn
     hypot = np.hypot(robust_zscore(x), robust_zscore(y))
     mah = calc_mah(x, y)
 
     stats["spkid"] = -1
-    stats.loc[ci, "spkid"] = np.where(~cond_remove_cell)[0]
+    stats.loc[cond_cell, "spkid"] = np.where(~cond_remove_cell)[0]
     stats["signal"] = None
-    stats.loc[ci, "signal"] = sm
+    stats.loc[cond_cell, "signal"] = sm
     stats["udense"] = None
-    stats.loc[ci, "udense"] = sd
+    stats.loc[cond_cell, "udense"] = sd
     stats["unz"] = -1
-    stats.loc[ci, "unz"] = nonzero
+    stats.loc[cond_cell, "unz"] = nonzero
     stats["snratio"] = None
-    stats.loc[ci, "snratio"] = sn
+    stats.loc[cond_cell, "snratio"] = sn
     stats["rsn"] = None
-    stats.loc[ci, "rsn"] = rsn
+    stats.loc[cond_cell, "rsn"] = rsn
     stats["zrsn"] = None
-    stats.loc[ci, "zrsn"] = zrsn
+    stats.loc[cond_cell, "zrsn"] = zrsn
     stats["hypot"] = None
-    stats.loc[ci, "hypot"] = hypot
+    stats.loc[cond_cell, "hypot"] = hypot
     stats["mah"] = None
-    stats.loc[ci, "mah"] = mah
+    stats.loc[cond_cell, "mah"] = mah
 
     bi = stats.kind == "background"
     bmax = np.abs(bg).max(axis=1)

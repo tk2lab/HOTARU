@@ -56,14 +56,12 @@ def temporal(cfg, stage, force=False):
                 get_penalty(cfg.penalty, stage),
             )
             clips = get_clip(data.shape, cfg.cmd.temporal.clip)
-            out = []
             logdfs = []
+            out = []
             for i, clip in enumerate(clips):
                 model.prepare(clip, **cfg.cmd.temporal.prepare)
                 log = model.fit(**cfg.cmd.temporal.step)
                 logger.debug("%s", get_xla_stats())
-                out.append(model.get_x())
-                i1, i2, x1, x2 = out[-1]
 
                 loss, sigma = zip(*log)
                 df = pd.DataFrame(
@@ -77,6 +75,7 @@ def temporal(cfg, stage, force=False):
                     ),
                 )
                 logdfs.append(df)
+                out.append(model.get_x())
             logdf = pd.concat(logdfs, axis=0)
             index1, index2, x1, x2 = (np.concatenate(v, axis=0) for v in zip(*out))
             spikes = np.array(x1[rev_index(index1)])

@@ -1,0 +1,8 @@
+label: ${data.imgs.file}-${data.imgs.hz}-${data.mask.file}
+imgs:
+  type: tif
+  file: imgs.tif
+  hz: 20
+mask:
+  type: tif
+  file: mask.tif

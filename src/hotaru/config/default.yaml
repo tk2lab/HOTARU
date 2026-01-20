@@ -1,0 +1,24 @@
+defaults:
+  - _self_
+  - hydra/local
+  - env: default
+  - data: default
+  - radius: default
+  - init: default
+  - dynamics: default
+  - penalty: a10u10
+  - clean: simple
+  - outputs: default
+  - cmd: default
+  - gui: default
+
+bg_type: bg
+fix_top: true
+
+mode: run
+max_train_step: 10
+early_stop: true
+force_from:
+  - 100
+  - spatial
+trace: false

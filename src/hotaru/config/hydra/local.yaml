@@ -1,0 +1,16 @@
+# @package hydra
+
+defaults:
+  - override output: hotaru
+  - override job_logging: hotaru
+  - _self_
+
+output_subdir: hydra
+
+job:
+  name: hotaru
+  env_set:
+    TF_CPP_MIN_LOG_LEVEL: 2
+    #TF_CPP_VMODULE: bfc_allocator=1
+    #JAX_PLATFORMS: cuda
+    #JLA_PYTHON_CLIENT_PREALLOCATE: true

@@ -17,9 +17,6 @@ logger = getLogger(__name__)
 
 
 def evaluate(stats, spikes, bg):
-    cond_cell = (stats.kind == "cell").to_numpy()
-    cond_remove_cell = spikes.max(axis=1) == 0
-
     sm = spikes.max(axis=1)
     sd = spikes.mean(axis=1) / sm
     nonzero = np.count_nonzero(spikes > 0, axis=1)
@@ -27,13 +24,14 @@ def evaluate(stats, spikes, bg):
     rsn = 1 / sn
     zrsn = robust_zscore(rsn)
 
+    cond_cell = stats.kind == "cell"
     x = stats.loc[cond_cell, "firmness"].to_numpy()
     y = rsn
     hypot = np.hypot(robust_zscore(x), robust_zscore(y))
     mah = calc_mah(x, y)
 
     stats["spkid"] = -1
-    stats.loc[cond_cell, "spkid"] = np.where(~cond_remove_cell)[0]
+    stats.loc[cond_cell, "spkid"] = np.arange(spikes.shape[0])
     stats["signal"] = None
     stats.loc[cond_cell, "signal"] = sm
     stats["udense"] = None

@@ -30,8 +30,11 @@ def evaluate(stats, spikes, bg):
     hypot = np.hypot(robust_zscore(x), robust_zscore(y))
     mah = calc_mah(x, y)
 
+    cond_cell_active = np.zeros_like(cond_cell, bool)
+    cond_cell_active[cond_cell] = sm > 0
+
     stats["spkid"] = -1
-    stats.loc[cond_cell, "spkid"] = np.arange(spikes.shape[0])
+    stats.loc[cond_cell_active, "spkid"] = np.nonzero(sm > 0)[0]
     stats["signal"] = None
     stats.loc[cond_cell, "signal"] = sm
     stats["udense"] = None

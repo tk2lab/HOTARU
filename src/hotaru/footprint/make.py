@@ -23,8 +23,8 @@ def make_footprints(data, peaks, env=None, factor=1, prefetch=1):
     ts, ys, xs, rs = (np.array(v) for v in (peaks.t, peaks.y, peaks.x, peaks.radius))
 
     env = get_gpu_env(env)
-    nd = env.num_devices
-    sharding = env.sharding((nd, 1))
+    #nd = env.num_devices
+    #sharding = env.sharding((nd, 1))
     batch = env.batch(float(factor) * h * w, nk)
     logger.info("make: %s batch=%d", peaks.shape[0], batch)
 

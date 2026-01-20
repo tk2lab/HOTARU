@@ -11,24 +11,24 @@ _rng = np.random.default_rng()
 
 def seg_max_image(cfg, stage, *, base=0.5, showbg=False, thr_udense=1.0):
     if stage == 0:
-        segs = load(cfg, "make", stage)
+        segs = load(cfg, 'make', stage)
     else:
-        segs, _ = load(cfg, "clean", stage)
-    _, _, _, stats = load(cfg, "temporal", stage)
+        segs, _ = load(cfg, 'clean', stage)
+    _, _, _, stats = load(cfg, 'temporal', stage)
     return _seg_max_image(segs, stats, base=base, showbg=showbg, thr_udense=thr_udense)
 
 
 def _seg_max_image(segs, stats, *, base=0.5, showbg=False, thr_udense=1.0):
-    #stats.loc[stats.udense > thr_udense, "kind"] = "background"
+    # stats.loc[stats.udense > thr_udense, "kind"] = "background"
     cell = stats.query("kind == 'cell'").segid.to_numpy()
     bg = stats.query("kind == 'background'").segid.to_numpy()
     fp = segs[cell]
     fp = np.maximum(0, (fp - base) / (1 - base)).max(axis=0)
-    fpimg = to_image(fp, "Greens")
+    fpimg = to_image(fp, 'Greens')
     fpimg = Image.fromarray(fpimg)
     if showbg:
         bg = segs[bg].max(axis=0)
-        bgimg = to_image(bg, "Reds")
+        bgimg = to_image(bg, 'Reds')
         bgimg[:, :, 3] = 128
         fpimg = Image.fromarray(bgimg)
         fpimg.paset(bgimg, (0, 0), bgimg)
@@ -37,17 +37,17 @@ def _seg_max_image(segs, stats, *, base=0.5, showbg=False, thr_udense=1.0):
 
 def seg_max_fig(cfg, stage, *, base=0.5, showbg=False, width=600, thr_udense=1.0):
     if stage == 0:
-        segs = load(cfg, "make", stage)
-        stats = load(cfg, "init", stage)
+        segs = load(cfg, 'make', stage)
+        stats = load(cfg, 'init', stage)
     else:
-        _, segs = load(cfg, "clean", stage)
-        _, _, _, stats = load(cfg, "temporal", stage)
+        _, segs = load(cfg, 'clean', stage)
+        _, _, _, stats = load(cfg, 'temporal', stage)
     return _seg_max_fig(segs, stats, base=base, showbg=showbg, width=width, thr_udense=thr_udense)
 
 
 def _seg_max_fig(segs, stats, *, base=0.5, showbg=False, width=600, thr_udense=1.0):
     img = _seg_max_image(segs, stats, base=base, showbg=showbg, thr_udense=thr_udense)
-    #stats.loc[stats.udense > thr_udense, "kind"] = "background"
+    # stats.loc[stats.udense > thr_udense, "kind"] = "background"
     cell = stats.query("kind == 'cell'")
     fig = go.Figure()
     fig.add_trace(
@@ -58,8 +58,8 @@ def _seg_max_fig(segs, stats, *, base=0.5, showbg=False, width=600, thr_udense=1
             x=cell.x,
             y=cell.y,
             text=cell.index,
-            mode="text",
-            textfont={"size": 5, "color": "red"},
+            mode='text',
+            textfont={'size': 5, 'color': 'red'},
         ),
     )
     w, h = img.size
@@ -78,32 +78,32 @@ def _seg_max_fig(segs, stats, *, base=0.5, showbg=False, width=600, thr_udense=1
     fig.update_layout(
         width=width,
         height=int(width * h / w),
-        margin={"l": 0, "r": 0, "b": 0, "t": 0},
+        margin={'l': 0, 'r': 0, 'b': 0, 't': 0},
     )
     return fig
 
 
 def bg_sum_image(cfg, stage):
     if stage == 0:
-        segs = load(cfg, "make", stage)
+        segs = load(cfg, 'make', stage)
     else:
-        segs, _ = load(cfg, "clean", stage)
-    _, _, _, stats = load(cfg, "temporal", stage)
+        segs, _ = load(cfg, 'clean', stage)
+    _, _, _, stats = load(cfg, 'temporal', stage)
     st = stats.query("kind == 'background'")
     bg = segs[st.index]
     bg *= st.bmax.to_numpy()[:, np.newaxis, np.newaxis]
     bgsum = bg.sum(axis=0)
     bgsum /= bgsum.max()
-    img = to_image(bgsum, "Reds")
+    img = to_image(bgsum, 'Reds')
     return Image.fromarray(img)
 
 
 def segs_image(cfg, stage, select=None, mx=None, hsize=20, pad=5, thr_udense=1.0):
     if stage == 0:
-        segs = load(cfg, "make", stage)
-        stats = load(cfg, "init", stage)
+        segs = load(cfg, 'make', stage)
+        stats = load(cfg, 'init', stage)
     else:
-        segs, stats = load(cfg, "clean", stage)
+        segs, stats = load(cfg, 'clean', stage)
     return _segs_image(segs, stats, select, mx, hsize, pad, thr_udense)
 
 
@@ -116,7 +116,7 @@ def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5, thr_udense=1
 
     size = 2 * hsize + 1
 
-    stats.loc[stats.udense > thr_udense, "kind"] = "background"
+    stats.loc[stats.udense > thr_udense, 'kind'] = 'background'
     stats = stats.query("kind == 'cell'")
 
     nk = stats.shape[0]
@@ -137,9 +137,7 @@ def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5, thr_udense=1
     my = (nk + mx - 1) // mx
 
     fp = np.pad(fp, ((0, 0), (hsize, hsize), (hsize, hsize)))
-    clip = np.zeros(
-        (my * size + pad * (my + 1), mx * size + pad * (mx + 1), 4), np.uint8
-    )
+    clip = np.zeros((my * size + pad * (my + 1), mx * size + pad * (mx + 1), 4), np.uint8)
 
     for x in range(mx + 1):
         st = x * (size + pad)
@@ -154,7 +152,7 @@ def _segs_image(segs, stats, select=None, mx=None, hsize=20, pad=5, thr_udense=1
         u, w = divmod(i, mx)
         clip[s(u) : e(u), s(w) : e(w)] = to_image(
             img[y : y + size, x : x + size],
-            "Greens",
+            'Greens',
         )
     return Image.fromarray(clip)
 
@@ -167,9 +165,9 @@ def jitter(r):
 
 
 def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
-    kwargs.setdefault("template", "none")
-    kwargs.setdefault("margin", {"l": 40, "r": 10, "t": 20, "b": 35})
-    kwargs.setdefault("showlegend", False)
+    kwargs.setdefault('template', 'none')
+    kwargs.setdefault('margin', {'l': 40, 'r': 10, 't': 20, 'b': 35})
+    kwargs.setdefault('showlegend', False)
 
     radius = get_radius(cfg.radius.filter)
     rmin, rmax = radius[0], radius[-1]
@@ -178,9 +176,9 @@ def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
     vmax = 0
     for i, stage in enumerate(stages):
         if i == 0:
-            intensity = "intensity"
+            intensity = 'intensity'
             if usefind:
-                peakval = load(cfg, "find", 0)
+                peakval = load(cfg, 'find', 0)
                 ri = peakval.r
                 cond = ri > 0
                 rs = peakval.radius[ri[cond]]
@@ -190,16 +188,16 @@ def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
                     go.Scattergl(
                         x=jitter(rs),
                         y=vs,
-                        mode="markers",
-                        marker={"opacity": 0.2, "size": 1, "color": "blue"},
-                        name="all pixels",
+                        mode='markers',
+                        marker={'opacity': 0.2, 'size': 1, 'color': 'blue'},
+                        name='all pixels',
                     ),
                     col=i + 1,
                     row=2,
                 )
         else:
-            intensity = "firmness"
-        _, _, _, stats = load(cfg, "temporal", stage)
+            intensity = 'firmness'
+        _, _, _, stats = load(cfg, 'temporal', stage)
         cell = stats.query("kind == 'cell'")
         v = cell[intensity]
         print(intensity, v)
@@ -208,9 +206,9 @@ def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
             go.Scattergl(
                 x=cell.radius if usefind else jitter(cell.radius),
                 y=v,
-                mode="markers",
-                marker={"opacity": 0.3, "size": 5, "color": "green"},
-                name="all pixels",
+                mode='markers',
+                marker={'opacity': 0.3, 'size': 5, 'color': 'green'},
+                name='all pixels',
             ),
             col=i + 1,
             row=2,
@@ -222,7 +220,7 @@ def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
             go.Bar(
                 x=np.log(r),
                 y=c,
-                marker_color="green",
+                marker_color='green',
             ),
             col=i + 1,
             row=1,
@@ -238,11 +236,11 @@ def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
         )
         print(rmin, rmax)
         fig.update_xaxes(
-            title_text="radius",
-            type="log",
-            tickmode="array",
+            title_text='radius',
+            type='log',
+            tickmode='array',
             tickvals=[3, 6, 12],
-            ticktext=["3", "6", "12"],
+            ticktext=['3', '6', '12'],
             autorange=False,
             range=[np.log10(rmin), np.log10(rmax)],
             col=i + 1,
@@ -250,14 +248,14 @@ def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
         )
         if i == 0:
             fig.update_yaxes(
-                title_text="intensity",
+                title_text='intensity',
                 col=1,
                 row=2,
                 range=(0, 1.05 * vmax),
             )
             vmax = 0
     fig.update_yaxes(
-        title_text="fimness",
+        title_text='fimness',
         col=2,
         row=2,
     )
@@ -269,7 +267,7 @@ def footprint_stats_fig(cfg, stages, *, usefind=False, **kwargs):
             row=2,
         )
     fig.update_yaxes(
-        title_text="count",
+        title_text='count',
         col=1,
         row=1,
     )

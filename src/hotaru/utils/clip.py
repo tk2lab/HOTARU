@@ -10,7 +10,7 @@ def get_clip(shape, clip):
             return clip
         case None:
             return [Clip(0, h, 0, w, 0)]
-        case {"type": "Div", "ynum": ynum, "xnum": xnum, "margin": margin}:
+        case {'type': 'Div', 'ynum': ynum, 'xnum': xnum, 'margin': margin}:
             dy = (h - 2 * margin + ynum - 1) // ynum
             dx = (w - 2 * margin + xnum - 1) // xnum
             clips = []
@@ -26,7 +26,7 @@ def get_clip(shape, clip):
             raise ValueError()
 
 
-class Clip(namedtuple("Clip", "y0 y1 x0 x1 margin")):
+class Clip(namedtuple('Clip', 'y0 y1 x0 x1 margin')):
     def range(self, h, w):
         y0 = max(self.y0 - self.margin, 0)
         y1 = min(self.y1 + self.margin, h)

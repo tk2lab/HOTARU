@@ -13,15 +13,13 @@ class ProxOptimizer:
         self._model = model
         self._loss_sep_fn = jax.jit(self._loss_sep)
         self._loss_fn = jax.jit(self._loss)
-        self._step_fn = jax.jit(self._step, static_argnames=("n_step",))
+        self._step_fn = jax.jit(self._step, static_argnames=('n_step',))
 
     def loss(self, *x):
         loss_args = {
-            "args": tuple(jnp.array(v) for v in self._model.args),
-            "loss_scale": jnp.array(self._model.loss_scale),
-            "prox_args": tuple(
-                tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args
-            ),
+            'args': tuple(jnp.array(v) for v in self._model.args),
+            'loss_scale': jnp.array(self._model.loss_scale),
+            'prox_args': tuple(tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args),
         }
         x = tuple(jnp.array(xi) for xi in x)
         loss, aux = self._loss_fn(*x, **loss_args)
@@ -37,16 +35,14 @@ class ProxOptimizer:
 
     def fit(self, x, max_epoch, steps_par_epoch, lr, nesterov, tol, patience, env):
         common_args = {
-            "args": tuple(jnp.array(v) for v in self._model.args),
-            "prox_args": tuple(
-                tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args
-            ),
+            'args': tuple(jnp.array(v) for v in self._model.args),
+            'prox_args': tuple(tuple(jnp.array(vi) for vi in v) for v in self._model.prox_args),
         }
-        loss_args = common_args | {"loss_scale": jnp.array(self._model.loss_scale)}
+        loss_args = common_args | {'loss_scale': jnp.array(self._model.loss_scale)}
         step_args = common_args | {
-            "lr": jnp.array(lr, jnp.float32),
-            "nesterov": jnp.array(nesterov, jnp.float32),
-            "n_step": steps_par_epoch,
+            'lr': jnp.array(lr, jnp.float32),
+            'nesterov': jnp.array(nesterov, jnp.float32),
+            'n_step': steps_par_epoch,
         }
 
         def loss_fn(*x):
@@ -62,8 +58,8 @@ class ProxOptimizer:
         history.append((loss, aux))
 
         log_diff = np.inf
-        postfix = f"loss={loss:.4f}, diff={log_diff:.2f}"
-        logger.info("%s: %s %d %s", "pbar", "update", 0, postfix)
+        postfix = f'loss={loss:.4f}, diff={log_diff:.2f}'
+        logger.info('%s: %s %d %s', 'pbar', 'update', 0, postfix)
 
         patience_count = 0
         min_loss = np.inf
@@ -75,8 +71,8 @@ class ProxOptimizer:
             history.append((loss, aux))
 
             log_diff = np.log10(diff) if diff > 0 else np.nan
-            postfix = f"loss={loss:.4f}, diff={log_diff:.2f}, aux={aux:.4f}"
-            logger.info("%s: %s %d %s", "pbar", "update", 1, postfix)
+            postfix = f'loss={loss:.4f}, diff={log_diff:.2f}, aux={aux:.4f}'
+            logger.info('%s: %s %d %s', 'pbar', 'update', 1, postfix)
 
             if loss > min_loss - tol:
                 patience_count += 1

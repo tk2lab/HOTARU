@@ -10,14 +10,14 @@ from .progress import get_progress
 from .timer import Timer
 
 __all__ = [
-    "Data",
-    "Timer",
-    "get_clip",
-    "get_progress",
-    "from_tf",
-    "get_gpu_env",
-    "get_gpu_info",
-    "get_gpu_used",
-    "get_xla_stats",
-    "delete_xla_buffers",
+    'Data',
+    'Timer',
+    'get_clip',
+    'get_progress',
+    'from_tf',
+    'get_gpu_env',
+    'get_gpu_info',
+    'get_gpu_used',
+    'get_xla_stats',
+    'delete_xla_buffers',
 ]

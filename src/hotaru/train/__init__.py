@@ -7,13 +7,13 @@ from .regularizer import NonNegativeL1
 from .regularizer import Regularizer
 
 __all__ = [
-    "Regularizer",
-    "NonNegativeL1",
-    "MaxNormNonNegativeL1",
-    "Penalty",
-    "SpikeToCalcium",
-    "get_dynamics",
-    "get_penalty",
-    "SpatialModel",
-    "TemporalModel",
+    'Regularizer',
+    'NonNegativeL1',
+    'MaxNormNonNegativeL1',
+    'Penalty',
+    'SpikeToCalcium',
+    'get_dynamics',
+    'get_penalty',
+    'SpatialModel',
+    'TemporalModel',
 ]

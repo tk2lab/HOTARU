@@ -11,16 +11,16 @@ def compare_la_fig(paths, labels):
         row_heights=(1, 5),
         horizontal_spacing=0.05,
         vertical_spacing=0.01,
-        #shared_xaxes="columns",
-        #shared_yaxes="rows",
+        # shared_xaxes="columns",
+        # shared_yaxes="rows",
     )
     for i, path in enumerate(paths):
         stats = pd.read_csv(path, index_col=0)
-        #df = stats.query("kind != 'remove'").copy()
+        # df = stats.query("kind != 'remove'").copy()
         df = stats
         df = add_jitter(df)
         fig.add_trace(
-            go.Histogram(x=df.firmness, marker_color="grey"),
+            go.Histogram(x=df.firmness, marker_color='grey'),
             row=1,
             col=i + 1,
         )
@@ -28,8 +28,8 @@ def compare_la_fig(paths, labels):
             go.Scatter(
                 y=df.old_udense,
                 x=df.firmness,
-                mode="markers",
-                marker={"size": 3, "color": "blue", "opacity": 0.5},
+                mode='markers',
+                marker={'size': 3, 'color': 'blue', 'opacity': 0.5},
             ),
             row=2,
             col=i + 1,
@@ -51,36 +51,36 @@ def compare_la_fig(paths, labels):
         )
         fig.update_yaxes(
             showticklabels=False,
-            #range=(0, 0.15),
+            # range=(0, 0.15),
             row=1,
             col=i + 1,
         )
         fig.update_xaxes(
             range=(0, 0.6),
-            tickmode="array",
+            tickmode='array',
             tickvals=[0, 0.3, 0.6],
             ticktext=[0, 0.3, 0.6],
-            title_text="firmness",
+            title_text='firmness',
             row=2,
             col=i + 1,
         )
         fig.update_yaxes(
-            title_text="spike deinsty" if i ==0 else "",
+            title_text='spike deinsty' if i == 0 else '',
             showticklabels=i == 0,
             range=(0, 0.15),
-            #range=((4 / 5), (21 / 5)),
-            #tickmode="array",
-            #tickvals=np.log2([3, 6, 12]),
-            #ticktext=["3", "6", "12"],
+            # range=((4 / 5), (21 / 5)),
+            # tickmode="array",
+            # tickvals=np.log2([3, 6, 12]),
+            # ticktext=["3", "6", "12"],
             row=2,
             col=i + 1,
         )
     fig.update_layout(
-        template="none",
+        template='none',
         font_size=11,
         width=600,
         height=200,
         showlegend=False,
-        margin={"t": 0, "r": 10, "l": 40, "b": 40},
+        margin={'t': 0, 'r': 10, 'l': 40, 'b': 40},
     )
     return fig

@@ -18,7 +18,7 @@ class Timer:
         self.time = time.time() - self.time
         self.ptime = time.process_time() - self.ptime
         logger = self.logger or default_logger
-        logger.debug("%s: %f %f", self.name, self.time, self.ptime)
+        logger.debug('%s: %f %f', self.name, self.time, self.ptime)
 
     def get(self):
         return self.time, self.ptime

@@ -5,11 +5,11 @@ def get_progress(pbar):
     match pbar:
         case Progress():
             return pbar
-        case "silent" | False | None:
+        case 'silent' | False | None:
             return Progress()
-        case "simple":
+        case 'simple':
             return ConsoleProgress()
-        case "tqdm":
+        case 'tqdm':
             return TQDMProgress()
 
 
@@ -35,17 +35,17 @@ class ConsoleProgress(Progress):
         pass
 
     def session(self, name, total, status=None):
-        print("session", name)
+        print('session', name)
         self._name = name
-        self._setter((self._name, "", "", ""))
-        print("set_count", total, status)
+        self._setter((self._name, '', '', ''))
+        print('set_count', total, status)
         self._status = status
         self._total = total if total > 0 else None
         self._n = 0
         self._setter((self._name, str(self._n), str(self._total), str(self._status)))
 
-    def update(self, n, status=""):
-        print("update", n, status)
+    def update(self, n, status=''):
+        print('update', n, status)
         self._status = status
         self._n += n
         self._setter((self._name, str(self._n), str(self._total), str(self._status)))

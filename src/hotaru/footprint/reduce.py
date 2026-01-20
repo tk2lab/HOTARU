@@ -7,9 +7,7 @@ import pandas as pd
 logger = getLogger(__name__)
 
 
-def reduce_peaks_simple(
-    ys, xs, rs, vs, min_radius, max_radius, min_distance_ratio, old_bg=None
-):
+def reduce_peaks_simple(ys, xs, rs, vs, min_radius, max_radius, min_distance_ratio, old_bg=None):
     if old_bg is None:
         old_bg = []
 
@@ -29,7 +27,7 @@ def reduce_peaks_simple(
                 if not bg or np.all(distance >= min_distance_ratio):
                     bg.append(i)
                     logger.debug(
-                        "background: id=%d old=%d r=%f dist=%s",
+                        'background: id=%d old=%d r=%f dist=%s',
                         i,
                         i in old_bg,
                         r0,
@@ -38,7 +36,7 @@ def reduce_peaks_simple(
                 else:
                     remove.append(i)
                     logger.debug(
-                        "removed (dup bg): id=%d old=%d r=%f dist=%s",
+                        'removed (dup bg): id=%d old=%d r=%f dist=%s',
                         i,
                         i in old_bg,
                         r0,
@@ -53,23 +51,21 @@ def reduce_peaks_simple(
                     cond = dist2 > min_distance_ratio
                     if np.any(~cond):
                         remove += list(flg[~cond])
-                        logger.debug(
-                            "pre remove: %s dist=%s", list(flg[~cond]), dist2[~cond]
-                        )
+                        logger.debug('pre remove: %s dist=%s', list(flg[~cond]), dist2[~cond])
                     flg = flg[cond]
                     cell.append(i)
-                    logger.debug("cell: id=%d dist%s", i, sorted(distance)[:2])
+                    logger.debug('cell: id=%d dist%s', i, sorted(distance)[:2])
                 else:
                     remove.append(i)
                     logger.debug(
-                        "removed (dup cell): id=%d r=%f dist=%s",
+                        'removed (dup cell): id=%d r=%f dist=%s',
                         i,
                         r0,
                         sorted(distance)[:2],
                     )
         else:
             remove.append(i)
-            logger.debug("removed (small r): id=%d r=%f", i, r0)
+            logger.debug('removed (small r): id=%d r=%f', i, r0)
     return cell, bg, remove
 
 
@@ -83,20 +79,20 @@ def reduce_peaks_mesh(rs, vs, *args, **kwargs):
 
 def reduce_peaks(
     peakval,
-    bg_type="bg",
+    bg_type='bg',
     min_radius=None,
     max_radius=None,
     min_distance_ratio=None,
     block_size=None,
 ):
     logger.info(
-        "reduce_peaks: %f %f %f %d",
+        'reduce_peaks: %f %f %f %d',
         min_radius,
         max_radius,
         min_distance_ratio,
         block_size,
     )
-    logger.info("bg_type %s", bg_type)
+    logger.info('bg_type %s', bg_type)
     static_args = min_radius, max_radius, min_distance_ratio
 
     radius, ts, ri, vs = peakval
@@ -126,31 +122,31 @@ def reduce_peaks(
     def make_dataframe(y, x):
         df = pd.DataFrame(
             {
-                "y": y,
-                "x": x,
-                "t": ts[y, x],
-                "radius": rs[y, x],
-                "firmness": vs[y, x],
+                'y': y,
+                'x': x,
+                't': ts[y, x],
+                'radius': rs[y, x],
+                'firmness': vs[y, x],
             }
         )
-        return df.sort_values("firmness", ascending=False)
+        return df.sort_values('firmness', ascending=False)
 
     cell = make_dataframe(celly, cellx)
-    cell["kind"] = "cell"
-    if bg_type == "remove":
+    cell['kind'] = 'cell'
+    if bg_type == 'remove':
         peaks = cell
-    elif bg_type == "bg":
+    elif bg_type == 'bg':
         bg = make_dataframe(bgy, bgx)
-        bg["kind"] = "background"
+        bg['kind'] = 'background'
         peaks = pd.concat([cell, bg], axis=0)
     else:
         raise ValueError()
     peaks = peaks.reset_index(drop=True)
-    peaks.insert(0, "segid", peaks.index)
-    nk = np.count_nonzero(peaks.kind == "cell")
-    nb = np.count_nonzero(peaks.kind == "background")
-    logger.info("num cell/bg: %d/%d", nk, nb)
-    return peaks[["segid", "kind", "y", "x", "t", "radius", "firmness"]]
+    peaks.insert(0, 'segid', peaks.index)
+    nk = np.count_nonzero(peaks.kind == 'cell')
+    nb = np.count_nonzero(peaks.kind == 'background')
+    logger.info('num cell/bg: %d/%d', nk, nb)
+    return peaks[['segid', 'kind', 'y', 'x', 't', 'radius', 'firmness']]
 
 
 def _reduce_peaks(args):

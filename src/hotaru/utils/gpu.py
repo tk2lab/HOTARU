@@ -29,13 +29,13 @@ def get_gpu_env(env):
 
 
 class GpuEnv:
-    def __init__(self, num_devices=-1, memsize=-1, label="gpu"):
+    def __init__(self, num_devices=-1, memsize=-1, label='gpu'):
         if not (num_devices > 0 and memsize > 0):
             gpu_info = get_gpu_info()
             if not (num_devices > 0):
                 num_devices = len(gpu_info)
             if not (memsize > 0):
-                memsize = int(min(gpu_info[: num_devices]))
+                memsize = int(min(gpu_info[:num_devices]))
         self.num_devices = num_devices
         self.memsize = memsize * 1e6
         self.label = label
@@ -50,7 +50,7 @@ class GpuEnv:
         n = self.num_devices
         batch_size = min(size, max(n, int(n * math.sqrt(self.memsize / factor))))
         batch = n, (batch_size + n - 1) // n
-        logger.debug("batch: %s %s", (n, self.memsize, factor, size), batch)
+        logger.debug('batch: %s %s', (n, self.memsize, factor, size), batch)
         return batch
 
     def sharding(self, shape):
@@ -62,12 +62,12 @@ class GpuEnv:
 def get_gpu_info():
     result = subprocess.run(
         [
-            "nvidia-smi",
-            "--query-gpu=memory.total",
-            "--format=csv,noheader,nounits",
+            'nvidia-smi',
+            '--query-gpu=memory.total',
+            '--format=csv,noheader,nounits',
         ],
         stdout=subprocess.PIPE,
-        encoding="utf-8",
+        encoding='utf-8',
         check=True,
     )
     return [int(x) for x in result.stdout.strip().split(os.linesep)]
@@ -76,12 +76,12 @@ def get_gpu_info():
 def get_gpu_used():
     result = subprocess.run(
         [
-            "nvidia-smi",
-            "--query-gpu=memory.used",
-            "--format=csv,noheader,nounits",
+            'nvidia-smi',
+            '--query-gpu=memory.used',
+            '--format=csv,noheader,nounits',
         ],
         stdout=subprocess.PIPE,
-        encoding="utf-8",
+        encoding='utf-8',
         check=True,
     )
     return [int(x) for x in result.stdout.strip().split(os.linesep)]
@@ -92,12 +92,12 @@ def get_xla_stats():
     lbs = backend.live_buffers()
     les = backend.live_executables()
     mem = psutil.Process().memory_info().rss
-    return {"mem": mem * 1e-6, "executable": len(les), "buffer": [lb.shape for lb in lbs]}
+    return {'mem': mem * 1e-6, 'executable': len(les), 'buffer': [lb.shape for lb in lbs]}
 
 
 def delete_xla_buffers():
     backend = jax.lib.xla_bridge.get_backend()
     for buf in backend.live_buffers():
         buf.delete()
-    #for exe in backend.live_executables():
+    # for exe in backend.live_executables():
     #    exe.delete()

@@ -64,11 +64,11 @@ class Model:
         if self._trans:
             nx, ny = data.nt, data.ns
             bx, by = penalty.bt, penalty.bs
-            logger.info("lu: %f", self._penalty.lu[1][0])
+            logger.info('lu: %f', self._penalty.lu[1][0])
         else:
             nx, ny = data.ns, data.nt
             bx, by = penalty.bs, penalty.bt
-            logger.info("la: %f", self._penalty.la[1][0])
+            logger.info('la: %f', self._penalty.la[1][0])
         nx, ny, bx, by = (jnp.array(v, jnp.float32) for v in (nx, ny, bx, by))
 
         self._args = ycov, yout, ydot, nx, ny, bx, by, py
@@ -80,7 +80,7 @@ class Model:
             est = 1.0
         self._lr_scale = est / nx
 
-        if not hasattr(self, "_optimizer"):
+        if not hasattr(self, '_optimizer'):
             self._optimizer = ProxOptimizer(self)
 
     @property
@@ -101,14 +101,12 @@ class Model:
         return (r.prox for r in self.regularizers)
 
     def fit(self, max_epoch, steps_par_epoch, lr, *args, **kwargs):
-        logger.info("fit: lr=%g scale=%f", lr, self._lr_scale)
+        logger.info('fit: lr=%g scale=%f', lr, self._lr_scale)
         lr /= self._lr_scale
         x = self._x
-        logger.info("%s: %s %s %d", "pbar", "start", "optimize", -1)
-        x, history = self._optimizer.fit(
-            x, max_epoch, steps_par_epoch, lr, *args, **kwargs
-        )
-        logger.info("%s: %s", "pbar", "close")
+        logger.info('%s: %s %s %d', 'pbar', 'start', 'optimize', -1)
+        x, history = self._optimizer.fit(x, max_epoch, steps_par_epoch, lr, *args, **kwargs)
+        logger.info('%s: %s', 'pbar', 'close')
         self._x = x
         return history
 
@@ -189,11 +187,11 @@ class TemporalModel(Model):
 
     @property
     def n1(self):
-        return np.count_nonzero(self._stats.kind == "cell")
+        return np.count_nonzero(self._stats.kind == 'cell')
 
     @property
     def n2(self):
-        return np.count_nonzero(self._stats.kind == "background")
+        return np.count_nonzero(self._stats.kind == 'background')
 
     @property
     def regularizers(self):

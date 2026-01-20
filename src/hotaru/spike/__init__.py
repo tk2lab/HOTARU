@@ -6,10 +6,10 @@ from .evaluate import evaluate
 from .evaluate import fix_kind
 
 __all__ = [
-    "CalciumToSpike",
-    "SpikeToCalcium",
-    "get_dynamics",
-    "get_rdynamics",
-    "fix_kind",
-    "evaluate",
+    'CalciumToSpike',
+    'SpikeToCalcium',
+    'get_dynamics',
+    'get_rdynamics',
+    'fix_kind',
+    'evaluate',
 ]

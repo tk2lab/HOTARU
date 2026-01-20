@@ -6,8 +6,7 @@ import numpy as np
 logger = getLogger(__name__)
 
 
-class Data(namedtuple("Data", "imgs mask hz avgx avgt std0 min0 max0 min1 max1")):
-
+class Data(namedtuple('Data', 'imgs mask hz avgx avgt std0 min0 max0 min1 max1')):
     @property
     def nt(self):
         return self.imgs.shape[0]

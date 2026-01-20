@@ -7,11 +7,11 @@ from .reduce import reduce_peaks
 from .reduce import reduce_peaks_simple
 
 __all__ = [
-    "get_radius",
-    "find_peaks",
-    "reduce_peaks",
-    "reduce_peaks_simple",
-    "make_footprints",
-    "clean",
-    "clean_footprints",
+    'get_radius',
+    'find_peaks',
+    'reduce_peaks',
+    'reduce_peaks_simple',
+    'make_footprints',
+    'clean',
+    'clean_footprints',
 ]

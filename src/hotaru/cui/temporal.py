@@ -19,21 +19,21 @@ logger = getLogger(__name__)
 
 
 def temporal(cfg, stage, *, force=False):
-    spikefile, bgfile, lossfile, statsfile = get_files(cfg, "temporal", stage)
+    spikefile, bgfile, lossfile, statsfile = get_files(cfg, 'temporal', stage)
     if (
-        get_force(cfg, "temporal", stage)
+        get_force(cfg, 'temporal', stage)
         or not spikefile.exists()
         or not bgfile.exists()
         or not statsfile.exists()
     ):
         if stage == 0:
-            footprints = try_load(get_files(cfg, "make", stage))
-            stats = try_load(get_files(cfg, "init", stage))
+            footprints = try_load(get_files(cfg, 'make', stage))
+            stats = try_load(get_files(cfg, 'init', stage))
         else:
-            stats, footprints = try_load(get_files(cfg, "clean", stage))
-        logger.info(f"exec temporal ({stage})")
+            stats, footprints = try_load(get_files(cfg, 'clean', stage))
+        logger.info(f'exec temporal ({stage})')
         data = get_data(cfg)
-        logger.debug("%s", get_xla_stats())
+        logger.debug('%s', get_xla_stats())
         model = TemporalModel(
             data,
             stats,
@@ -47,17 +47,17 @@ def temporal(cfg, stage, *, force=False):
         for i, clip in enumerate(clips):
             model.prepare(clip, **cfg.cmd.temporal.prepare)
             log = model.fit(**cfg.cmd.temporal.step)
-            logger.debug("%s", get_xla_stats())
+            logger.debug('%s', get_xla_stats())
 
             loss, sigma = zip(*log, strict=False)
             df = pd.DataFrame(
                 {
-                    "stage": stage,
-                    "kind": "temporal",
-                    "div": i,
-                    "step": np.arange(len(log)),
-                    "loss": loss,
-                    "sigma": sigma,
+                    'stage': stage,
+                    'kind': 'temporal',
+                    'div': i,
+                    'step': np.arange(len(log)),
+                    'loss': loss,
+                    'sigma': sigma,
                 },
             )
             logdfs.append(df)
@@ -72,4 +72,4 @@ def temporal(cfg, stage, *, force=False):
             spikes[np.arange(nk), idx[:, -1]] = spikes[np.arange(nk), idx[:, -2]]
         stats, spikes, bg = evaluate(stats, spikes, bg)
         save((spikefile, bgfile, lossfile, statsfile), (spikes, bg, logdf, stats))
-        logger.info(f"saved temporal ({stage})")
+        logger.info(f'saved temporal ({stage})')

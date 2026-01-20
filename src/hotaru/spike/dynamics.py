@@ -7,20 +7,20 @@ def get_dynamics(dynamics):
     match dynamics:
         case SpikeToCalcium():
             return dynamics
-        case {"label": _, "type": "double_exp", **args}:
+        case {'label': _, 'type': 'double_exp', **args}:
             return SpikeToCalcium.double_exp(**args)
         case _:
-            raise ValueError("invalid dynamics type")
+            raise ValueError('invalid dynamics type')
 
 
 def get_rdynamics(dynamics):
     match dynamics:
         case CalciumToSpike():
             return dynamics
-        case {"label": _, "type": "double_exp", **args}:
+        case {'label': _, 'type': 'double_exp', **args}:
             return CalciumToSpike.double_exp(**args)
         case _:
-            raise ValueError("invalid dynamics type")
+            raise ValueError('invalid dynamics type')
 
 
 class SpikeToCalcium:
@@ -44,7 +44,7 @@ class SpikeToCalcium:
 
     def __call__(self, spike):
         spike = spike[:, jnp.newaxis, ...]
-        return lax.conv(spike, self.kernel, (1,), "valid")[:, 0, ...]
+        return lax.conv(spike, self.kernel, (1,), 'valid')[:, 0, ...]
 
     @property
     def size(self):
@@ -74,7 +74,7 @@ class CalciumToSpike:
 
     def __call__(self, calcium):
         calcium = calcium[:, jnp.newaxis, ...]
-        spike = lax.conv(calcium, self.kernel, (1,), "valid")[:, 0, ...]
+        spike = lax.conv(calcium, self.kernel, (1,), 'valid')[:, 0, ...]
         spike = jnp.pad(spike, [[0, 0], [self.pad, 0]])
         spike += spike.min(axis=1, keepdims=True)
         return spike

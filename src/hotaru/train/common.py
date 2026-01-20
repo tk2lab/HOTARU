@@ -20,7 +20,7 @@ def prepare_matrix(data, y, trans, env, factor, prefetch):
     nd = env.num_devices
     sharding = env.sharding((nd, 1))
     batch = env.batch(float(factor) * nk * ns, nt)
-    logger.info("prepare: nt=%d nk=%d ns=%d batch=%d", nt, nk, ns, batch)
+    logger.info('prepare: nt=%d nk=%d ns=%d batch=%d', nt, nk, ns, batch)
 
     nkmod = nd * ((nk + nd - 1) // nd)
     y = np.pad(y, ((0, nkmod - nk), (0, 0)))
@@ -32,9 +32,9 @@ def prepare_matrix(data, y, trans, env, factor, prefetch):
     ycov = ydif @ ydif.T
     yout = jnp.outer(yavg, yavg)
 
-    logger.info("%s: %s %s %d", "pbar", "start", "prepare", nt)
+    logger.info('%s: %s %s %d', 'pbar', 'start', 'prepare', nt)
     ydot = matmul_batch(ydif, data, trans, sharding, batch, prefetch)
-    logger.info("%s: %s", "pbar", "close")
+    logger.info('%s: %s', 'pbar', 'close')
 
     return ycov[:nk, :nk], yout[:nk, :nk], ydot[:nk]
 
@@ -76,7 +76,7 @@ def matmul_batch(x, y, trans, sharding, batch, prefetch):
         out = calc(out, x, t, yt)
         start, end = end, end + batch
         n = batch if end < nt else nt - start
-        logger.info("%s: %s %d", "pbar", "update", n)
+        logger.info('%s: %s %d', 'pbar', 'update', n)
 
     if trans:
         out = out[:, :nt]

@@ -12,7 +12,7 @@ from .neighbor import neighbor
 
 logger = getLogger(__name__)
 
-Stats = namedtuple("Stats", "avgx avgt std0 min0 max0 min1 max1")
+Stats = namedtuple('Stats', 'avgx avgt std0 min0 max0 min1 max1')
 
 
 def movie_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
@@ -47,7 +47,7 @@ def movie_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     nd = env.num_devices
     sharding = env.sharding((nd, 1))
 
-    logger.info("stats batch: %d", batch)
+    logger.info('stats batch: %d', batch)
     dataset = tf.data.Dataset.from_generator(
         lambda: zip(range(nt), raw_imgs, strict=False),
         output_signature=(
@@ -74,12 +74,22 @@ def movie_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
     imax = jnp.full((h, w), -jnp.inf)
 
     avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax = (
-        jax.device_put(v, sharding) for v in [
-            avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax,
+        jax.device_put(v, sharding)
+        for v in [
+            avgt,
+            sumi,
+            sqi,
+            sumn,
+            sqn,
+            cor,
+            min0,
+            max0,
+            imin,
+            imax,
         ]
     )
 
-    logger.info("%s: %s %s %d", "pbar", "start", "stats", nt)
+    logger.info('%s: %s %s %d', 'pbar', 'start', 'stats', nt)
     for data in dataset:
         data = (from_tf(v) for v in data)
         index, imgs = (jax.device_put(v) for v in data)
@@ -95,10 +105,21 @@ def movie_stats(raw_imgs, mask=None, env=None, factor=1, prefetch=1):
         imgs = jax.device_put(imgs, sharding)
 
         avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax = update(
-            avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax, index, imgs,
+            avgt,
+            sumi,
+            sqi,
+            sumn,
+            sqn,
+            cor,
+            min0,
+            max0,
+            imin,
+            imax,
+            index,
+            imgs,
         )
-        logger.info("%s: %s %d", "pbar", "update", count)
-    logger.info("%s: %s", "pbar", "close")
+        logger.info('%s: %s %d', 'pbar', 'update', count)
+    logger.info('%s: %s', 'pbar', 'close')
 
     avgt = avgt[:-1]
     avgx = sumi / nt

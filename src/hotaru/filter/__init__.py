@@ -5,9 +5,9 @@ from .pool import max_pool
 from .stats import movie_stats
 
 __all__ = [
-    "mapped_imgs",
-    "max_pool",
-    "gaussian_laplace",
-    "gaussian_laplace_single",
-    "movie_stats",
+    'mapped_imgs',
+    'max_pool',
+    'gaussian_laplace',
+    'gaussian_laplace_single',
+    'movie_stats',
 ]

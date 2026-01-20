@@ -15,7 +15,7 @@ def plot_gl(data, radius, idx, width):
 
     glrt = gaussian_laplace(imgs, radius, axis=1)
     print(glrt.shape)
-    gl_max = max_pool(glrt, (3, 3, 3), (1, 1, 1), "same")
+    gl_max = max_pool(glrt, (3, 3, 3), (1, 1, 1), 'same')
     gl_peak = glrt == gl_max
 
     glrt = np.array(glrt)
@@ -37,7 +37,7 @@ def plot_gl(data, radius, idx, width):
     print(nt, nr, h, w)
     print(np.stack([t, y, x, r, g], axis=1))
     print(y.size)
-    #for out in zip(t, y, x, r, g):
+    # for out in zip(t, y, x, r, g):
     #    print(*out)
 
     fig = go.Figure().set_subplots(
@@ -45,43 +45,43 @@ def plot_gl(data, radius, idx, width):
         nr + 2,
         column_widths=[w] * (nr + 2),
         row_heights=[h] * nt,
-        column_titles=["image"] + [f"r={r:.1f}" for r in radius] + ["peaks"],
-        row_titles=[f"t={t}" for t in idx],
+        column_titles=['image'] + [f'r={r:.1f}' for r in radius] + ['peaks'],
+        row_titles=[f't={t}' for t in idx],
         vertical_spacing=0.01,
         horizontal_spacing=0.01,
         print_grid=True,
         shared_xaxes=True,
         shared_yaxes=True,
     )
-    margin = {"l": 15, "r": 30, "t": 30, "b": 15}
-    mod_width = width - margin["l"] - margin["r"]
+    margin = {'l': 15, 'r': 30, 't': 30, 'b': 15}
+    mod_width = width - margin['l'] - margin['r']
     for j, (img, glr) in enumerate(zip(imgs, glrt, strict=False)):
         fig.add_trace(
-            go.Heatmap(z=img, colorscale="Greens", showscale=False, zmin=-1, zmax=1),
+            go.Heatmap(z=img, colorscale='Greens', showscale=False, zmin=-1, zmax=1),
             row=j + 1,
             col=1,
         )
-        cond = (t == j)
+        cond = t == j
         yj = y[cond]
         xj = x[cond]
         rj = r[cond]
         gj = g[cond]
         marker = {
-            "symbol": "circle",
-            "color": "blue",
-            "opacity": 0.8 * (gj + 0.3) / 1.3,
-            "line_width": 0,
-            "size": 5 * rj * mod_width / (nr + 2) / w,
-            "sizemode": "diameter",
+            'symbol': 'circle',
+            'color': 'blue',
+            'opacity': 0.8 * (gj + 0.3) / 1.3,
+            'line_width': 0,
+            'size': 5 * rj * mod_width / (nr + 2) / w,
+            'sizemode': 'diameter',
         }
         fig.add_trace(
-            go.Scatter(mode="markers", x=xj, y=yj, marker=marker),
+            go.Scatter(mode='markers', x=xj, y=yj, marker=marker),
             row=j + 1,
             col=nr + 2,
         )
         for i, gl in enumerate(glr):
             fig.add_trace(
-                go.Heatmap(z=-gl, colorscale="Picnic", showscale=False, zmin=-1, zmax=1),
+                go.Heatmap(z=-gl, colorscale='Picnic', showscale=False, zmin=-1, zmax=1),
                 row=j + 1,
                 col=i + 2,
             )
@@ -99,11 +99,9 @@ def plot_gl(data, radius, idx, width):
     )
     fig.update_layout(
         showlegend=False,
-        annotations=[
-            {"font": {"size": 11}} for _ in range(len(fig.layout.annotations))
-        ],
+        annotations=[{'font': {'size': 11}} for _ in range(len(fig.layout.annotations))],
         width=width,
-        height=np.ceil(margin["t"] + margin["b"] + mod_width * nt * h / (nr + 2) / w),
+        height=np.ceil(margin['t'] + margin['b'] + mod_width * nt * h / (nr + 2) / w),
         margin=margin,
     )
     return fig

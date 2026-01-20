@@ -20,27 +20,19 @@ logger = getLogger(__name__)
 
 
 def spatial(cfg, stage, *, force=False):
-    cleanstatsfile, footprintsfile = get_files(cfg, "clean", stage)
-    if (
-        get_force(cfg, "clean", stage)
-        or not cleanstatsfile.exists()
-        or not footprintsfile.exists
-    ):
-        spikes, bg, _, stats = try_load(get_files(cfg, "temporal", stage - 1))
+    cleanstatsfile, footprintsfile = get_files(cfg, 'clean', stage)
+    if get_force(cfg, 'clean', stage) or not cleanstatsfile.exists() or not footprintsfile.exists:
+        spikes, bg, _, stats = try_load(get_files(cfg, 'temporal', stage - 1))
         stats = stats.query("kind != 'remove'").copy()
-        segstatsfile, segsfile, lossfile = get_files(cfg, "spatial", stage)
-        if (
-                get_force(cfg, "spatial", stage)
-                or not segstatsfile.exists()
-                or not segsfile.exists()
-        ):
-            logger.info(f"exec spatial ({stage})")
+        segstatsfile, segsfile, lossfile = get_files(cfg, 'spatial', stage)
+        if get_force(cfg, 'spatial', stage) or not segstatsfile.exists() or not segsfile.exists():
+            logger.info(f'exec spatial ({stage})')
             data = get_data(cfg)
             if stage == 1:
-                footprints = try_load(get_files(cfg, "make", stage - 1))
+                footprints = try_load(get_files(cfg, 'make', stage - 1))
             else:
-                _, footprints = try_load(get_files(cfg, "clean", stage - 1))
-            logger.debug("%s", get_xla_stats())
+                _, footprints = try_load(get_files(cfg, 'clean', stage - 1))
+            logger.debug('%s', get_xla_stats())
             stats, spikes, bg = fix_kind(
                 stats,
                 spikes,
@@ -64,17 +56,17 @@ def spatial(cfg, stage, *, force=False):
             for i, clip in enumerate(clips):
                 model.prepare(clip, **cfg.cmd.spatial.prepare)
                 log = model.fit(**cfg.cmd.spatial.step)
-                logger.debug("%s", get_xla_stats())
+                logger.debug('%s', get_xla_stats())
 
                 loss, sigma = zip(*log, strict=False)
                 df = pd.DataFrame(
                     {
-                        "stage": "stage",
-                        "kind": "spatial",
-                        "div": i,
-                        "step": np.arange(len(log)),
-                        "loss": loss,
-                        "sigma": sigma,
+                        'stage': 'stage',
+                        'kind': 'spatial',
+                        'div': i,
+                        'step': np.arange(len(log)),
+                        'loss': loss,
+                        'sigma': sigma,
                     }
                 )
                 logdfs.append(df)
@@ -82,7 +74,7 @@ def spatial(cfg, stage, *, force=False):
             logdf = pd.concat(logdfs, axis=0)
             index, x = (np.concatenate(v, axis=0) for v in zip(*out, strict=False))
             logger.debug(
-                "%d %d\n%s",
+                '%d %d\n%s',
                 index.size,
                 np.count_nonzero(np.sort(index) != np.arange(index.size)),
                 index,
@@ -96,13 +88,13 @@ def spatial(cfg, stage, *, force=False):
                 k = np.arange(nk)
                 rseg[k, idx[:, -1]] = rseg[k, idx[:, -2]]
                 segments = rseg.reshape(nk, h, w)
-            stats["segid"] = np.arange(stats.shape[0])
+            stats['segid'] = np.arange(stats.shape[0])
             save((segstatsfile, segsfile, lossfile), (stats, segments, logdf))
-            logger.info(f"saved spatial ({stage})")
+            logger.info(f'saved spatial ({stage})')
         else:
-            logger.info(f"load spatial ({stage})")
+            logger.info(f'load spatial ({stage})')
             segments = try_load(segsfile)
-        logger.info(f"exec clean ({stage})")
+        logger.info(f'exec clean ({stage})')
         stats, footprints = clean(
             stats,
             segments,
@@ -112,6 +104,6 @@ def spatial(cfg, stage, *, force=False):
             **cfg.cmd.clean,
         )
         save((cleanstatsfile, footprintsfile), (stats, footprints))
-        logger.info(f"saved clean ({stage})")
+        logger.info(f'saved clean ({stage})')
         if cfg.cmd.remove_segments:
             segsfile.unlink(missing_ok=True)

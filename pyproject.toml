@@ -43,6 +43,7 @@ hotaru = "hotaru.__main__:main"
 [dependency-groups]
 dev = [
     "ipython>=8.38.0",
+    "ruff>=0.14.13",
 ]
 
 [tool.hatch.version]
@@ -54,7 +55,7 @@ next-version = "smallest-release"
 [tool.versioningit.format]
 distance = "{next_version}.dev{distance}+{vcs}{rev}"
 dirty = "{next_version}+d{build_date:%Y%m%d%H%M}"
-distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}+d{build_date:%Y%m%d%H%M}"
+distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}-d{build_date:%Y%m%d%H%M}"
 
 [build-system]
 requires = ["hatchling", "versioningit"]

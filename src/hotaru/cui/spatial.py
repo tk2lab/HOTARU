@@ -34,7 +34,7 @@ def spatial(cfg, stage, force=False):
         or not cleanstatsfile.exists()
         or not footprintsfile.exists
     ):
-        stats = try_load(get_files(cfg, "evaluate", stage - 1))
+        spikes, bg, _, stats = try_load(get_files(cfg, "temporal", stage - 1))
         stats = stats.query("kind != 'remove'").copy()
         segstatsfile, segsfile, lossfile = get_files(cfg, "spatial", stage)
         if (
@@ -48,7 +48,6 @@ def spatial(cfg, stage, force=False):
                 footprints = try_load(get_files(cfg, "make", stage - 1))
             else:
                 _, footprints = try_load(get_files(cfg, "clean", stage - 1))
-            spikes, bg, _ = try_load(get_files(cfg, "temporal", stage - 1))
             logger.debug("%s", get_xla_stats())
             stats, spikes, bg = fix_kind(
                 stats,

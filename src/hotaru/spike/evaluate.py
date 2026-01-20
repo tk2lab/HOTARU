@@ -17,51 +17,59 @@ logger = getLogger(__name__)
 
 
 def evaluate(stats, spikes, bg):
-    sm = spikes.max(axis=1)
-    sd = spikes.mean(axis=1) / sm
-    nonzero = np.count_nonzero(spikes > 0, axis=1)
-    sn = calc_sn(spikes)
-    rsn = 1 / sn
-    zrsn = robust_zscore(rsn)
-
     cond_cell = stats.kind == "cell"
-    x = stats.loc[cond_cell, "firmness"].to_numpy()
-    y = rsn
-    hypot = np.hypot(robust_zscore(x), robust_zscore(y))
-    mah = calc_mah(x, y)
+    cond_bg = stats.kind == 'background'
+    cmax = spikes.max(axis=1)
 
-    cond_cell_active = np.zeros_like(cond_cell, bool)
-    cond_cell_active[cond_cell] = sm > 0
+    active_cell = cmax > 0
+    cond_remove_cell = np.zeros_like(cond_cell)
+    cond_remove_cell[cond_cell] = ~active_cell
+    cond_active_cell = np.zeros_like(cond_cell)
+    cond_active_cell[cond_cell] = active_cell
 
-    stats["spkid"] = -1
-    stats.loc[cond_cell_active, "spkid"] = np.nonzero(sm > 0)[0]
-    stats["signal"] = None
-    stats.loc[cond_cell, "signal"] = sm
-    stats["udense"] = None
-    stats.loc[cond_cell, "udense"] = sd
-    stats["unz"] = -1
-    stats.loc[cond_cell, "unz"] = nonzero
-    stats["snratio"] = None
-    stats.loc[cond_cell, "snratio"] = sn
-    stats["rsn"] = None
-    stats.loc[cond_cell, "rsn"] = rsn
-    stats["zrsn"] = None
-    stats.loc[cond_cell, "zrsn"] = zrsn
-    stats["hypot"] = None
-    stats.loc[cond_cell, "hypot"] = hypot
-    stats["mah"] = None
-    stats.loc[cond_cell, "mah"] = mah
+    spikes = spikes[active_cell]
+    cmax = cmax[active_cell]
 
-    bi = stats.kind == "background"
+    csd = spikes.mean(axis=1) / cmax
+    cnonzero = np.count_nonzero(spikes > 0, axis=1)
+    csn = calc_sn(spikes)
+    crsn = 1 / csn
+    czrsn = robust_zscore(crsn)
+    x = stats.loc[cond_active_cell, "firmness"].to_numpy()
+    y = crsn
+    chypot = np.hypot(robust_zscore(x), robust_zscore(y))
+    cmah = calc_mah(x, y)
+
     bmax = np.abs(bg).max(axis=1)
     bsn = np.array([bi.max() / (1.4826 * np.median(np.abs(bi[bi != 0]))) for bi in bg])
 
+    stats.loc[cond_remove_cell, 'kind'] = 'remove'
+
+    stats["spkid"] = -1
+    stats.loc[cond_active_cell, "spkid"] = np.arange(spikes.shape[0])
+    stats["signal"] = None
+    stats.loc[cond_active_cell, "signal"] = cmax
+    stats["udense"] = None
+    stats.loc[cond_active_cell, "udense"] = csd
+    stats["unz"] = -1
+    stats.loc[cond_active_cell, "unz"] = cnonzero
+    stats["snratio"] = None
+    stats.loc[cond_active_cell, "snratio"] = csn
+    stats["rsn"] = None
+    stats.loc[cond_active_cell, "rsn"] = crsn
+    stats["zrsn"] = None
+    stats.loc[cond_active_cell, "zrsn"] = czrsn
+    stats["hypot"] = None
+    stats.loc[cond_active_cell, "hypot"] = chypot
+    stats["mah"] = None
+    stats.loc[cond_active_cell, "mah"] = cmah
+
     stats["bgid"] = -1
-    stats.loc[bi, "bgid"] = list(range(np.count_nonzero(bi)))
+    stats.loc[cond_bg, "bgid"] = np.arange(bg.shape[0])
     stats["bmax"] = None
-    stats.loc[bi, "bmax"] = bmax
+    stats.loc[cond_bg, "bmax"] = bmax
     stats["bsparse"] = None
-    stats.loc[bi, "bsparse"] = bsn
+    stats.loc[cond_bg, "bsparse"] = bsn
 
     labels = [
         "kind",
@@ -91,7 +99,7 @@ def evaluate(stats, spikes, bg):
         "bmax",
         "bsparse",
     ]
-    return stats[[k for k in labels if k in stats.columns]]
+    return stats[[k for k in labels if k in stats.columns]], spikes, bg
 
 
 def fix_kind(stats, spikes, bg, dynamics, bg_type="bg", thr_bg=None, thr_cell=None):

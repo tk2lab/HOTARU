@@ -31,16 +31,14 @@ def get_force(cfg, name, stage):
             "make",
             "init",
             "temporal",
-            "evaluate",
         ],
-        find=["find", "reduce", "make", "init", "temporal", "evaluate"],
-        reduce=["reduce", "make", "init", "temporal", "evaluate"],
-        make=["make", "init", "temporal", "evaluate"],
-        init=["init", "temporal", "evaluate"],
-        spatial=["spatial", "clean", "temporal", "evaluate"],
-        clean=["clean", "temporal", "evaluate"],
-        temporal=["temporal", "evaluate"],
-        evaluate=["evaluate"],
+        find=["find", "reduce", "make", "init", "temporal"],
+        reduce=["reduce", "make", "init", "temporal"],
+        make=["make", "init", "temporal"],
+        init=["init", "temporal"],
+        spatial=["spatial", "clean", "temporal"],
+        clean=["clean", "temporal"],
+        temporal=["temporal"],
     )
     force = (stage > cfg.force_from[0]) or (
         (stage == cfg.force_from[0]) and (name in force_dict[cfg.force_from[1]])
@@ -52,7 +50,7 @@ def get_force(cfg, name, stage):
 def all_stats(cfg):
     out = []
     for stage in range(1000):
-        stats, flag = load(cfg, "evaluate", stage)
+        (_, _, _, stats), flag = load(cfg, "temporal", stage)
         if flag is None:
             break
         out.append(stats)
@@ -110,7 +108,7 @@ def reduce_log(cfg, stage):
 
 
 def print_stats(cfg, stage):
-    stats = try_load(get_files(cfg, "evaluate", stage))
+    _, _, _, stats = try_load(get_files(cfg, "temporal", stage))
 
     cell = stats[stats.kind == "cell"]
     rsn = cell.rsn
@@ -183,7 +181,7 @@ def print_stats(cfg, stage):
 
 
 def finish(cfg, stage):
-    stats = try_load(get_files(cfg, "evaluate", stage))
+    _, _, _, stats = try_load(get_files(cfg, "temporal", stage))
     removed = stats[stats.kind == "remove"]
 
     #reduce_log(cfg, stage)

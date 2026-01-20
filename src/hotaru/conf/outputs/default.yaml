@@ -29,14 +29,10 @@ temporal:
     - "{stage:03d}spike.npy"
     - "{stage:03d}background.npy"
     - "{stage:03d}loss_temporal.csv"
-evaluate:
-  dir0: ${outputs.temporal.dir0}
-  dir: ${outputs.temporal.dir}
-  files:
     - "{stage:03d}stats.csv"
 spatial:
-  dir0: ${outputs.evaluate.dir0}/${clean.label}-${penalty.label}
-  dir: ${outputs.evaluate.dir}
+  dir0: ${outputs.temporal.dir0}/${clean.label}-${penalty.label}
+  dir: ${outputs.temporal.dir}
   files:
     - "{stage:03d}segstats.csv"
     - "{stage:03d}segments.npy"

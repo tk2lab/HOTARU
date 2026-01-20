@@ -68,6 +68,7 @@ def init(cfg):
         logger.info("exec init")
         peaks["asum"] = footprints.sum(axis=(1, 2))
         peaks["area"] = np.count_nonzero(footprints > 0, axis=(1, 2))
+        peaks.loc[peaks['asum'] == 0, 'kind'] = 'removed'
         save(statsfile, peaks)
         if cfg.cmd.remove_reduce:
             reducefile.unlink(missing_ok=True)

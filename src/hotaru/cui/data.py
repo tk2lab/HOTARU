@@ -42,7 +42,7 @@ class Data(namedtuple('Data', 'imgs mask hz avgx avgt std0 min0 max0 min1 max1')
             case (val, None):
                 pass
             case (val, mask):
-                x[..., mask] = val
+                x[..., ~mask] = val
             case _:
                 raise ValueError()
         return x

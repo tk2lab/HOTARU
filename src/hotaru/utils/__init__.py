@@ -1,5 +1,4 @@
 from .clip import get_clip
-from .data import Data
 from .gpu import delete_xla_buffers
 from .gpu import from_tf
 from .gpu import get_gpu_env

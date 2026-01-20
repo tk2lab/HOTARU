@@ -27,6 +27,10 @@ class Model:
         self._trans = trans
         self._stats = stats
 
+    @property
+    def regularizers(self):
+        raise NotImplementedError()
+
     def _try_clip(self, clip, segs):
         cdf = self._stats.query("kind=='cell'")
         bdf = self._stats.query("kind=='background'")
@@ -51,8 +55,8 @@ class Model:
         self._clip = clip
         self._active = active1, active2
 
-        index1 = np.where(clipped1)[0][active1]
-        index2 = np.where(clipped2)[0][active2]
+        index1 = np.nonzero(clipped1)[0][active1]
+        index2 = np.nonzero(clipped2)[0][active2]
         self._active_index = index1, index2
 
         return clipped1, clipped2, clipped_fp, clipped_bg
@@ -148,34 +152,27 @@ class SpatialModel(Model):
         return self._try_clip(clip, self._oldx)
 
     def prepare(self, clip, **kwargs):
-        clipped1, clipped2, clipped_img1, clipped_img2 = self.try_clip(clip)
         data = self._data.clip(clip.clip)
+        clipped1, clipped2, clipped_img1, clipped_img2 = self.try_clip(clip)
 
-        clipped_y1 = self._y1[clipped1]
-        clipped_y2 = self._y2[clipped2]
-
-        clipped_y1 = jnp.array(clipped_y1)
-        clipped_y2 = jnp.array(clipped_y2)
+        clipped_y1 = jnp.array(self._y1[clipped1])
+        clipped_y2 = jnp.array(self._y2[clipped2])
 
         lu, fac = self._penalty.lu
         py = data.nt * lu(clipped_y1, *fac)
+        self._lb = jnp.abs(self._penalty.lb * clipped_y2).sum(axis=1, keepdims=True)
 
-        lb = self._penalty.lb
-        self._lb = jnp.abs(lb * clipped_y2).sum(axis=1, keepdims=True)
+        clipped_z1 = self._dynamics(clipped_y1)
+        clipped_z2 = clipped_y2
+        clipped_z1 /= clipped_z1.max(axis=1, keepdims=True)
+        clipped_z2 /= clipped_z2.max(axis=1, keepdims=True)
+        zval = jnp.concatenate([clipped_z1, clipped_z2], axis=0)
 
-        clipped_y1 = self._dynamics(clipped_y1)
-        clipped_y1 /= clipped_y1.max(axis=1, keepdims=True)
-        clipped_y2 /= clipped_y2.max(axis=1, keepdims=True)
-        yval = jnp.concatenate([clipped_y1, clipped_y2], axis=0)
-        self._prepare(data, yval, py, **kwargs)
+        self._prepare(data, zval, py, **kwargs)
 
-        clipped_x1 = data.apply_mask(clipped_img1, mask_type=True)
-        clipped_x2 = data.apply_mask(clipped_img2, mask_type=True)
-        x1 = jnp.array(clipped_x1)
-        x2 = jnp.array(clipped_x2)
-        #x1 = jnp.zeros_like(clipped_x1)
-        #x2 = jnp.zeros_like(clipped_x2)
-        self._x = x1, x2
+        clipped_x1 = jnp.array(data.apply_mask(clipped_img1, mask_type=True))
+        clipped_x2 = jnp.array(data.apply_mask(clipped_img2, mask_type=True))
+        self._x = clipped_x1, clipped_x2
 
     def get_x(self):
         index1, index2, x1, x2 = super().get_x()

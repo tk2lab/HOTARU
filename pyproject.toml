@@ -40,6 +40,11 @@ dependencies = [
 version = "versioningit:get_version"
 hotaru = "hotaru.__main__:main"
 
+[dependency-groups]
+dev = [
+    "ipython>=8.38.0",
+]
+
 [tool.hatch.version]
 source = "versioningit"
 

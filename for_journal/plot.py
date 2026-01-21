@@ -2,19 +2,15 @@ from pathlib import Path
 
 import hydra
 
-from hotaru.cui.common import (
-    all_stats,
-    get_data,
-)
+from hotaru.cui.common import all_stats
+from hotaru.cui.common import get_data
 from hotaru.plot.densesig import dense_sig_fig
-from hotaru.plot.seg import (
-    bg_sum_image,
-    seg_max_fig,
-    seg_max_image,
-    segs_image,
-)
-from hotaru.plot.spike import spike_image
 from hotaru.plot.num import cell_num_fig
+from hotaru.plot.seg import bg_sum_image
+from hotaru.plot.seg import seg_max_fig
+from hotaru.plot.seg import seg_max_image
+from hotaru.plot.seg import segs_image
+from hotaru.plot.spike import spike_image
 
 
 @hydra.main(version_base=None, config_path="pkg://hotaru.conf", config_name="config")

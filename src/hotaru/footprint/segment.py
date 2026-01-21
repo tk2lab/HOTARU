@@ -21,7 +21,7 @@ def get_segment_mask(val, y0, x0):
             if dx == -1:
                 nseg = nseg.at[:, -1].set(False)
             nval = jnp.roll(val, (dy, dx), axis=(0, 1))
-            nseg &= (0 < val) & (val <= nval)
+            nseg &= (val > 0) & (val <= nval)
             seg |= nseg
         return seg, old_seg
 

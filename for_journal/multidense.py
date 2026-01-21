@@ -7,10 +7,10 @@ pio.kaleido.scope.mathjax = None
 # from hotaru.plot.densesig import dense_sig_multi_fig
 
 
-paths = dict(
-    u0="outputs/Kd32/miniature/min31/clip2x2/u0/default/dup9/",
-    u40="outputs/Kd32/miniature/min31/clip2x2/u40/default/dup9/",
-)
+paths = {
+    "u0": "outputs/Kd32/miniature/min31/clip2x2/u0/default/dup9/",
+    "u40": "outputs/Kd32/miniature/min31/clip2x2/u40/default/dup9/",
+}
 stages = [[0, 1, 17], [0, 1, 14]]
 thr_udense = 0.18
 
@@ -42,12 +42,12 @@ for i, (name, path) in enumerate(paths.items()):
                 x=df.udense,
                 y=df.signal,
                 mode="markers",
-                marker=dict(
-                    color=[dict(cell="blue", background="red")[k] for k in df.kind],
-                    size=3,
-                    opacity=0.2,
-                    line_width=0,
-                )
+                marker={
+                    "color": [{"cell": "blue", "background": "red"}[k] for k in df.kind],
+                    "size": 3,
+                    "opacity": 0.2,
+                    "line_width": 0,
+                }
             ),
             col=1 + j,
             row=1 + i,
@@ -79,7 +79,7 @@ for i, (name, path) in enumerate(paths.items()):
 fig.update_layout(
     template="none",
     showlegend=False,
-    margin=dict(l=50, t=10, b=50, r=10),
+    margin={"l": 50, "t": 10, "b": 50, "r": 10},
     width=600,
     height=300,
     font_size=11,

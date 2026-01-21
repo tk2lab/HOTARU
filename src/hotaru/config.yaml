@@ -1,0 +1,8 @@
+hydra:
+  searchpath:
+    - .
+    - pkg://hotaru.config
+
+defaults:
+  - _self_
+  - hotaru

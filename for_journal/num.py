@@ -15,16 +15,16 @@ lu_list = [0.0, 0.005, 0.01]
 def compress_legend(fig):
     group1_base, group2_base = fig.data[0].name.split(",")
     lines_marker_name = []
-    for i, trace in enumerate(fig.data):
+    for _i, trace in enumerate(fig.data):
         part1, part2 = trace.name.split(",")
         if part1 == group1_base:
             lines_marker_name.append(
-                dict(
-                    line=trace.line.to_plotly_json(),
-                    marker=trace.marker.to_plotly_json(),
-                    mode=trace.mode,
-                    name=part2.lstrip(" "),
-                )
+                {
+                    "line": trace.line.to_plotly_json(),
+                    "marker": trace.marker.to_plotly_json(),
+                    "mode": trace.mode,
+                    "name": part2.lstrip(" "),
+                }
             )
         if part2 == group2_base:
             trace["legend"] = "legend2"
@@ -40,16 +40,16 @@ def compress_legend(fig):
         lmn["legendgroup"] = "part1"
         fig.add_trace(go.Scatter(y=[None], **lmn))
     fig.update_layout(
-        legend=dict(
-            title_text="$\\lambda_U$",
-            x=0.7,
-            y= 0.9,
-        ),
-        legend2=dict(
-            title_text="$\\lambda_A$",
-            x=0.4,
-            y= 0.9,
-        ),
+        legend={
+            "title_text": "$\\lambda_U$",
+            "x": 0.7,
+            "y": 0.9,
+        },
+        legend2={
+            "title_text": "$\\lambda_A$",
+            "x": 0.4,
+            "y": 0.9,
+        },
     )
 
 
@@ -68,8 +68,8 @@ for data, init, clip in [
                     out.append((lu, la, stage, np.count_nonzero(df.kind == "cell")))
                 except FileNotFoundError:
                     pass
-    lu, la, stage, num = zip(*out)
-    df = pd.DataFrame(dict(lu=lu, la=la, stage=stage, num=num))
+    lu, la, stage, num = zip(*out, strict=False)
+    df = pd.DataFrame({"lu": lu, "la": la, "stage": stage, "num": num})
     fig = px.line(
         df,
         x="stage",
@@ -93,7 +93,7 @@ for data, init, clip in [
         font_size=11,
         width=300,
         height=300,
-        margin=dict(l=35, r=5, t=5, b=25),
+        margin={"l": 35, "r": 5, "t": 5, "b": 25},
     )
     pio.full_figure_for_development(fig, warn=False)
     print(fig.data)

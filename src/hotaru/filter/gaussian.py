@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 
 
-@partial(jax.jit, static_argnames=["r"])
+@partial(jax.jit, static_argnames=['r'])
 def gaussian(imgs, r):
     return _gaussian(imgs, r, 4 * np.ceil(r))
 
@@ -17,6 +17,6 @@ def _gaussian(imgs, r, nd):
     r2 = jnp.square(r)
     o0 = jnp.exp(-d / r2 / 2) / r / sqrt_2pi
     g = imgs[..., None, :, :]
-    g = lax.conv(g, o0[None, None, :, None], (1, 1), "same")
-    g = lax.conv(g, o0[None, None, None, :], (1, 1), "same")
+    g = lax.conv(g, o0[None, None, :, None], (1, 1), 'same')
+    g = lax.conv(g, o0[None, None, None, :], (1, 1), 'same')
     return g[..., 0, :, :]

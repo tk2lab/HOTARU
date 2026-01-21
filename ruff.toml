@@ -1,0 +1,34 @@
+line-length = 100
+[format]
+quote-style = "single"
+[lint]
+select = [
+    "FBT",
+    "B",
+    "A",
+    "C4",
+    "PTH",
+    "I",
+    "NPY",
+    "N",
+    "E",
+    "W",
+    "F",
+    "UP",
+    "SIM",
+]
+unfixable = [
+    "F401",
+]
+[lint.per-file-ignores]
+"__init__.py" = [ "F401" ]
+
+#[lint.flake8-comprehensions]
+#allow-dict-calls-with-keyword-arguments = true
+#[lint.flake8-builtins]
+#allowed-modules = ["typing"]
+#[lint.flake8-tidy-imports]
+#ban-relative-imports = "parents"
+[lint.isort]
+force-single-line = true
+#known-first-party = ["hagetaka"]

@@ -4,21 +4,20 @@ from tqdm import tqdm
 
 
 class StreamHandler(logging.StreamHandler):
-
     def emit(self, record):
         try:
             match record.args:
-                case ("pbar", "start", desc, total):
+                case ('pbar', 'start', desc, total):
                     self.tqdm = tqdm(desc=desc, total=total, file=self.stream)
-                case ("pbar", "start", desc, total, postfix):
+                case ('pbar', 'start', desc, total, postfix):
                     self.tqdm = tqdm(desc=desc, total=total, file=self.stream)
                     self.tqdm.set_postfix_str(postfix)
-                case ("pbar", "update", n):
+                case ('pbar', 'update', n):
                     self.tqdm.update(n)
-                case ("pbar", "update", n, postfix):
+                case ('pbar', 'update', n, postfix):
                     self.tqdm.set_postfix_str(postfix, refresh=False)
                     self.tqdm.update(n)
-                case ("pbar", "close"):
+                case ('pbar', 'close'):
                     self.tqdm.close()
                 case _:
                     msg = self.format(record)
@@ -31,6 +30,5 @@ class StreamHandler(logging.StreamHandler):
 
 
 class DropPbarFilter(logging.Filter):
-
     def filter(self, record):
-        return (len(record.args) == 0) or (record.args[0] != "pbar")
+        return (len(record.args) == 0) or (record.args[0] != 'pbar')

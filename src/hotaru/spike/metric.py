@@ -8,10 +8,8 @@ import tensorflow as tf
 from scipy.ndimage import grey_closing
 
 from ..filter import gaussian_laplace
-from ..utils import (
-    from_tf,
-    get_gpu_env,
-)
+from ..utils import from_tf
+from ..utils import get_gpu_env
 from .radius import get_radius
 from .segment import get_segment_mask
 
@@ -20,7 +18,7 @@ from .segment import get_segment_mask
 
 logger = getLogger(__name__)
 
-Footprint = namedtuple("Footprint", "foootprit y x radius intensity")
+Footprint = namedtuple('Footprint', 'foootprit y x radius intensity')
 
 
 def clean(
@@ -42,19 +40,19 @@ def clean(
         factor,
         prefetch,
     )
-    stats = stats.sort_values("segid")
+    stats = stats.sort_values('segid')
     oldy = stats.y.to_numpy()
     oldx = stats.x.to_numpy()
     pos_move = np.hypot(x - oldx, y - oldy) / stats.radius.to_numpy()
 
-    stats["old_kind"] = stats.kind
-    stats["y"] = y
-    stats["x"] = x
-    stats["pos_move"] = pos_move
-    stats["radius"] = radius
-    stats["firmness"] = firmness
-    stats["kind"] = ""
-    stats["dup"] = -1
+    stats['old_kind'] = stats.kind
+    stats['y'] = y
+    stats['x'] = x
+    stats['pos_move'] = pos_move
+    stats['radius'] = radius
+    stats['firmness'] = firmness
+    stats['kind'] = ''
+    stats['dup'] = -1
 
     dup_filter = get_dupfilter(**dupfilter)
     dup_filter.set(stats, segments)
@@ -67,31 +65,30 @@ def clean(
     bg = []
     while flg.size > 0:
         i, flg = flg[0], flg[1:]
-        if (
-            (radius[i] < cell_range[0])
-            or ((stats.iloc[i].old_kind == "cell") and (pos_move[i] > thr_move))
+        if (radius[i] < cell_range[0]) or (
+            (stats.iloc[i].old_kind == 'cell') and (pos_move[i] > thr_move)
         ):
-            logger.debug("remove small/move %s %s %s", i, radius[i], pos_move[i])
-            stats.at[stats.index[i], "kind"] = "remove"
+            logger.debug('remove small/move %s %s %s', i, radius[i], pos_move[i])
+            stats.at[stats.index[i], 'kind'] = 'remove'
         elif (
-            (stats.iloc[i].old_kind == "background")
+            (stats.iloc[i].old_kind == 'background')
             or (radius[i] > cell_range[1])
             or bg_filter.is_background(i)
         ):
             if bg and ((dup := dup_filter.dup_id(i, bg)) >= 0):
-                stats.at[stats.index[i], "kind"] = "remove"
-                stats.at[stats.index[i], "dup"] = stats.index[dup]
+                stats.at[stats.index[i], 'kind'] = 'remove'
+                stats.at[stats.index[i], 'dup'] = stats.index[dup]
             else:
                 bg.append(i)
-                stats.at[stats.index[i], "kind"] = "background"
+                stats.at[stats.index[i], 'kind'] = 'background'
         else:
             if cell and ((dup := dup_filter.dup_id(i, cell)) >= 0):
-                stats.at[stats.index[i], "kind"] = "remove"
-                stats.at[stats.index[i], "dup"] = stats.index[dup]
+                stats.at[stats.index[i], 'kind'] = 'remove'
+                stats.at[stats.index[i], 'dup'] = stats.index[dup]
             else:
                 cell.append(i)
-                stats.at[stats.index[i], "kind"] = "cell"
-    logger.info("cell/bg = %d/%d", len(cell), len(bg))
+                stats.at[stats.index[i], 'kind'] = 'cell'
+    logger.info('cell/bg = %d/%d', len(cell), len(bg))
     return segments, stats
 
 
@@ -121,7 +118,7 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     batch = env.batch(float(factor) * h * w * len(radius), nk)
 
     dataset = tf.data.Dataset.from_generator(
-        lambda: zip(range(nk), segs),
+        lambda: zip(range(nk), segs, strict=False),
         output_signature=(
             tf.TensorSpec((), tf.int32),
             tf.TensorSpec((h, w), tf.float32),
@@ -136,8 +133,8 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
     r = jnp.empty((nk + 1,), jnp.int32)
     g = jnp.empty((nk + 1,), jnp.float32)
 
-    logger.info("clean: %s %s", (factor, h, w), batch)
-    logger.info("%s: %s %s %d", "pbar", "start", "clean", nk)
+    logger.info('clean: %s %s', (factor, h, w), batch)
+    logger.info('%s: %s %s %d', 'pbar', 'start', 'clean', nk)
     for data in dataset:
         data = (from_tf(v) for v in data)
         idx, img = (jax.device_put(v, sharding) for v in data)
@@ -155,8 +152,8 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
         x = x.at[idx].set(xi)
         r = r.at[idx].set(ri)
         g = g.at[idx].set(gi)
-        logger.info("%s: %s %d", "pbar", "update", count)
-    logger.info("%s: %s", "pbar", "close")
+        logger.info('%s: %s %d', 'pbar', 'update', count)
+    logger.info('%s: %s', 'pbar', 'close')
 
     out, y, x, r, g = (np.array(v[:-1]) for v in (out, y, x, r, g))
     out = grey_closing(out, (1, 10, 10))
@@ -166,7 +163,7 @@ def clean_footprints(segs, radius, env=None, factor=1, prefetch=1):
 
 def get_dupfilter(**args):
     match args:
-        case {"thr_active_area": thr}:
+        case {'thr_active_area': thr}:
             return DupFilter(thr)
         case _:
             raise ValueError()
@@ -174,11 +171,11 @@ def get_dupfilter(**args):
 
 def get_bgfilter(**args):
     match args:
-        case {"kind": "new", **kwargs}:
+        case {'kind': 'new', **kwargs}:
             return BackgroundFilter(**kwargs)
-        case {"kind": "simple", **kwargs}:
+        case {'kind': 'simple', **kwargs}:
             return SimpleBackgroundFilter(**kwargs)
-        case {"kind": "factor", **kwargs}:
+        case {'kind': 'factor', **kwargs}:
             return FactorBackgroundFilter(**kwargs)
         case _:
             return OldBackgroundFilter(**args)
@@ -237,19 +234,16 @@ class FactorBackgroundFilter:
         self._thr_f = thr_firmness
 
     def set(self, stats):
-        stats["rsn"] = 1 / stats.snratio
+        stats['rsn'] = 1 / stats.snratio
         med = np.median(stats.rsn)
         std = 1.4826 * np.median(np.abs(stats.rsn - med))
-        stats["zrsn"] = (stats.rsn - med) / std
+        stats['zrsn'] = (stats.rsn - med) / std
         self._stats = stats
 
     def is_background(self, i):
         s = self._stats
         si = s.iloc[i]
-        return (
-            (si.zrsn > self._thr_s)
-            or (si.firmness < self._thr_f)
-        )
+        return (si.zrsn > self._thr_s) or (si.firmness < self._thr_f)
 
 
 class SimpleBackgroundFilter:
@@ -267,10 +261,7 @@ class SimpleBackgroundFilter:
     def is_background(self, i):
         s = self._stats
         si = s.iloc[i]
-        return (
-            (1 / si.snratio > self._thr_s)
-            or (si.firmness < self._thr_f)
-        )
+        return (1 / si.snratio > self._thr_s) or (si.firmness < self._thr_f)
 
 
 class OldBackgroundFilter:
@@ -307,7 +298,5 @@ class OldBackgroundFilter:
         si = s.at[s.index[i]]
         return (
             # (si.z > thr_bg_cluster)
-            (si.udense > self._thr_d)
-            or (si.signal < self._thr_s)
-            or (si.firmness < self._thr_f)
+            (si.udense > self._thr_d) or (si.signal < self._thr_s) or (si.firmness < self._thr_f)
         )

@@ -3,29 +3,29 @@ from logging import getLogger
 import jax.numpy as jnp
 import numpy as np
 
-from .common import (
-    loss_fn,
-    prepare_matrix,
-)
 from ..spike import get_dynamics
+from .common import loss_fn
+from .common import prepare_matrix
 from .optimizer import ProxOptimizer
 from .penalty import get_penalty
-from .regularizer import (
-    L1,
-    NonNegativeL1,
-)
+from .regularizer import L1
+from .regularizer import NonNegativeL1
 
 logger = getLogger(__name__)
 
 
 class Model:
-    def __init__(self, data, trans, stats, dynamics, penalty, **kwargs):
+    def __init__(self, data, stats, dynamics, penalty, *, trans: bool, **kwargs):
         self._dynamics = get_dynamics(dynamics)
         self._penalty = get_penalty(penalty)
 
         self._data = data
         self._trans = trans
         self._stats = stats
+
+    @property
+    def regularizers(self):
+        raise NotImplementedError()
 
     def _try_clip(self, clip, segs):
         cdf = self._stats.query("kind=='cell'")
@@ -51,8 +51,8 @@ class Model:
         self._clip = clip
         self._active = active1, active2
 
-        index1 = np.where(clipped1)[0][active1]
-        index2 = np.where(clipped2)[0][active2]
+        index1 = np.nonzero(clipped1)[0][active1]
+        index2 = np.nonzero(clipped2)[0][active2]
         self._active_index = index1, index2
 
         return clipped1, clipped2, clipped_fp, clipped_bg
@@ -64,11 +64,11 @@ class Model:
         if self._trans:
             nx, ny = data.nt, data.ns
             bx, by = penalty.bt, penalty.bs
-            logger.info("lu: %f", self._penalty.lu[1][0])
+            logger.info('lu: %f', self._penalty.lu[1][0])
         else:
             nx, ny = data.ns, data.nt
             bx, by = penalty.bs, penalty.bt
-            logger.info("la: %f", self._penalty.la[1][0])
+            logger.info('la: %f', self._penalty.la[1][0])
         nx, ny, bx, by = (jnp.array(v, jnp.float32) for v in (nx, ny, bx, by))
 
         self._args = ycov, yout, ydot, nx, ny, bx, by, py
@@ -80,7 +80,7 @@ class Model:
             est = 1.0
         self._lr_scale = est / nx
 
-        if not hasattr(self, "_optimizer"):
+        if not hasattr(self, '_optimizer'):
             self._optimizer = ProxOptimizer(self)
 
     @property
@@ -101,14 +101,12 @@ class Model:
         return (r.prox for r in self.regularizers)
 
     def fit(self, max_epoch, steps_par_epoch, lr, *args, **kwargs):
-        logger.info("fit: lr=%g scale=%f", lr, self._lr_scale)
+        logger.info('fit: lr=%g scale=%f', lr, self._lr_scale)
         lr /= self._lr_scale
         x = self._x
-        logger.info("%s: %s %s %d", "pbar", "start", "optimize", -1)
-        x, history = self._optimizer.fit(
-            x, max_epoch, steps_par_epoch, lr, *args, **kwargs
-        )
-        logger.info("%s: %s", "pbar", "close")
+        logger.info('%s: %s %s %d', 'pbar', 'start', 'optimize', -1)
+        x, history = self._optimizer.fit(x, max_epoch, steps_par_epoch, lr, *args, **kwargs)
+        logger.info('%s: %s', 'pbar', 'close')
         self._x = x
         return history
 
@@ -123,7 +121,7 @@ class Model:
 
 class SpatialModel(Model):
     def __init__(self, data, stats, oldx, y1, y2, *args, **kwargs):
-        super().__init__(data, False, stats, *args, **kwargs)
+        super().__init__(data, stats, *args, trans=False, **kwargs)
         self._oldx = oldx
         self._y1 = y1
         self._y2 = y2
@@ -148,34 +146,27 @@ class SpatialModel(Model):
         return self._try_clip(clip, self._oldx)
 
     def prepare(self, clip, **kwargs):
-        clipped1, clipped2, clipped_img1, clipped_img2 = self.try_clip(clip)
         data = self._data.clip(clip.clip)
+        clipped1, clipped2, clipped_img1, clipped_img2 = self.try_clip(clip)
 
-        clipped_y1 = self._y1[clipped1]
-        clipped_y2 = self._y2[clipped2]
-
-        clipped_y1 = jnp.array(clipped_y1)
-        clipped_y2 = jnp.array(clipped_y2)
+        clipped_y1 = jnp.array(self._y1[clipped1])
+        clipped_y2 = jnp.array(self._y2[clipped2])
 
         lu, fac = self._penalty.lu
         py = data.nt * lu(clipped_y1, *fac)
+        self._lb = jnp.abs(self._penalty.lb * clipped_y2).sum(axis=1, keepdims=True)
 
-        lb = self._penalty.lb
-        self._lb = jnp.abs(lb * clipped_y2).sum(axis=1, keepdims=True)
+        clipped_z1 = self._dynamics(clipped_y1)
+        clipped_z2 = clipped_y2
+        clipped_z1 /= clipped_z1.max(axis=1, keepdims=True)
+        clipped_z2 /= clipped_z2.max(axis=1, keepdims=True)
+        zval = jnp.concatenate([clipped_z1, clipped_z2], axis=0)
 
-        clipped_y1 = self._dynamics(clipped_y1)
-        clipped_y1 /= clipped_y1.max(axis=1, keepdims=True)
-        clipped_y2 /= clipped_y2.max(axis=1, keepdims=True)
-        yval = jnp.concatenate([clipped_y1, clipped_y2], axis=0)
-        self._prepare(data, yval, py, **kwargs)
+        self._prepare(data, zval, py, **kwargs)
 
-        clipped_x1 = data.apply_mask(clipped_img1, mask_type=True)
-        clipped_x2 = data.apply_mask(clipped_img2, mask_type=True)
-        x1 = jnp.array(clipped_x1)
-        x2 = jnp.array(clipped_x2)
-        #x1 = jnp.zeros_like(clipped_x1)
-        #x2 = jnp.zeros_like(clipped_x2)
-        self._x = x1, x2
+        clipped_x1 = jnp.array(data.apply_mask(clipped_img1, mask_type=True))
+        clipped_x2 = jnp.array(data.apply_mask(clipped_img2, mask_type=True))
+        self._x = clipped_x1, clipped_x2
 
     def get_x(self):
         index1, index2, x1, x2 = super().get_x()
@@ -191,16 +182,16 @@ class SpatialModel(Model):
 
 class TemporalModel(Model):
     def __init__(self, data, stats, y, *args, **kwargs):
-        super().__init__(data, True, stats, *args, **kwargs)
+        super().__init__(data, stats, *args, trans=True, **kwargs)
         self._y = y
 
     @property
     def n1(self):
-        return np.count_nonzero(self._stats.kind == "cell")
+        return np.count_nonzero(self._stats.kind == 'cell')
 
     @property
     def n2(self):
-        return np.count_nonzero(self._stats.kind == "background")
+        return np.count_nonzero(self._stats.kind == 'background')
 
     @property
     def regularizers(self):

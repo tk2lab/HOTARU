@@ -6,8 +6,7 @@ import numpy as np
 logger = getLogger(__name__)
 
 
-class Data(namedtuple("Data", "imgs mask hz avgx avgt std0 min0 max0 min1 max1")):
-
+class Data(namedtuple('Data', 'imgs mask hz avgx avgt std0 min0 max0 min1 max1')):
     @property
     def nt(self):
         return self.imgs.shape[0]
@@ -43,7 +42,7 @@ class Data(namedtuple("Data", "imgs mask hz avgx avgt std0 min0 max0 min1 max1")
             case (val, None):
                 pass
             case (val, mask):
-                x[..., mask] = val
+                x[..., ~mask] = val
             case _:
                 raise ValueError()
         return x
@@ -68,10 +67,10 @@ class Data(namedtuple("Data", "imgs mask hz avgx avgt std0 min0 max0 min1 max1")
         avgt = self.avgt
         std0 = self.std0
         if self.mask is None:
-            for d, a in zip(data.T, avgx):
+            for d, a in zip(data.T, avgx, strict=False):
                 yield (d - a - avgt) / std0
         else:
             mask = self.mask.ravel()
-            for m, d, a in zip(mask, data.T, avgx):
+            for m, d, a in zip(mask, data.T, avgx, strict=False):
                 if m:
                     yield (d - a - avgt) / std0

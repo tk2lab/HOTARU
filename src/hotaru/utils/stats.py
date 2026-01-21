@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 
-class Stats(namedtuple("Stats", "t0 y0 x0 mask avgx avgt std0")):
+class Stats(namedtuple('Stats', 't0 y0 x0 mask avgx avgt std0')):
     def normalize(self, imgs):
         return (self.clip(imgs) - self.avgx - self.avgt[:, None, None]) / self.std0
 

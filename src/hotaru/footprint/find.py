@@ -6,20 +6,16 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-from ..filter import (
-    gaussian,
-    gaussian_laplace,
-    max_pool,
-)
-from ..utils import (
-    from_tf,
-    get_gpu_env,
-)
+from ..filter import gaussian
+from ..filter import gaussian_laplace
+from ..filter import max_pool
+from ..utils import from_tf
+from ..utils import get_gpu_env
 from .radius import get_radius
 
 logger = getLogger(__name__)
 
-PeakVal = namedtuple("PeakVal", ["radius", "t", "r", "v"])
+PeakVal = namedtuple('PeakVal', ['radius', 't', 'r', 'v'])
 
 
 def find_peaks(data, radius, env=None, factor=1, prefetch=1):
@@ -41,7 +37,7 @@ def find_peaks(data, radius, env=None, factor=1, prefetch=1):
     sharding = env.sharding((nd, 1))
 
     logger.info(
-        "find: nt=%d h=%d w=%d rmin=%f rmax=%f batch=%d",
+        'find: nt=%d h=%d w=%d rmin=%f rmax=%f batch=%d',
         nt,
         h,
         w,
@@ -50,7 +46,7 @@ def find_peaks(data, radius, env=None, factor=1, prefetch=1):
         batch,
     )
     dataset = tf.data.Dataset.from_generator(
-        lambda: zip(range(nt), data.data(mask_type=False)),
+        lambda: zip(range(nt), data.data(mask_type=False), strict=False),
         output_signature=(
             tf.TensorSpec((), tf.int32),
             tf.TensorSpec((h, w), tf.float32),
@@ -64,7 +60,7 @@ def find_peaks(data, radius, env=None, factor=1, prefetch=1):
     rs = jnp.full((h, w), -1, jnp.int32)
     gs = jnp.full((h, w), -jnp.inf)
 
-    logger.info("%s: %s %s %d", "pbar", "start", "find", nt)
+    logger.info('%s: %s %s %d', 'pbar', 'start', 'find', nt)
     for d in dataset:
         d = (from_tf(v) for v in d)
         index, imgs = (jax.device_put(v, sharding) for v in d)
@@ -76,17 +72,17 @@ def find_peaks(data, radius, env=None, factor=1, prefetch=1):
             imgs = jnp.pad(imgs, ((0, diff), (0, 0), (0, 0)), constant_values=jnp.nan)
 
         ts, rs, gs = update(ts, rs, gs, index, imgs)
-        logger.info("%s: %s %d", "pbar", "update", count)
-    logger.info("%s: %s", "pbar", "close")
+        logger.info('%s: %s %d', 'pbar', 'update', count)
+    logger.info('%s: %s', 'pbar', 'close')
 
     for i, r in enumerate(radius):
-        logger.info("radius=%f num=%d", r, (rs == i).sum())
+        logger.info('radius=%f num=%d', r, (rs == i).sum())
     return PeakVal(np.array(radius, np.float32), *map(np.array, (ts, rs, gs)))
 
 
 def simple_peaks(img, gauss, maxpool):
     g = gaussian(img[None, ...], gauss)[0]
-    m = max_pool(g, (maxpool, maxpool), (1, 1), "same")
+    m = max_pool(g, (maxpool, maxpool), (1, 1), 'same')
     y, x = jnp.where(g == m)
     return np.array(y), np.array(x)
 
@@ -101,7 +97,7 @@ def _find_peaks(imgs, mask, radius):
     nt, h, w = imgs.shape
     nr = len(radius)
     gl = gaussian_laplace(imgs, radius, axis=1)
-    gl_max = max_pool(gl, (3, 3, 3), (1, 1, 1), "same")
+    gl_max = max_pool(gl, (3, 3, 3), (1, 1, 1), 'same')
     gl_peak = gl == gl_max
     if mask is not None:
         gl_peak &= mask

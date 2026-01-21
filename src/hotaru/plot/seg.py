@@ -35,9 +35,8 @@ def seg_max_image(cfg, stage, *, base=0.5, showbg=False, thr_udense=1.0):
 
 def _seg_max_image(segs, stats, *, base=0.5, showbg=False, thr_udense=1.0):
     # stats.loc[stats.udense > thr_udense, "kind"] = "background"
-    cell = stats.query("kind == 'cell'").segid.to_numpy()
-    bg = stats.query("kind == 'background'").segid.to_numpy()
-    fp = segs[cell]
+    fp = segs[stats.query("kind == 'cell'").segid.to_numpy()]
+    bg = segs[stats.query("kind == 'background'").segid.to_numpy()]
     fp = np.maximum(0, (fp - base) / (1 - base)).max(axis=0)
     fpimg = to_image(fp, 'Greens')
     fpimg = Image.fromarray(fpimg)
@@ -57,7 +56,6 @@ def seg_max_fig(cfg, stage, *, base=0.5, showbg=False, width=600, thr_udense=1.0
     else:
         _, segs = load(cfg, 'clean', stage)
         _, _, _, stats = load(cfg, 'temporal', stage)
-    segs = segs[stats.query('kind == "cell"').segid.to_numpy()]
     return _seg_max_fig(segs, stats, base=base, showbg=showbg, width=width, thr_udense=thr_udense)
 
 

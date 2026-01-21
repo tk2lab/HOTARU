@@ -6,7 +6,7 @@ defaults:
   - radius: default
   - init: default
   - dynamics: default
-  - penalty: a10u10
+  - penalty: a1u10
   - clean: simple
   - outputs: default
   - cmd: default

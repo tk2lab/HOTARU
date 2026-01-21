@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import plotly.express as px
 from PIL import Image
@@ -8,12 +9,30 @@ from ..spike import get_dynamics
 from .common import to_image
 
 
+def to_csv(cfg, stage, path, *, tsel=None, ksel=None):
+    pad = get_dynamics(cfg.dynamics).size - 1
+    u, _, _, _ = load(cfg, 'temporal', stage)
+    u = u[:, pad:]
+    if tsel is None:
+        tsel = np.arange(u.shape[1])
+    if ksel is None:
+        ksel = np.arange(u.shape[0])
+    data = {'frame': tsel, 'time': tsel / cfg.data.imgs.hz}
+    for k in ksel:
+        data[f'cell{k:04}'] = u[k, tsel]
+    pd.DataFrame(data).to_csv(path)
+    #_, _, _, stats = load(cfg, 'temporal', stage)
+    #stats = stats.query("kind == 'cell'")
+    ## u = u[stats.udense <= thr_udense]
+    #return _spike_image(u, tsel, ksel, width, lines)
+
+
 def spike_image(cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=(), thr_udense=1.0):
     pad = get_dynamics(cfg.dynamics).size - 1
     u, _, _, _ = load(cfg, 'temporal', stage)
     u = u[:, pad:]
-    _, _, _, stats = load(cfg, 'temporal', stage)
-    stats = stats.query("kind == 'cell'")
+    #_, _, _, stats = load(cfg, 'temporal', stage)
+    #stats = stats.query("kind == 'cell'")
     # u = u[stats.udense <= thr_udense]
     return _spike_image(u, tsel, ksel, width, lines)
 

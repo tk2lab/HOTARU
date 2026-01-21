@@ -42,7 +42,7 @@ clean:
   files:
     - "{stage:03d}cleanstats.csv"
     - "{stage:03d}footprints.h5"
-figs:
-  dir: figs
+outputs:
+  dir: outputs
 trace:
   dir: trace

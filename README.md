@@ -51,9 +51,9 @@ hotaru --help
 Download [sample.tif](https://drive.google.com/file/d/12pRyoWFRu-h15BaAAscLyoziAjiY5nP6/view?usp=drive_link)
 ```shell
 hotaru data.imgs.file=sample.tif mode=test
-# see figs/test_*.pdf
+# see outputs/{datetime}/test_*.pdf
 hotaru data.imgs.file=sample.tif mode=run
-# see figs/run_*.pdf
+# see outputs/{datetime}/run_*.pdf
 ```
 
 [Demo Movies](https://drive.google.com/drive/folders/1yZK8vU1WOyCMuU-ogiSB7FJcZUxU8QtP?usp=sharing)

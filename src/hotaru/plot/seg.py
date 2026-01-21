@@ -1,5 +1,6 @@
 import numpy as np
 import plotly.graph_objects as go
+import tifffile
 from PIL import Image
 
 from ..cui.common import load
@@ -9,11 +10,25 @@ from .common import to_image
 _rng = np.random.default_rng()
 
 
+def to_multipage_tif(cfg, stage, path, *, include_bg=False, color=False):
+    _, segs = load(cfg, 'clean', stage)
+    _, _, _, stats = load(cfg, 'temporal', stage)
+    image = segs[(stats.kind == 'cell').to_numpy()]
+    if color:
+        image = to_image(image, 'Greens')
+    if include_bg:
+        bg = segs[(stats.kind == 'background').to_numpy()]
+        if color:
+            bg_image = to_image(bg, 'Reds')
+        image = np.concatenate([image, bg_image])
+    tifffile.imwrite(path, image)
+
+
 def seg_max_image(cfg, stage, *, base=0.5, showbg=False, thr_udense=1.0):
     if stage == 0:
         segs = load(cfg, 'make', stage)
     else:
-        segs, _ = load(cfg, 'clean', stage)
+        _, segs = load(cfg, 'clean', stage)
     _, _, _, stats = load(cfg, 'temporal', stage)
     return _seg_max_image(segs, stats, base=base, showbg=showbg, thr_udense=thr_udense)
 
@@ -57,7 +72,7 @@ def _seg_max_fig(segs, stats, *, base=0.5, showbg=False, width=600, thr_udense=1
         go.Scatter(
             x=cell.x,
             y=cell.y,
-            text=cell.index,
+            text=cell.segid,
             mode='text',
             textfont={'size': 5, 'color': 'red'},
         ),

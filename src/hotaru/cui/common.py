@@ -156,7 +156,9 @@ def print_stats(cfg, stage):
             )
 
     removed = stats[stats.kind == 'remove']
-    if removed.shape[0] > 0:
+    if removed.shape[0] == 0:
+        logger.info('removed: 0')
+    else:
         labels = [
             'y',
             'x',
@@ -180,4 +182,4 @@ def finish(cfg, stage):
     removed = stats[stats.kind == 'remove']
 
     # reduce_log(cfg, stage)
-    return cfg.early_stop and (stage > 0) and removed.shape[0] == 0
+    return (stage > 0) and (removed.shape[0] <= cfg.early_stop)

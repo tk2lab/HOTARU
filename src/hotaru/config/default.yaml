@@ -17,7 +17,9 @@ fix_top: true
 
 mode: run
 max_train_step: 10
-early_stop: true
+
+early_stop: 1
+
 force_from:
   - 100
   - spatial

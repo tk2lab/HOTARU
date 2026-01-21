@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from importlib import import_module
 from multiprocessing import Process
 from pathlib import Path
@@ -22,10 +23,12 @@ def call(name, *args, **kwargs):
 
 
 def test(cfg):
+    now = datetime.now().isoformat()
+
     call('normalize', cfg)
     call('init', cfg)
 
-    path = Path(cfg.outputs.figs.dir)
+    path = Path(cfg.outputs.figs.dir) / now
     path.mkdir(parents=True, exist_ok=True)
     peak_stats_fig(cfg, 0).write_image(path / 'test_stats.pdf')
     seg_max_fig(cfg, 0).write_image(path / 'test_footprints.pdf')

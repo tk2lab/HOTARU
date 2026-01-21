@@ -29,7 +29,7 @@ def make_footprints(data, peaks, env=None, factor=1, prefetch=1):
     logger.info('%s: %s %s %d', 'pbar', 'start', 'make', ts.size)
     out = np.empty((nk, h, w))
     for r in np.unique(rs):
-        index = np.where(rs == r)[0]
+        index = np.nonzero(rs == r)[0]
         dataset = tf.data.Dataset.from_generator(
             lambda index=index: zip(
                 index, data.data(ts[index]), ys[index], xs[index], strict=False

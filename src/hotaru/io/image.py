@@ -34,7 +34,7 @@ def load_imgs(**cfg):
                     imgs = data.asarray(out='memmap')
             logger.debug('mount tiff as memmap: %s', imgsfile_fix)
         case _:
-            raise RuntimeError(f'{imgsfile} is not imgs file')
+            raise RuntimeError(f'{cfg["file"]} is not imgs file')
     return imgs, cfg['hz']
 
 
@@ -44,9 +44,9 @@ def apply_mask(imgs, **cfg):
         case 'nomask':
             mask = None
         case 'tif':
-            mask = imread(cfg['file'])
+            mask = imread(cfg['file']) > 0
         case 'npy':
-            mask = np.load(cfg['file'])
+            mask = np.load(cfg['file']) > 0
         case _:
             raise RuntimeError('bad file type: {maskfile}')
 

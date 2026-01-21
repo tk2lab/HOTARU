@@ -17,35 +17,33 @@ TAKEKAWA Takashi <takekawa@tk2lab.org>
 ## Install
 
 ### Require
-- python >=3.10,<3.12
-- jax >= 0.4
+- python >=3.11
+- jax
 
 ### Recommended
 - Nvidia GPU
-- cuda 12.0
-- cudnn 8.9
+- cuda
 
-### Install Procedure (using venv)
-- Create venv environment for hotaru
+### Install Procedure (using uv)
+- Clone git repository
 ```shell
-python3.10 -m venv hotaru
+git clone https://github.com/tk2lab/hotaru
+```
+- Setup venv
+```shell
+cd hotaru
+uv sync
 ```
 - Activate hotaru environment
 ```shell
-source hotaru/bin/activate
+source bin/activate
 ```
-- Install hotaru
-```shell
-pip install hotaru
-```
-
 
 ## Usage
 see help
 ```shell
 hotaru --help
 ```
-
 
 ## Demonstration
 Download [sample.tif](https://drive.google.com/file/d/12pRyoWFRu-h15BaAAscLyoziAjiY5nP6/view?usp=drive_link)

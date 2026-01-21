@@ -1,6 +1,0 @@
-label: twophoton
-filter:
-  type: logscale
-  num: 15
-  min: 2
-  max: 8

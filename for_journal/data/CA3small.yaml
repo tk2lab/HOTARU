@@ -1,7 +1,0 @@
-label: CA3small
-imgs:
-  type: npy
-  file: Data/CA3small.npy
-  hz: 20
-mask:
-  type: nomask

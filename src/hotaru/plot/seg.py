@@ -10,18 +10,18 @@ from .common import to_image
 _rng = np.random.default_rng()
 
 
-def to_multipage_tif(cfg, stage, path, *, include_bg=False, color=False):
+def to_multipage_tif(cfg, stage, path, *, color=False):
     _, segs = load(cfg, 'clean', stage)
     _, _, _, stats = load(cfg, 'temporal', stage)
-    image = segs[stats.query('kind == "cell"').segid.to_numpy()]
+    cell = segs[stats.query('kind == "cell"').segid.to_numpy()]
+    bg = segs[stats.query('kind == "background"').segid.to_numpy()]
     if color:
-        image = to_image(image, 'Greens')
-    if include_bg:
-        bg = segs[(stats.kind == 'background').to_numpy()]
-        if color:
-            bg_image = to_image(bg, 'Reds')
-        image = np.concatenate([image, bg_image])
-    tifffile.imwrite(path, image)
+        cell = to_image(cell, 'Greens')
+        bg = to_image(bg, 'Reds')
+    if cell.shape[0] > 0:
+        tifffile.imwrite(path / 'cell.tif', cell)
+    if bg.shape[0] > 0:
+        tifffile.imwrite(path / 'background.tif', bg)
 
 
 def seg_max_image(cfg, stage, *, base=0.5, showbg=False, thr_udense=1.0):

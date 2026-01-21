@@ -45,7 +45,7 @@ def run(cfg):
 
     path = Path(cfg.outputs.outputs.dir) / now
     path.mkdir(parents=True, exist_ok=True)
-    to_csv(cfg, stage, path / 'spike.csv')
-    to_multipage_tif(cfg, stage, path / 'footprints.tif')
+    to_csv(cfg, stage, path)
+    to_multipage_tif(cfg, stage, path)
     seg_max_fig(cfg, stage).write_image(path / 'run_footprints.pdf')
     spike_image(cfg, stage, tsel=np.arange(4096))[0].save(path / 'run_spike.pdf')

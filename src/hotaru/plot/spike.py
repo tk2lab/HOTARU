@@ -10,17 +10,26 @@ from .common import to_image
 
 
 def to_csv(cfg, stage, path, *, tsel=None, ksel=None):
-    pad = get_dynamics(cfg.dynamics).size - 1
     u, _, _, stats = load(cfg, 'temporal', stage)
-    u = u[stats.query('kind == "cell"').spkid, pad:]
+    u = u[stats.query('kind == "cell"').spkid, :]
+
+    dynamics = get_dynamics(cfg.dynamics)
+    pad = dynamics.size - 1
+    v = dynamics(u)
+    u = u[:, pad:]
+
     if tsel is None:
         tsel = np.arange(u.shape[1])
     if ksel is None:
         ksel = np.arange(u.shape[0])
-    data = {'frame': tsel, 'time': tsel / cfg.data.imgs.hz}
+
+    udata = {'frame': tsel, 'time': tsel / cfg.data.imgs.hz}
+    vdata = {'frame': tsel, 'time': tsel / cfg.data.imgs.hz}
     for k in ksel:
-        data[f'cell{k:04}'] = u[k, tsel]
-    pd.DataFrame(data).to_csv(path)
+        udata[f'cell{k:04}'] = u[k, tsel]
+        vdata[f'cell{k:04}'] = v[k, tsel]
+    pd.DataFrame(udata).to_csv(path / 'spike.csv')
+    pd.DataFrame(vdata).to_csv(path / 'calcium.csv')
     #_, _, _, stats = load(cfg, 'temporal', stage)
     #stats = stats.query("kind == 'cell'")
     ## u = u[stats.udense <= thr_udense]

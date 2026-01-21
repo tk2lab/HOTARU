@@ -13,7 +13,7 @@ _rng = np.random.default_rng()
 def to_multipage_tif(cfg, stage, path, *, include_bg=False, color=False):
     _, segs = load(cfg, 'clean', stage)
     _, _, _, stats = load(cfg, 'temporal', stage)
-    image = segs[(stats.kind == 'cell').to_numpy()]
+    image = segs[stats.query('kind == "cell"').segid.to_numpy()]
     if color:
         image = to_image(image, 'Greens')
     if include_bg:
@@ -57,6 +57,7 @@ def seg_max_fig(cfg, stage, *, base=0.5, showbg=False, width=600, thr_udense=1.0
     else:
         _, segs = load(cfg, 'clean', stage)
         _, _, _, stats = load(cfg, 'temporal', stage)
+    segs = segs[stats.query('kind == "cell"').segid.to_numpy()]
     return _seg_max_fig(segs, stats, base=base, showbg=showbg, width=width, thr_udense=thr_udense)
 
 

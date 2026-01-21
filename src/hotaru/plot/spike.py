@@ -11,8 +11,8 @@ from .common import to_image
 
 def to_csv(cfg, stage, path, *, tsel=None, ksel=None):
     pad = get_dynamics(cfg.dynamics).size - 1
-    u, _, _, _ = load(cfg, 'temporal', stage)
-    u = u[:, pad:]
+    u, _, _, stats = load(cfg, 'temporal', stage)
+    u = u[stats.query('kind == "cell"').spkid, pad:]
     if tsel is None:
         tsel = np.arange(u.shape[1])
     if ksel is None:
@@ -29,8 +29,8 @@ def to_csv(cfg, stage, path, *, tsel=None, ksel=None):
 
 def spike_image(cfg, stage, tsel=slice(None), ksel=slice(None), width=3, lines=(), thr_udense=1.0):
     pad = get_dynamics(cfg.dynamics).size - 1
-    u, _, _, _ = load(cfg, 'temporal', stage)
-    u = u[:, pad:]
+    u, _, _, stats = load(cfg, 'temporal', stage)
+    u = u[stats.query('kind == "cell"').spkid, pad:]
     #_, _, _, stats = load(cfg, 'temporal', stage)
     #stats = stats.query("kind == 'cell'")
     # u = u[stats.udense <= thr_udense]

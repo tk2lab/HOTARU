@@ -4,7 +4,7 @@ from .cui import run
 from .cui import test
 
 
-@hydra.main(version_base=None, config_path=None, config_name='config')
+@hydra.main(version_base=None, config_path='pkg://hotaru', config_name='base_config')
 def main(cfg):
     match cfg.mode:
         case 'test':

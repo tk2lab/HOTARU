@@ -1,109 +1,83 @@
-from collections import namedtuple
 from logging import getLogger
+from math import inf
 
-import jax
-import jax.numpy as jnp
 import numpy as np
-import tensorflow as tf
+from keras import ops
+from keras.utils import PyDataset
+from keras.utils import unpack_x_y_sample_weight
 
-from ..filter import gaussian
-from ..filter import gaussian_laplace
-from ..filter import max_pool
-from ..utils import from_tf
-from ..utils import get_gpu_env
-from .radius import get_radius
+from ..io import MovieData
+from ..model import Model
+from ..ops import gaussian_laplace_2d
+from ..ops import max_pool_3d
+from ..saving import Config
+from ..typing import Array
+from ..typing import Tensor
+from .radius import Radius
+from .reduce import PeakMap
 
 logger = getLogger(__name__)
 
-PeakVal = namedtuple('PeakVal', ['radius', 't', 'r', 'v'])
+
+class FinderDataset(PyDataset):
+    def __init__(self, data: MovieData, batch_size: int, **kwargs):
+        super().__init__(**kwargs)
+        self.data = data
+        self.batch_size = batch_size
+
+    def on_epoch_end(self):
+        pass
+
+    def __len__(self) -> int:
+        return self.data.num_frames // self.batch_size
+
+    def __getitem__(self, index: int) -> tuple[Array, Array]:
+        s = self.batch_size * index
+        e = s + self.batch_size
+        return np.arange(s, e, dtype='int32'), self.data.data[s:e]
 
 
-def find_peaks(data, radius, env=None, factor=1, prefetch=1):
-    @jax.jit
-    def update(ts, rs, gs, index, imgs):
-        t, r, g = _find_peaks(imgs, mask, radius)
-        cond = g < gs
-        ts = jnp.where(cond, ts, index[t])
-        rs = jnp.where(cond, rs, r)
-        gs = jnp.where(cond, gs, g)
-        return ts, rs, gs
+class PeakFinder(Model):
+    def __init__(self, radius: Radius | Config):
+        self.radius = Radius.get(radius)
 
-    nt, h, w = data.imgs.shape
+    def fit(self, data: MovieData | Config, batch_size: int, **kwargs):
+        data = MovieData.get(data)
+        dataset = FinderDataset(data, batch_size)
+        super().fit(dataset, **kwargs)
 
-    radius = get_radius(radius)
-    env = get_gpu_env(env)
-    nd = env.num_devices
-    batch = env.batch(float(factor) * h * w * len(radius), nt)
-    sharding = env.sharding((nd, 1))
+    def get_peakval(self) -> PeakMap:
+        ts, rs, vs = (ops.convert_to_numpy(v) for v in (self.ts, self.rs, self.vs))
+        return PeakMap(self.radius, ts, rs, vs)
 
-    logger.info(
-        'find: nt=%d h=%d w=%d rmin=%f rmax=%f batch=%d',
-        nt,
-        h,
-        w,
-        radius[0],
-        radius[-1],
-        batch,
-    )
-    dataset = tf.data.Dataset.from_generator(
-        lambda: zip(range(nt), data.data(mask_type=False), strict=False),
-        output_signature=(
-            tf.TensorSpec((), tf.int32),
-            tf.TensorSpec((h, w), tf.float32),
-        ),
-    )
-    dataset = dataset.batch(batch)
-    dataset = dataset.prefetch(prefetch)
+    def build(self, input_shapes) -> None:
+        *_, h, w = input_shapes
+        self.ts = self.add_weight(shape=(h, w), dtype='int32', initializer=-1)
+        self.rs = self.add_weight(shape=(h, w), dtype='int32', initializer=-1)
+        self.gs = self.add_weight(shape=(h, w), dtype='float32', initializer=-inf)
 
-    mask = None if data.mask is None else jnp.array(data.mask, bool)
-    ts = jnp.full((h, w), -1, jnp.int32)
-    rs = jnp.full((h, w), -1, jnp.int32)
-    gs = jnp.full((h, w), -jnp.inf)
+    def custom_train_step(self, data) -> dict:
+        x, _y, _sample_weight = unpack_x_y_sample_weight(data)
+        ts, imgs, mask = x
+        i, r, g = self(imgs, mask)
+        cond = g < self.gs
+        self.ts.assign(ops.where(cond, self.ts, ts[i]))
+        self.rs.assign(ops.where(cond, self.rs, r))
+        self.gs.assign(ops.where(cond, self.gs, g))
+        return {}
 
-    logger.info('%s: %s %s %d', 'pbar', 'start', 'find', nt)
-    for d in dataset:
-        d = (from_tf(v) for v in d)
-        index, imgs = (jax.device_put(v, sharding) for v in d)
-
-        count = index.size
-        diff = batch - count
-        if diff > 0:
-            index = jnp.pad(index, ((0, diff)), constant_values=-1)
-            imgs = jnp.pad(imgs, ((0, diff), (0, 0), (0, 0)), constant_values=jnp.nan)
-
-        ts, rs, gs = update(ts, rs, gs, index, imgs)
-        logger.info('%s: %s %d', 'pbar', 'update', count)
-    logger.info('%s: %s', 'pbar', 'close')
-
-    for i, r in enumerate(radius):
-        logger.info('radius=%f num=%d', r, (rs == i).sum())
-    return PeakVal(np.array(radius, np.float32), *map(np.array, (ts, rs, gs)))
-
-
-def simple_peaks(img, gauss, maxpool):
-    g = gaussian(img[None, ...], gauss)[0]
-    m = max_pool(g, (maxpool, maxpool), (1, 1), 'same')
-    y, x = jnp.where(g == m)
-    return np.array(y), np.array(x)
-
-
-def simple_find(imgs, mask, radius):
-    t, r, v = (np.array(o) for o in _find_peaks(imgs, mask, get_radius(**radius)))
-    idx = jnp.where(np.isfinite(v))
-    return t[idx], idx[:, 0], idx[:, 1], r[idx], v[idx]
-
-
-def _find_peaks(imgs, mask, radius):
-    nt, h, w = imgs.shape
-    nr = len(radius)
-    gl = gaussian_laplace(imgs, radius, axis=1)
-    gl_max = max_pool(gl, (3, 3, 3), (1, 1, 1), 'same')
-    gl_peak = gl == gl_max
-    if mask is not None:
-        gl_peak &= mask
-    gl = jnp.where(gl_peak, gl, -jnp.inf)
-    gl_reshape = gl.reshape(nt * nr, h, w)
-    idx = jnp.argmax(gl_reshape, axis=0)
-    gl_max = jnp.take_along_axis(gl_reshape, idx[jnp.newaxis, ...], axis=0)[0]
-    t, r = jnp.divmod(idx, nr)
-    return t, r, gl_max
+    def call(self, imgs: Tensor, mask: Tensor | None = None) -> tuple[Tensor, Tensor, Tensor]:
+        radius = ops.convert_to_tensor(self.radius)
+        nt, h, w = imgs.shape
+        nr = radius.size
+        gl = gaussian_laplace_2d(imgs, radius, axis=1)
+        gl_max = max_pool_3d(gl, 3)
+        gl_peak = gl == gl_max
+        if mask is not None:
+            gl_peak &= mask
+        gl = ops.where(gl_peak, gl, -inf)
+        gl_reshape = gl.reshape(nt * nr, h, w)
+        idx = ops.argmax(gl_reshape, axis=0)
+        gl_max = ops.take_along_axis(gl_reshape, idx[None, ...], axis=0)[0]
+        t, r = idx // nr, ops.mod(idx, nr)
+        return t, r, gl_max

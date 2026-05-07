@@ -15,25 +15,33 @@ authors = [
 license = "GPL-3.0-only"
 
 dynamic = ["version"]
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 
 dependencies = [
-    "jax[cuda12]>=0.4.34,<0.7; sys_platform == 'linux'",
-    "jax>=0.4.34,<0.7; sys_platform == 'darwin'",
-    "tensorflow>=2.13.0",
+    # core
+    "keras",
+    # IO
     "tifffile>=2022.8",
-    "pandas>=2.0.3",
+    "polars>=1.40.1",
+    "hvplot",
+    "seaborn",
     "av>=10.0",
-    "plotly>=5.0.0",
-    "kaleido>=0.2.1",
-    "matplotlib>=3.7.2",
+    # UI
     "hydra-core>=1.3",
     "tqdm>=4.64",
-    "versioningit",
     "psutil>=7.1.0",
     #dash = { version = "^2.8.1", extras=["diskcache"] }
     #dash-bootstrap-components = "^1.4.1"
     #dash-mantine-components = "^0.12.1"
+]
+
+[project.optional-dependencies]
+jax = [
+    "jax; sys_platform != 'linux'",
+    "jax[cuda12]; sys_platform == 'linux'",
+]
+torch = [
+    "torch",
 ]
 
 [project.scripts]
@@ -42,9 +50,15 @@ hotaru = "hotaru.__main__:main"
 
 [dependency-groups]
 dev = [
-    "ipython>=8.38.0",
-    "ruff>=0.14.13",
+    "versioningit",
+    "ruff>=0.15.12",
+    "ty>=0.0.34",
+    "ipython",
 ]
+
+[build-system]
+requires = ["hatchling", "versioningit"]
+build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "versioningit"
@@ -57,6 +71,24 @@ distance = "{next_version}.dev{distance}+{vcs}{rev}"
 dirty = "{next_version}+d{build_date:%Y%m%d%H%M}"
 distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}-d{build_date:%Y%m%d%H%M}"
 
-[build-system]
-requires = ["hatchling", "versioningit"]
-build-backend = "hatchling.build"
+[tool.uv]
+environments = [
+#    "sys_platform == 'linux'",
+#    "sys_platform == 'darwin'",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pypi", marker = "sys_platform == 'darwin'" },
+    { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true
+
+[[tool.uv.index]]
+name = 'pytorch-cu128'
+url = 'https://download.pytorch.org/whl/cu128'
+explicit = true

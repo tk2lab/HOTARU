@@ -20,16 +20,6 @@ from .segment import get_segment_mask
 logger = getLogger(__name__)
 
 
-@dataclass
-class PeakList:
-    radius: Radius
-    ts: Array
-    ri: Array
-    ys: Array
-    xs: Array
-    gs: Array
-
-
 class MakerDataset(PyDataset):
     def __init__(self, data: MovieData, peaks: PeakList, batch_size: int, **kwargs):
         super().__init__(**kwargs)

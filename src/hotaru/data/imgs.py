@@ -10,27 +10,32 @@ from tifffile import memmap
 from ..saving import Config
 from ..saving import PathLike
 from ..typing import Array
+from ..typing import Shape
 
 logger = getLogger(__name__)
 
 
 @dataclass
 class MovieData:
-    data: Array
-    mask: Array[np.bool] | None
+    imgs: Array
+    mask: Array[np.bool]
     hz: float
 
     @property
+    def shape(self) -> Shape:
+        return self.imgs.shape
+
+    @property
     def num_frames(self) -> int:
-        return self.data.shape[0]
+        return self.imgs.shape[0]
 
     @property
     def width(self) -> int:
-        return self.data.shape[2]
+        return self.imgs.shape[2]
 
     @property
     def height(self) -> int:
-        return self.data.shape[1]
+        return self.imgs.shape[1]
 
     @classmethod
     def get(cls, x: MovieData | Config, /) -> MovieData:
@@ -79,39 +84,39 @@ class MovieData:
             case _:
                 raise ValueError(f'unkown file type: {kind}')
 
-        obj = MovieData(imgs, None, hz)
-        obj.apply_mask(**kwargs.get('mask', {'kind': 'nomask'}))
-        return obj
+        imgs, mask = apply_mask(imgs, **kwargs.get('mask', {'kind': 'nomask'}))
+        return MovieData(imgs, mask, hz)
 
-    def apply_mask(self, **kwargs):
-        kind = kwargs.get('kind')
-        if kind == 'nomask':
-            return self
 
-        path = Path(kwargs.get('path', 'mask.tif'))
-        match path.suffix:
-            case '.npy':
-                kind = 'npy'
-            case '.tif' | '.tiff':
-                kind = 'tif'
-            case '.raw':
-                kind = 'raw'
-            case _:
-                raise ValueError('unknown file type: {path.suffix}')
+def apply_mask(imgs, **kwargs):
+    kind = kwargs.get('kind')
+    if kind == 'nomask':
+        return imgs, np.ones(imgs.shape[-2:], np.bool)
 
-        match kind:
-            case 'npy':
-                mask = np.load(path) > 0
-            case 'tif':
-                mask = imread(path) > 0
-            case _:
-                raise RuntimeError('bad file type: {maskfile}')
+    path = Path(kwargs.get('path', 'mask.tif'))
+    match path.suffix:
+        case '.npy':
+            kind = 'npy'
+        case '.tif' | '.tiff':
+            kind = 'tif'
+        case '.raw':
+            kind = 'raw'
+        case _:
+            raise ValueError('unknown file type: {path.suffix}')
 
-        if mask is not None:
-            my = np.where(np.any(mask, axis=1))[0]
-            mx = np.where(np.any(mask, axis=0))[0]
-            x0, y0, w, h = mx[0], my[0], mx[-1] - mx[0] + 1, my[-1] - my[0] + 1
-            data = self.data[:, y0 : y0 + h, x0 : x0 + w]
-            mask = mask[y0 : y0 + h, x0 : x0 + w]
+    match kind:
+        case 'npy':
+            mask = np.load(path) > 0
+        case 'tif':
+            mask = imread(path) > 0
+        case _:
+            raise RuntimeError('bad file type: {maskfile}')
 
-        return self.__class__(data, mask, self.hz)
+    if mask is not None:
+        my = np.where(np.any(mask, axis=1))[0]
+        mx = np.where(np.any(mask, axis=0))[0]
+        x0, y0, w, h = mx[0], my[0], mx[-1] - mx[0] + 1, my[-1] - my[0] + 1
+        imgs = imgs[:, y0 : y0 + h, x0 : x0 + w]
+        mask = mask[y0 : y0 + h, x0 : x0 + w]
+
+    return imgs, mask

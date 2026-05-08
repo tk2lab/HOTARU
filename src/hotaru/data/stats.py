@@ -3,33 +3,45 @@ from math import inf
 from math import nan
 
 from keras import ops
+from keras.callbacks import History
 from keras.initializers import Constant
 
 from ..model import Model
 from ..ops import neighbor
 from ..saving import Config
+from ..saving import Data
 from ..typing import Array
 from ..typing import Tensor
-from .data import MovieData
 from .dataset import MovieDataset
+from .imgs import MovieData
 
 logger = getLogger(__name__)
 
 
+class Stats(Data):
+    avgt: Array
+    avgx: Array
+    std0: Array
+    min0: Array
+    max0: Array
+    imin: Array
+    imax: Array
+    istd: Array
+    icor: Array
+
+
 class StatsCalculator(Model):
-    def fit(self, data: MovieData | Config, batch_size: int = -1, **kwargs) -> tuple[Array, ...]:
+    def fit(self, data: MovieData | Config, batch_size: int = -1, **kwargs) -> History:
         if self.built:
             raise RuntimeError()
         data = MovieData.get(data)
-        self.build(data.data.shape)
-        if data.mask is not None:
-            self.mask.assign(data.mask)
+        self.build(data.shape)
+        self.mask.assign(data.mask)
         dataset = MovieDataset(data, batch_size)
         kwargs.setdefault('shuffle', False)
-        _history = super().fit(dataset, **kwargs)
-        return self.get_stats()
+        return super().fit(dataset, **kwargs)
 
-    def get_stats(self) -> tuple[Array, ...]:
+    def get_stats(self) -> Stats:
         mask = self.mask.value
         nt = self.avgt.shape[0] - 1
 
@@ -53,24 +65,23 @@ class StatsCalculator(Model):
         icor = ops.where(mask, (self.cor / nt - avgx * avgn) / (stdx * stdn), nan)
 
         stats = avgt, avgx, std0, min0, max0, imin, imax, istd, icor
-        return tuple(ops.convert_to_numpy(val) for val in stats)
+        return Stats(*(ops.convert_to_numpy(val) for val in stats))
 
-    def build(self, inputs_shape) -> None:
-        nt, h, w = inputs_shape
+    def build(self, input_shape) -> None:
         pinf = Constant(inf)
         ninf = Constant(-inf)
+        nt, h, w = input_shape
+
         self.mask = self.add_weight(shape=(h, w), dtype='uint8', initializer='ones')
         self.avgt = self.add_weight(shape=(nt + 1,), dtype='float32', initializer='zeros')
-        self.sumi = self.add_weight(shape=(h, w), dtype='float32', initializer='zeros')
-        self.sumn = self.add_weight(shape=(h, w), dtype='float32', initializer='zeros')
-        self.sqi = self.add_weight(shape=(h, w), dtype='float32', initializer='zeros')
-        self.sqn = self.add_weight(shape=(h, w), dtype='float32', initializer='zeros')
-        self.cor = self.add_weight(shape=(h, w), dtype='float32', initializer='zeros')
-        self.min0 = self.add_weight(shape=(h, w), dtype='float32', initializer=pinf)
-        self.max0 = self.add_weight(shape=(h, w), dtype='float32', initializer=ninf)
-        self.imin = self.add_weight(shape=(h, w), dtype='float32', initializer=pinf)
-        self.imax = self.add_weight(shape=(h, w), dtype='float32', initializer=ninf)
-        super().build(inputs_shape)
+        for key in ('sumi', 'sumn', 'sqi', 'sqn', 'cor'):
+            setattr(self, key, self.add_weight(shape=(h, w), dtype='float32', initializer='zeros'))
+        for key in ('min0', 'imin'):
+            setattr(self, key, self.add_weight(shape=(h, w), dtype='float32', initializer=pinf))
+        for key in ('max0', 'imax'):
+            setattr(self, key, self.add_weight(shape=(h, w), dtype='float32', initializer=ninf))
+
+        super().build(input_shape)
 
     def custom_train_step(self, ts: Tensor, imgs: Tensor) -> dict:
         imgs = ops.cast(imgs, 'float32')
@@ -92,7 +103,7 @@ class StatsCalculator(Model):
     def call(self, masked: Tensor) -> tuple[Tensor, ...]:
         avgti = ops.nanmean(masked, axis=(1, 2))
         diff = masked - avgti[..., None, None]
-        neig = ops.where(ops.isnan(masked), neighbor(ops.nan_to_num(diff, nan=0)), nan)
+        neig = ops.where(ops.isnan(masked), nan, neighbor(ops.nan_to_num(diff, nan=0)))
 
         sumi = ops.nansum(diff, axis=0)
         sumn = ops.nansum(neig, axis=0)

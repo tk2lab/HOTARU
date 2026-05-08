@@ -1,6 +1,7 @@
 from keras import Model as KerasModel
 from keras import StatelessScope as KerasStatelessScope
 from keras.backend import backend
+from keras.callbacks import History
 from keras.callbacks import ProgbarLogger
 
 from .callbacks import TqdmProgbar
@@ -8,7 +9,7 @@ from .saving import Serializable
 
 
 class Model(Serializable, KerasModel):
-    def fit(self, *args, **kwargs):
+    def fit(self, *args, **kwargs) -> History:
         desc = kwargs.pop('desc', self.name)
         leave = kwargs.pop('leave', True)
         callbacks = kwargs.pop('callbacks', [])

@@ -4,7 +4,7 @@ import numpy as np
 from keras.utils import PyDataset
 
 from ..typing import Array
-from .data import MovieData
+from .imgs import MovieData
 
 logger = getLogger(__name__)
 
@@ -28,7 +28,7 @@ class MovieDataset(PyDataset):
         s = self.batch_size * index
         e = s + self.batch_size
         diff = max(e - self.ts.size, 0)
-        ts, imgs = self.ts[s:e], self.data.data[s:e]
+        ts, imgs = self.ts[s:e], self.data.imgs[s:e]
         ts = np.pad(ts, ((0, diff),), constant_values=-1)
         imgs = np.pad(imgs, ((0, diff), (0, 0), (0, 0)))
         return ts, imgs

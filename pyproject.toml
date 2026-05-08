@@ -54,6 +54,7 @@ dev = [
     "ruff>=0.15.12",
     "ty>=0.0.34",
     "ipython",
+    "pytest>=9.0.3",
 ]
 
 [build-system]

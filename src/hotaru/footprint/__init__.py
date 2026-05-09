@@ -1,3 +1,4 @@
+from .clip import FootprintClipper
 from .find import PeakFinder
 from .find import PeakMap
 from .radius import Radius

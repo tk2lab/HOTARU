@@ -1,81 +1,107 @@
 import multiprocessing as mp
 from logging import getLogger
+from math import nan
 
 import numpy as np
+from tqdm import tqdm
 
 from ..saving import Data
+from ..saving import cached_getter
 from ..typing import Array
 from .radius import Radius
-from .reduce_driver import reduce_peaks_simple
 
 logger = getLogger(__name__)
 
 
 class PeakList(Data):
+    tlist: Array
+    rlist: Array
+    ylist: Array
+    xlist: Array
+    glist: Array
+
+    @property
+    def size(self) -> int:
+        return self.tlist.size
+
+
+class PeakMap(Data):
     radius: Radius
-    ts: Array
-    ri: Array
-    ys: Array
-    xs: Array
-    gs: Array
+    timap: Array
+    rimap: Array
+    gsmap: Array
+
+    @cached_getter(PeakList)
+    def reduce(self, min_distance_ratio: float, block_size: int) -> PeakList:
+        radius, timap, rimap, gsmap = self.radius, self.timap, self.rimap, self.gsmap
+
+        active = (rimap >= 1) & (rimap < radius.size - 2)
+        rsmap = np.where(active, radius[rimap], nan)
+        gsmap = np.where(active, gsmap, nan)
+
+        h, w = rsmap.shape
+        margin = int(np.ceil(min_distance_ratio * np.nanmax(rsmap)))
+
+        args = []
+        for x0 in range(0, w - margin, block_size):
+            for y0 in range(0, h - margin, block_size):
+                r, g, block_args = make_block(y0, x0, rsmap, gsmap, block_size, margin)
+                args.append((r, g, block_args, min_distance_ratio))
+
+        out = []
+        with mp.Pool() as pool:
+            tasks = pool.imap_unordered(reduce_peaks_mesh, args)
+            for o in tqdm(tasks, total=len(args), desc='reduce', ncols=150):
+                out.append(o)
+        ylist, xlist = [np.concatenate(v, axis=0) for v in zip(*out, strict=False)]
+        tlist = timap[ylist, xlist]
+        rlist = rsmap[ylist, xlist]
+        glist = gsmap[ylist, xlist]
+
+        idx = np.flip(np.argsort(glist))
+        return PeakList(tlist[idx], rlist[idx], ylist[idx], xlist[idx], glist[idx])
 
 
-def reduce_peak(
-    self,
-    min_radius: float,
-    max_radius: float,
-    min_distance_ratio: float,
-    block_size: int,
-) -> tuple[PeakList, PeakList]:
-    radius, ts, ri, vs = self.radius, self.ts, self.rs, self.gs
-    rs = radius[ri]
-    h, w = rs.shape
-    margin = int(np.ceil(min_distance_ratio * rs.max()))
-    reduce_args = min_radius, max_radius, min_distance_ratio
-
-    args = []
-    for xs in range(0, w - margin, block_size):
-        for ys in range(0, h - margin, block_size):
-            r, v, block_args = make_block(ys, xs, rs, vs, h, w, block_size, margin)
-            args.append((r, v, reduce_args, block_args))
-
-    out = []
-    with mp.Pool() as pool:
-        for o in pool.imap_unordered(reduce_peaks_mesh, args):
-            out.append(o)
-    cy, cx, by, bx = [np.concatenate(v, axis=0) for v in zip(*out, strict=False)]
-
-    cell = PeakList(self.radius, ts[cy, cx], cy, cx, ri[cy, cx], vs[cy, cx])
-    bact = PeakList(self.radius, ts[by, bx], by, bx, ri[by, bx], vs[by, bx])
-    return cell, bact
+def make_block(y0, x0, rsmap, gsmap, block_size, margin):
+    h, w = rsmap.shape
+    y1, x1 = y0 + block_size, x0 + block_size
+    ym, xm = max(y0 - margin, 0), max(x0 - margin, 0)
+    yp, xp = min(y1 + margin, h), max(x1 + margin, w)
+    block_args = ym, xm, y0, x0, y1, x1
+    rmap = rsmap[ym:yp, xm:xp]
+    gmap = gsmap[ym:yp, xm:xp]
+    return rmap, gmap, block_args
 
 
-def make_block(ys, xs, rs, vs, h, w, block_size, margin):
-    x0 = max(xs - margin, 0)
-    xe = xs + block_size
-    x1 = min(xe + margin, w)
-    y0 = max(ys - margin, 0)
-    ye = ys + block_size
-    y1 = min(ye + margin, h)
-    r = rs[y0:y1, x0:x1]
-    v = vs[y0:y1, x0:x1]
-    block_args = y0, x0, ys, xs, ye, xe
-    return r, v, block_args
+def reduce_peaks_mesh(args) -> tuple[Array, Array]:
+    rmap, gmap, block_args, min_distance_ratio = args
+    ylist, xlist = reduce_peaks(rmap, gmap, min_distance_ratio)
+    ym, xm, y0, x0, y1, x1 = block_args
+    ylist += ym
+    xlist += xm
+    is_in_block = (y0 <= ylist) & (ylist < y1) & (x0 <= xlist) & (xlist < x1)
+    return ylist[is_in_block], xlist[is_in_block]
 
 
-def reduce_peaks_mesh(args) -> tuple[Array, Array, Array, Array]:
-    r, v, reduce_args, block_args = args
-    h, w = r.shape
-    y, x = np.mgrid[:h, :w]
-    cell, bg, _remove = reduce_peaks_simple(y, x, r, v, *reduce_args)
-    celly, cellx, bgy, bgx = y[cell], x[cell], y[bg], x[bg]
-    cy, cx = select_in_block(celly, cellx, *block_args)
-    by, bx = select_in_block(bgy, bgx, *block_args)
-    return cy, cx, by, bx
+def reduce_peaks(rmap: Array, gmap: Array, min_distance_ratio: float) -> tuple[Array, Array]:
+    h, w = rmap.shape
+    ymap, xmap = np.mgrid[:h, :w]
 
+    ys, xs, rs, gs = (np.ravel(a) for a in (ymap, xmap, rmap, gmap))
+    n = np.count_nonzero(np.isfinite(gmap))
+    ids = np.flip(np.argsort(np.nan_to_num(gs, nan=0)))[:n]
 
-def select_in_block(y, x, y0, x0, ys, xs, ye, xe) -> tuple[Array, Array]:
-    y += y0
-    x += x0
-    cond = (ys <= y) & (y < ye) & (xs <= x) & (x < xe)
-    return y[cond], x[cond]
+    active_list = []
+    while ids.size > 0:
+        i, ids = ids[0], ids[1:]
+        y0, x0, r0 = ys[i], xs[i], rs[i]
+        yc, xc = ys[active_list], xs[active_list]
+        dist1 = np.hypot(xc - x0, yc - y0) / r0
+        if np.all(dist1 >= min_distance_ratio):
+            y1, x1 = ys[ids], xs[ids]
+            dist2 = np.hypot(x1 - x0, y1 - y0) / r0
+            ids = ids[dist2 >= min_distance_ratio]
+            active_list.append(i)
+
+    y, x = ys[active_list], xs[active_list]
+    return y, x

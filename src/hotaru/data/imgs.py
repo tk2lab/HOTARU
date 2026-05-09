@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
+from typing import Self
 
 import numpy as np
 from tifffile import TiffFile
@@ -38,7 +39,7 @@ class MovieData:
         return self.imgs.shape[1]
 
     @classmethod
-    def get(cls, x: MovieData | Config, /) -> MovieData:
+    def get(cls, x: MovieData | Config, /) -> Self:
         match x:
             case cls() as obj:
                 return obj
@@ -48,7 +49,7 @@ class MovieData:
                 raise ValueError()
 
     @classmethod
-    def load(cls, path: PathLike, hz: float, **kwargs) -> MovieData:
+    def load(cls, path: PathLike, hz: float, *args, **kwargs) -> Self:
         path = Path(path)
         if (kind := kwargs.get('kind')) is None:
             match path.suffix:
@@ -85,7 +86,7 @@ class MovieData:
                 raise ValueError(f'unkown file type: {kind}')
 
         imgs, mask = apply_mask(imgs, **kwargs.get('mask', {'kind': 'nomask'}))
-        return MovieData(imgs, mask, hz)
+        return cls(imgs, mask, hz, *args, **kwargs)
 
 
 def apply_mask(imgs, **kwargs):

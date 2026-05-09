@@ -22,7 +22,7 @@ class MovieDataset(PyDataset):
         pass
 
     def __len__(self) -> int:
-        return self.ts.size // self.batch_size
+        return (self.ts.size + self.batch_size - 1) // self.batch_size
 
     def __getitem__(self, index: int) -> tuple[Array, Array]:
         s = self.batch_size * index

@@ -16,6 +16,9 @@ class Radius(np.ndarray):
             case _:
                 raise ValueError()
 
+    def get_config(self) -> Config:
+        return {'kind': 'list', 'val': self.tolist()}
+
     def __new__(cls, **kwargs):
         match kwargs:
             case {'kind': 'logscale', 'min': min, 'max': max, 'num': num}:
@@ -29,4 +32,4 @@ class Radius(np.ndarray):
         return np.asanyarray(array).view(cls)
 
     def __array_finalize__(self, obj) -> None:
-        pass
+        super().__array_finalize__(obj)

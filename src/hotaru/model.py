@@ -18,18 +18,33 @@ class Model(Serializable, KerasModel):
         kwargs['callbacks'] = callbacks
         return super().fit(*args, **kwargs)
 
-    def train_step(self, *args):
-        if not hasattr(self, 'custom_train_step'):
-            return super().train_step(*args)
-        match backend():
-            case 'jax':
-                state, args = args
-                with StatelessScope(self, state) as scope:
-                    logs = self.custom_train_step(*args)
-                return logs, scope.state
-            case 'tensorflow' | 'torch':
-                return self.custom_train_step(*args)
+    def statefull_train_step(self, data):
+        if hasattr(self, 'custom_train_step'):
+            logs = super().train_step(data)
+        else:
+            logs = self.custom_train_step(data)
+        if hasattr(self, 'post_train_step'):
+            logs = self.post_train_step(logs)
+        return logs
 
+    def stateless_train_step(self, state, data):
+        if hasattr(self, 'custom_train_step'):
+            with StatelessScope(self, state) as scope:
+                logs = self.custom_train_step(data)
+            state = scope.state
+        else:
+            logs, state = super().train_step(state, data)
+        if hasattr(self, 'post_train_step'):
+            with StatelessScope(self, state) as scope:
+                logs = self.post_train_step(logs)
+            state = scope.state
+        return logs, state
+
+    match backend():
+        case 'tensorflow' | 'torch':
+            train_step = statefull_train_step
+        case 'jax':
+            train_step = stateless_train_step
 
 class StatelessScope(KerasStatelessScope):
     def __init__(self, model: KerasModel, state, *args, **kwargs):

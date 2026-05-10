@@ -1,7 +1,0 @@
-label: ${data.imgs.file}-${data.imgs.hz}-${data.mask.type}
-imgs:
-  type: tif
-  file: imgs.tif
-  hz: 20
-mask:
-  type: nomask

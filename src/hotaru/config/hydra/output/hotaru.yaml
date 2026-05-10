@@ -1,7 +1,0 @@
-# @package hydra
-
-run:
-  dir: ${outputs.dir}/logs/${now:%Y-%m-%dT%H:%M:%S}
-sweep:
-  dir: ${outputs.dir}/logs/${now:%Y-%m-%dT%H:%M:%S}
-  subdir: ${hydra.job.num}

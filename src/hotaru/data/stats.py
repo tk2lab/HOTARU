@@ -5,7 +5,7 @@ from math import nan
 import numpy as np
 from keras import ops
 
-from ..model import Model
+from ..models import Model
 from ..ops import neighbor
 from ..saving import Config
 from ..saving import Data

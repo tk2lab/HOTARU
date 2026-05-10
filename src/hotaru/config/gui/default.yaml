@@ -1,5 +1,0 @@
-server:
-  host: localhost
-  port: 8080
-browser:
-  open: true

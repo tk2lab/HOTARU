@@ -1,3 +1,5 @@
 import importlib.metadata
 
-__version__ = importlib.metadata.version(__package__)
+from .models import Model
+
+__version__ = importlib.metadata.version('hotaru')

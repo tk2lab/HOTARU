@@ -1,8 +1,8 @@
 from keras import Optimizer
 from keras import ops
 
+from ..regularizers import ProxRegularizer
 from ..saving import Config
-from .prox_regularizer import ProxRegularizer
 
 
 class ProxOptimizer(Optimizer):

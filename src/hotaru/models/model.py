@@ -10,11 +10,12 @@ from ..saving import Serializable
 
 class Model(Serializable, KerasModel):
     def fit(self, *args, **kwargs) -> History:
-        desc = kwargs.pop('desc', self.name)
-        leave = kwargs.pop('leave', True)
         callbacks = kwargs.pop('callbacks', [])
         if not any(isinstance(c, ProgbarLogger) for c in callbacks):
-            callbacks = [*callbacks, TqdmProgbar(desc=desc, leave=leave)]
+            scale = kwargs.pop('scale', {})
+            desc = kwargs.pop('desc', self.name)
+            leave = kwargs.pop('leave', True)
+            callbacks = [*callbacks, TqdmProgbar(desc=desc, leave=leave, scale=scale)]
         kwargs['callbacks'] = callbacks
         return super().fit(*args, **kwargs)
 
@@ -36,7 +37,7 @@ class Model(Serializable, KerasModel):
             logs, state = super().train_step(state, data)
         if hasattr(self, 'post_train_step'):
             with StatelessScope(self, state) as scope:
-                logs = self.post_train_step(logs)
+                self.post_train_step(logs)
             state = scope.state
         return logs, state
 

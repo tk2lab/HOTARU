@@ -1,7 +1,7 @@
 from hotaru.data import MovieWithStats
-from hotaru.footprint import FootprintClipper
-from hotaru.footprint import PeakFinder
-from hotaru.footprint import Radius
+from hotaru.spatial import FootprintClipper
+from hotaru.spatial import PeakFinder
+from hotaru.spatial import Radius
 
 
 def test_make():

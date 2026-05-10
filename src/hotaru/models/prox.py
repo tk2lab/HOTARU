@@ -1,6 +1,7 @@
 from keras import ops
 from keras.callbacks import Callback
 from keras.callbacks import History
+from keras.metrics import Mean as Metrix
 from keras.src.backend import get_stateless_scope
 from keras.src.backend import in_stateless_scope
 from keras.src.backend import in_symbolic_scope
@@ -19,7 +20,25 @@ class ProxCallback(Callback):
 
 
 class ProxModel(Model):
-    def fit(self, x, y, **kwargs) -> History:
+    def compile(self, **kwargs) -> None:
+        if 'optimizer' not in kwargs:
+            optimizer_kwargs = kwargs.pop('optimizer_kwargs', {})
+            optimizer_kwargs.setdefault('learning_rate', kwargs.pop('learning_rate'))
+            optimizer_kwargs.setdefault('nesterov', kwargs.pop('nesterov', 1.0))
+            kwargs['optimizer'] = ProxOptimizer(**optimizer_kwargs)
+        super().compile(**kwargs)
+
+    def build(self, input_shape) -> None:
+        self.penalty_tracker = Metrix(name='penalty')
+        self.total_loss_tracker = Metrix(name='total_loss')
+        super().build(input_shape)
+
+    def fit(self, x=None, y=None, **kwargs) -> History:
+        if x is None:
+            x = ops.zeros((1, 1))
+        if y is None:
+            y = ops.zeros((1, 1))
+
         def data_iterator():
             while True:
                 yield x, y
@@ -44,9 +63,10 @@ class ProxModel(Model):
                 regularizer_losses.append(variable.regularizer(v))
         return regularizer_losses
 
-    def post_train_step(self, logs: dict) -> dict:
+    def post_train_step(self, logs: dict) -> None:
+        _ = logs
         if isinstance(self.optimizer, ProxOptimizer):
-            prox_losses = self._get_regularization_losses(prox=True)
-            prox_loss = ops.sum([self._aggregate_additional_loss(loss) for loss in prox_losses])
-            logs['loss'] += prox_loss
-        return logs
+            penalties = self._get_regularization_losses(prox=True)
+            penalty = ops.sum([self._aggregate_additional_loss(loss) for loss in penalties])
+            self.penalty_tracker.update_state(penalty)
+            self.total_loss_tracker.update_state(logs['loss'] + penalty)

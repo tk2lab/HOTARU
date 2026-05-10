@@ -5,6 +5,7 @@ from tqdm import tqdm
 class TqdmProgbar(ProgbarLogger):
     def __init__(self, **kwargs):
         kwargs.setdefault('ncols', 150)
+        self.scale = kwargs.pop('scale', {})
         self.kwargs = kwargs
 
     def on_train_begin(self, logs=None):
@@ -20,12 +21,14 @@ class TqdmProgbar(ProgbarLogger):
 
     def on_train_batch_end(self, batch, logs=None):
         _ = batch
-        self.set_postfix(logs)
+        if logs is not None:
+            logs = {k: v / self.scale.get(k, 1.0) for k, v in logs.items()}
+            self.set_postfix(logs)
         self.update()
 
     def on_epoch_end(self, epoch, logs=None):
         _ = epoch
-        self.set_postfix(logs)
+        _ = logs
 
     def on_train_end(self, logs=None):
         _ = logs

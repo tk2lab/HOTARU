@@ -12,8 +12,8 @@ from ..saving import Data
 from ..saving import cached_getter
 from ..typing import Array
 from ..typing import Tensor
+from .data import MovieData
 from .dataset import MovieDataset
-from .imgs import MovieData
 
 logger = getLogger(__name__)
 
@@ -62,7 +62,7 @@ class StatsCalculator(Model):
         mask = self.mask.numpy()
 
         min0 = np.min(self.min0.numpy())
-        max0 = np.max(self.min0.numpy())
+        max0 = np.max(self.max0.numpy())
 
         avgt = self.avgt.value[:-1]
         nt = avgt.size
@@ -130,7 +130,7 @@ class StatsCalculator(Model):
     def call(self, masked: Tensor) -> tuple[Tensor, ...]:
         avgti = ops.nanmean(masked, axis=(1, 2))
         diff = masked - avgti[:, None, None]
-        neig = ops.where(ops.isfinite(masked), neighbor(ops.nan_to_num(diff, nan=0)), nan)
+        neig = ops.where(ops.isfinite(diff), neighbor(ops.nan_to_num(diff, nan=0)), nan)
 
         sumi = ops.nansum(diff, axis=0)
         sumn = ops.nansum(neig, axis=0)

@@ -1,92 +1,45 @@
-from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
-from typing import Self
 
+import av
 import numpy as np
-from tifffile import TiffFile
-from tifffile import imread
-from tifffile import memmap
+import tifffile
+import zarr
+from tqdm import tqdm
 
-from ..saving import Config
 from ..saving import PathLike
 from ..typing import Array
-from ..typing import Shape
 
 logger = getLogger(__name__)
 
 
-@dataclass
-class MovieData:
-    imgs: Array
-    mask: Array[np.bool]
-    hz: float
-
-    @property
-    def shape(self) -> Shape:
-        return self.imgs.shape
-
-    @property
-    def num_frames(self) -> int:
-        return self.imgs.shape[0]
-
-    @property
-    def width(self) -> int:
-        return self.imgs.shape[2]
-
-    @property
-    def height(self) -> int:
-        return self.imgs.shape[1]
-
-    @classmethod
-    def get(cls, x: MovieData | Config, /) -> Self:
-        match x:
-            case cls() as obj:
-                return obj
-            case Config() as config:
-                return cls.load(**config)
+def load_imgs(path: PathLike, **kwargs) -> Array | zarr.Array:
+    path = Path(path)
+    if (kind := kwargs.get('kind')) is None:
+        match path.suffix:
+            case '.npy':
+                kind = 'npy'
+            case '.tif' | '.tiff':
+                kind = 'tif'
+            case '.raw':
+                kind = 'raw'
             case _:
+                raise ValueError('unknown file type: {path.suffix}')
+    match (kind, kwargs):
+        case ('npy', {}):
+            imgs = np.load(path, mmap_mode='r')
+        case ('tif', {}):
+            tif = tifffile.imread(path, return_as='zarr')
+            imgs = zarr.open(tif, mode='r')
+            if not isinstance(imgs, zarr.Array):
                 raise ValueError()
-
-    @classmethod
-    def load(cls, path: PathLike, hz: float, *args, **kwargs) -> Self:
-        path = Path(path)
-        if (kind := kwargs.get('kind')) is None:
-            match path.suffix:
-                case '.npy':
-                    kind = 'npy'
-                case '.tif' | '.tiff':
-                    kind = 'tif'
-                case '.raw':
-                    kind = 'raw'
-                case _:
-                    raise ValueError('unknown file type: {path.suffix}')
-        match (kind, kwargs):
-            case ('npy', {}):
-                imgs = np.load(path, mmap_mode='r')
-            case ('tif', {}):
-                path_fix = path.with_stem(f'{path.stem}_fix')
-                if path_fix.exists():
-                    path = path_fix
-                with TiffFile(path) as tif:
-                    data = tif.series[0]
-                    if data.dataoffset is None:
-                        imgs = memmap(path_fix, shape=data.shape, dtype=data.dtype)
-                        for i, pi in enumerate(data):
-                            if pi is None:
-                                raise ValueError('invalid tiff file')
-                            imgs[i] = pi.asarray()
-                    else:
-                        imgs = data.asarray(out='memmap')
-            case ('raw', {'dtype': dtype, 'endian': endian, 'height': height, 'width': width}):
-                dtype = np.dtype(dtype).newbyteorder(endian)
-                data = np.memmap(path, dtype, 'r')
-                imgs = data.reshape(-1, height, width)
-            case _:
-                raise ValueError(f'unkown file type: {kind}')
-
-        imgs, mask = apply_mask(imgs, **kwargs.get('mask', {'kind': 'nomask'}))
-        return cls(imgs, mask, hz, *args, **kwargs)
+        case ('raw', {'dtype': dtype, 'endian': endian, 'height': height, 'width': width}):
+            dtype = np.dtype(dtype).newbyteorder(endian)
+            data = np.memmap(path, dtype, 'r')
+            imgs = data.reshape(-1, height, width)
+        case _:
+            raise ValueError(f'unkown file type: {kind}')
+    return imgs
 
 
 def apply_mask(imgs, **kwargs):
@@ -109,7 +62,7 @@ def apply_mask(imgs, **kwargs):
         case 'npy':
             mask = np.load(path) > 0
         case 'tif':
-            mask = imread(path) > 0
+            mask = tifffile.imread(path) > 0
         case _:
             raise RuntimeError('bad file type: {maskfile}')
 
@@ -121,3 +74,16 @@ def apply_mask(imgs, **kwargs):
         mask = mask[y0 : y0 + h, x0 : x0 + w]
 
     return imgs, mask
+
+
+def to_movie(outfile, imgs, shape, fps, fmt='yuv420p', bit_rate=8_000_000, **kwargs):
+    with av.open(outfile, 'w') as output:
+        stream = output.add_stream(kwargs.get('codec', 'h264'), int(fps))
+        stream.pix_fmt = fmt
+        stream.bit_rate = bit_rate
+        stream.height = shape[1]
+        stream.width = shape[2]
+        for img in tqdm(imgs, total=shape[0]):
+            frame = av.VideoFrame.from_ndarray(img, format='rgba')
+            packet = stream.encode(frame)
+            output.mux(packet)

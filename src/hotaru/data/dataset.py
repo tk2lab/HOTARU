@@ -4,7 +4,7 @@ import numpy as np
 from keras.utils import PyDataset
 
 from ..typing import Array
-from .imgs import MovieData
+from .data import MovieData
 
 logger = getLogger(__name__)
 

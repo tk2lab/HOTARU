@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from dataclasses import fields
 from functools import wraps
-from hashlib import md5
-from json import dumps as json_dump
+from importlib import import_module
 from os import PathLike as OriginalPathLike
+from pathlib import Path
 from typing import Self
 from typing import cast
 from typing import dataclass_transform
@@ -26,36 +26,71 @@ class Data:
         super().__init_subclass__(**kwargs)
         dataclass(cls)
 
-    def save(self, path: PathLike, attrs: dict) -> None:
+    def __post_init__(self):
+        self.attrs = {}
+
+    def save(self, path: PathLike) -> None:
         with File(path, 'w') as db:
             for f in fields(self):
                 ds = db.create_dataset(f.name, data=getattr(self, f.name))
-            for k, v in attrs.items():
+            for k, v in self.attrs.items():
                 ds.attrs[k] = v
+            ds.attrs['module'] = self.__module__
+            ds.attrs['class'] = self.__class__.__name__
 
     @classmethod
-    def load(cls, path: PathLike) -> tuple[Self, dict]:
+    def load(cls, path: PathLike) -> Self:
         with File(path, 'r') as db:
-            obj = cls(**{f.name: db[f.name][...] for f in fields(cls)})
             attrs = dict(db.attrs)
-            return obj, attrs
+            module = attrs.pop('module', None)
+            clsname = attrs.pop('class', None)
+            if module and clsname:
+                cls = getattr(import_module(module), clsname)
+            obj = cls(**{f.name: db[f.name][...] for f in fields(cls)})
+            obj.attrs.update(attrs)
+            return obj
 
 
-def cached_getter(cls: type[Data]):
+class DataDict(dict):
+    def save(self, path: PathLike) -> None:
+        path = Path(path)
+        for k, v in self.items():
+            v.save(path.with_stem(f'{path.stem}_{k}'))
+
+    @classmethod
+    def load(cls, path: PathLike, names: list[str]) -> Self:
+        path = Path(path)
+        return cls({k: Data.load(path.with_stem(f'{path.stem}_{k}')) for k in names})
+
+
+def cached_getter(cls: type[Data] | type[DataDict]):
     def decolator(func):
         @wraps(func)
-        def wrap(*args, cache_path: PathLike | None = None, **kwargs):
+        def wrap(
+            *args,
+            cache_path: PathLike | None = None,
+            names: list[str] | None = None,
+            force: bool = False,
+            **kwargs,
+        ):
             try:
-                if cache_path is None:
+                if force or (cache_path is None):
                     raise Exception()
-                out, _attrs = cls.load(cache_path)
+                if issubclass(cls, DataDict) and names is not None:
+                    out = cls.load(cache_path, names)
+                elif issubclass(cls, Data):
+                    out = cls.load(cache_path)
+                else:
+                    raise ValueError()
             except Exception:
                 out = None
 
             if out is None:
                 out = func(*args, **kwargs)
                 if cache_path is not None:
-                    out.save(cache_path, {})
+                    if issubclass(cls, DataDict) and names is not None:
+                        out = cls(zip(names, out, strict=True))
+                    out.save(cache_path)
 
             return out
 

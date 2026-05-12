@@ -27,25 +27,29 @@ class PeakList(Data):
 
 class PeakMap(Data):
     radius: Radius
-    timap: Array
     rimap: Array
-    gsmap: Array
+    tmap: Array
+    gmap: Array
+
+    @property
+    def rmap(self) -> Array:
+        return self.radius[self.rimap]
 
     @cached_getter(PeakList)
     def reduce(self, min_distance_ratio: float, block_size: int) -> PeakList:
-        radius, timap, rimap, gsmap = self.radius, self.timap, self.rimap, self.gsmap
+        radius, rimap, tmap, gmap = self.radius, self.rimap, self.tmap, self.gmap
 
         active = (rimap >= 1) & (rimap < radius.size - 2)
-        rsmap = np.where(active, radius[rimap], nan)
-        gsmap = np.where(active, gsmap, nan)
+        rmap = np.where(active, radius[rimap], nan)
+        gmap = np.where(active, gmap, nan)
 
-        h, w = rsmap.shape
-        margin = int(np.ceil(min_distance_ratio * np.nanmax(rsmap)))
+        h, w = rmap.shape
+        margin = int(np.ceil(min_distance_ratio * np.nanmax(rmap)))
 
         args = []
         for x0 in range(0, w - margin, block_size):
             for y0 in range(0, h - margin, block_size):
-                r, g, block_args = make_block(y0, x0, rsmap, gsmap, block_size, margin)
+                r, g, block_args = make_block(y0, x0, rmap, gmap, block_size, margin)
                 args.append((r, g, block_args, min_distance_ratio))
 
         out = []
@@ -54,9 +58,9 @@ class PeakMap(Data):
             for o in tqdm(tasks, total=len(args), desc='reduce', ncols=150):
                 out.append(o)
         ylist, xlist = [np.concatenate(v, axis=0) for v in zip(*out, strict=False)]
-        tlist = timap[ylist, xlist]
-        rlist = rsmap[ylist, xlist]
-        glist = gsmap[ylist, xlist]
+        tlist = tmap[ylist, xlist]
+        rlist = rmap[ylist, xlist]
+        glist = gmap[ylist, xlist]
 
         idx = np.flip(np.argsort(glist))
         return PeakList(tlist[idx], rlist[idx], ylist[idx], xlist[idx], glist[idx])

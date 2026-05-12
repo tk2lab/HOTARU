@@ -65,7 +65,7 @@ class StatsCalculator(Model):
         max0 = np.max(self.min0.numpy())
 
         avgt = self.avgt.value[:-1]
-        nt = self.avgt.shape[0] - 1
+        nt = avgt.size
 
         avgx = np.where(mask, self.sumi.numpy() / nt, nan)
         varx = self.sqi.numpy() / nt - np.square(avgx)
@@ -109,7 +109,8 @@ class StatsCalculator(Model):
             v = getattr(self, key)
             v.assign(ops.full_like(v, -inf, 'float32'))
 
-    def custom_train_step(self, ts: Tensor, imgs: Tensor) -> dict:
+    def custom_train_step(self, data) -> dict:
+        ts, imgs = data
         imgs = ops.cast(imgs, 'float32')
         unpad = ops.where(ts[:, None, None] >= 0, imgs, nan)
         masked = ops.where(self.mask.value, unpad, nan)
@@ -128,8 +129,8 @@ class StatsCalculator(Model):
 
     def call(self, masked: Tensor) -> tuple[Tensor, ...]:
         avgti = ops.nanmean(masked, axis=(1, 2))
-        diff = masked - avgti[..., None, None]
-        neig = ops.where(ops.isnan(masked), nan, neighbor(ops.nan_to_num(diff, nan=0)))
+        diff = masked - avgti[:, None, None]
+        neig = ops.where(ops.isfinite(masked), neighbor(ops.nan_to_num(diff, nan=0)), nan)
 
         sumi = ops.nansum(diff, axis=0)
         sumn = ops.nansum(neig, axis=0)

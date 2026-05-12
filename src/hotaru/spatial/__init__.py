@@ -3,6 +3,7 @@ from .clip import Footprints
 from .find import PeakFinder
 from .find import PeakMap
 from .radius import Radius
+from .reduce import PeakList
 
 #from .clean import clean
 #from .clean import clean_footprints

@@ -1,20 +1,29 @@
-import numpy as np
 from keras import ops
 
 from ..data import MovieDataset
 from ..data import MovieWithStats
 from ..models import Model
+from ..saving import Data
+from ..saving import DataDict
+from ..saving import cached_getter
+from ..typing import Array
 
 
-class TemporalPrepare(Model):
-    def __init__(self, updater, **kwargs):
+class CorrData(Data):
+    data: Array
+
+
+class CorrCalculator(Model):
+    def __init__(self, props, spatial_comp, spatial_corr, **kwargs):
         super().__init__(**kwargs)
-        self.updater = updater
+        self.props = props
+        self.spatial_comp = spatial_comp
+        self.spatial_corr = spatial_corr
 
-    def update(
+    @cached_getter(DataDict)
+    def calc_corr(
         self,
         data: MovieWithStats,
-        *footprints,
         batch_size: int,
         compile_kwargs: dict | None = None,
         dataset_kwargs: dict | None = None,
@@ -24,52 +33,35 @@ class TemporalPrepare(Model):
         dataset_kwargs = dataset_kwargs or {}
         fit_kwargs = fit_kwargs or {}
 
-        nt, h, w = data.shape
-        nx = h * w
-        nc = tuple(fp.data.shape[0] for fp in footprints)
+        self.compile(**compile_kwargs)
 
         if not self.built:
-            self.build((nt, nx, nc))
+            self.build(data.shape)
 
         self.avgt.assign(data.stats.avgt)
         self.avgx.assign(data.stats.avgx.ravel())
         self.std0.assign(data.stats.std0)
 
-        self.updater.scale = float(nt) * float(nx)
-
-        for i, ni in enumerate(nc):
-            ai = footprints[i].data.reshape(ni, nx)
-            ai /= ai.max()
-            fac = self.updater.props.component_properties[i].temporal_factor(ai)
-            self.updater.spatial_comp[i].assign(ai)
-            self.updater.activity[i].regularizer.fac.assign(fac)
-
-        for i, ai in enumerate(self.updater.spatial_comp):
-            self.updater.spatial_mean[i].assign(ops.mean(ai, axis=1))
-            for j, aj in enumerate(self.updater.spatial_comp[: i + 1]):
-                sqrd = self.updater.spatial_sqrd[i][j]
-                sqrd.assign(ai.value @ aj.value.T / nx)
-
-        self.compile(**compile_kwargs)
         dataset = MovieDataset(data, batch_size, **dataset_kwargs)
+        fit_kwargs.setdefault('shuffle', False)
         self.fit(dataset, **fit_kwargs)
 
+        return [CorrData(d.numpy()) for d in self.spatial_corr]
+
     def build(self, input_shape) -> None:
-        nt, nx, nc = input_shape
-        if not self.updater.built:
-            self.updater.build((nt, nx, nc))
+        nt, h, w = input_shape
         self.avgt = self.add_weight((nt,), trainable=False)
-        self.avgx = self.add_weight((nx,), trainable=False)
+        self.avgx = self.add_weight((h * w,), trainable=False)
         self.std0 = self.add_weight((), trainable=False)
         super().build(input_shape)
 
     def custom_train_step(self, data) -> dict:
         ts, imgs = data
         nt, h, w = imgs.shape
-        nx = h * w
-        imgs = ops.reshape(imgs, (nt, nx))
+        imgs = ops.reshape(imgs, (nt, h * w))
         imgs = (ops.cast(imgs, 'float32') - self.avgt[ts, None] - self.avgx) / self.std0
-        for i, ai in enumerate(self.updater.spatial_comp):
-            corr = self.updater.spatial_corr[i]
-            corr.assign(ops.scatter_update(corr.value.T, ts[:, None], imgs @ ai.value.T).T / nx)
+        for i, ai in enumerate(self.spatial_comp):
+            src = (ai.value @ imgs.T) / h / w
+            dst = self.spatial_corr[i]
+            dst.assign(ops.scatter_update(dst.value.T, ts[:, None], src.T).T)
         return {}

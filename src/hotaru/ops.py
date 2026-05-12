@@ -18,9 +18,10 @@ def gaussian_2d(imgs, r, *, nd: int = -1):
     kernel, _ = gaussian_kernel(r, nd=nd)
     *shape, h, w = imgs.shape
     g0 = ops.reshape(imgs, (-1, h, w, 1))
-    g1 = ops.conv(g0, kernel[:, None, None, None], (1, 1), 'same', 'channels_last')
-    g2 = ops.conv(g1, kernel[None, :, None, None], (1, 1), 'same', 'channels_last')
-    return ops.reshape(g2, (*shape, h ,w))
+    g1 = ops.conv(g0, kernel[:, None, None, None], (1, 1), 'valid', 'channels_last')
+    g2 = ops.conv(g1, kernel[None, :, None, None], (1, 1), 'valid', 'channels_last')
+    k = (kernel.size - 1) // 2
+    return ops.reshape(ops.pad(g2, ((0, 0), (k, k), (k, k), (0, 0))), (*shape, h, w))
 
 
 def gaussian_laplace_2d(imgs, r, *, nd: int = -1):
@@ -28,11 +29,12 @@ def gaussian_laplace_2d(imgs, r, *, nd: int = -1):
     kernel2 = (1 - scale2) * kernel1
     *shape, h, w = imgs.shape
     g00 = ops.reshape(imgs, (-1, h, w, 1))
-    g11 = ops.conv(g00, kernel1[:, None, None, None], (1, 1), 'same', 'channels_last')
-    g12 = ops.conv(g11, kernel2[None, :, None, None], (1, 1), 'same', 'channels_last')
-    g21 = ops.conv(g00, kernel1[None, :, None, None], (1, 1), 'same', 'channels_last')
-    g22 = ops.conv(g21, kernel2[:, None, None, None], (1, 1), 'same', 'channels_last')
-    return ops.reshape((g12 + g22), (*shape, h ,w))
+    g11 = ops.conv(g00, kernel1[:, None, None, None], (1, 1), 'valid', 'channels_last')
+    g12 = ops.conv(g11, kernel2[None, :, None, None], (1, 1), 'valid', 'channels_last')
+    g21 = ops.conv(g00, kernel1[None, :, None, None], (1, 1), 'valid', 'channels_last')
+    g22 = ops.conv(g21, kernel2[:, None, None, None], (1, 1), 'valid', 'channels_last')
+    k = (kernel1.size - 1) // 2
+    return ops.reshape(ops.pad(g12 + g22, ((0, 0), (k, k), (k, k), (0, 0))), (*shape, h, w))
 
 
 def gaussian_laplace_2d_multi(imgs, rs, *, axis=-1):

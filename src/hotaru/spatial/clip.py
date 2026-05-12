@@ -15,6 +15,7 @@ from ..saving import Data
 from ..saving import PathLike
 from ..saving import cached_getter
 from ..typing import Array
+from ..typing import Shape
 from .reduce import PeakList
 from .segment import get_segment_mask
 
@@ -22,7 +23,12 @@ logger = getLogger(__name__)
 
 
 class Footprints(Data):
-    data: Array
+    core: Array
+    obs: Array
+
+    @property
+    def shape(self) -> Shape:
+        return self.obs.shape
 
 
 class MovieAndPeaksDataset(PyDataset):
@@ -89,7 +95,7 @@ class FootprintClipper(Model):
             super().fit(dataset, **fit_kwargs)
 
         footprints = grey_closing(self.segs[:num], (1, 10, 10))
-        return Footprints(footprints)
+        return Footprints(footprints, footprints)
 
     def build(self, input_shape) -> None:
         num, h, w = input_shape

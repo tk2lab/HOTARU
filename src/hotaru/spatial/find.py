@@ -62,7 +62,8 @@ class PeakFinder(Model):
         self.std0.assign(stats.std0)
         self.gmap.assign(ops.full(self.gmap.shape, -inf, 'float32'))
 
-    def custom_train_step(self, ts, imgs) -> dict:
+    def custom_train_step(self, data) -> dict:
+        ts, imgs = data
         imgs = (ops.cast(imgs, 'float32') - self.avgx) / self.std0
         imgs = ops.where(ts[:, None, None] >= 0, imgs, nan)
         i, r, g = self(imgs)

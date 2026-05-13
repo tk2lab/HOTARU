@@ -1,4 +1,3 @@
-import numpy as np
 from keras import ops
 
 from ..data import MovieDataset

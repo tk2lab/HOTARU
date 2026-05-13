@@ -77,7 +77,7 @@ class FootprintClipper(Model):
 
         data = MovieWithStats.get(data)
         if not isinstance(peaks, PeakList):
-            peaks, _attrs = PeakList.load(peaks)
+            peaks = PeakList.load(peaks)
 
         num = peaks.size
         if not self.built:

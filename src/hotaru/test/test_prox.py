@@ -2,9 +2,9 @@ import numpy as np
 from keras import ops
 from keras.losses import MeanSquaredError
 
-from hotaru.optimizers import L1Regularizer
-from hotaru.optimizers import ProxModel
+from hotaru.models import ProxModel
 from hotaru.optimizers import ProxOptimizer
+from hotaru.regularizers import L1Regularizer
 
 
 class MyModel(ProxModel):

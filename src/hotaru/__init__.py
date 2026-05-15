@@ -1,5 +1,6 @@
-import importlib.metadata
+from importlib import metadata
 
+from . import _envcheck
 from .models import Model
 
-__version__ = importlib.metadata.version('hotaru')
+__version__ = metadata.version(__package__ or 'hotaru')

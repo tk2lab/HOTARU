@@ -1,3 +1,5 @@
+from __future__ import annotations  # req: Python < 3.14 (PEP 563)
+
 from typing import Self
 
 import numpy as np

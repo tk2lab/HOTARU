@@ -1,6 +1,13 @@
+import multiprocessing as mp
+import warnings
+
 from hotaru.data import MovieWithStats
 from hotaru.spatial import PeakFinder
 from hotaru.spatial import Radius
+
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+
+mp.set_start_method('spawn')
 
 
 def test_find():

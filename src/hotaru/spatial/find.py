@@ -51,11 +51,11 @@ class PeakFinder(Model):
 
     def build(self, input_shapes) -> None:
         _, h, w = input_shapes
-        self.avgx = self.add_weight(shape=(h, w), dtype='float32', initializer='zeros')
-        self.std0 = self.add_weight(shape=(), dtype='float32', initializer='ones')
-        self.tmap = self.add_weight(shape=(h, w), dtype='int32', initializer='zeros')
-        self.rmap = self.add_weight(shape=(h, w), dtype='int32', initializer='zeros')
-        self.gmap = self.add_weight(shape=(h, w), dtype='float32', initializer='zeros')
+        self.avgx = self.add_weight((h, w), dtype='float32', trainable=False, name='avgx')
+        self.std0 = self.add_weight((), dtype='float32', trainable=False, name='std0')
+        self.tmap = self.add_weight((h, w), dtype='int32', trainable=False, name='tmap')
+        self.rmap = self.add_weight((h, w), dtype='int32', trainable=False, name='rmap')
+        self.gmap = self.add_weight((h, w), dtype='float32', trainable=False, name='gmap')
 
     def reset(self, stats: Stats) -> None:
         self.avgx.assign(stats.avgx)
@@ -67,23 +67,26 @@ class PeakFinder(Model):
         imgs = (ops.cast(imgs, 'float32') - self.avgx) / self.std0
         imgs = ops.where(ts[:, None, None] >= 0, imgs, nan)
         i, r, g = self(imgs)
+        t = ops.take(ts, i)
         cond = g < self.gmap.value
-        self.tmap.assign(ops.where(cond, self.tmap.value, ts[i]))
+        self.tmap.assign(ops.where(cond, self.tmap.value, t))
         self.rmap.assign(ops.where(cond, self.rmap.value, r))
         self.gmap.assign(ops.where(cond, self.gmap.value, g))
-        return {}
+        return {'loss': 0}
 
     def call(self, imgs: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        radius = self.radius
-        nt, h, w = imgs.shape
-        nr = radius.size
         imgs = ops.nan_to_num(imgs, nan=0)
+        mask = ops.isfinite(self.avgx)
+        shape = ops.shape(imgs)
+        radius = self.radius
+        nr = radius.size
+
         gl = gaussian_laplace_2d_multi(imgs, radius, axis=1)
         gl_max = max_pool_3d(gl, 3)
         gl_peak = gl == gl_max
-        gl_peak &= ops.isfinite(self.avgx)
+        gl_peak &= mask
         gl = ops.where(gl_peak, gl, -inf)
-        gl_reshape = gl.reshape(nt * nr, h, w)
+        gl_reshape = ops.reshape(gl, (-1, *shape[-2:]))
         idx = ops.argmax(gl_reshape, axis=0)
         gl_max = ops.take_along_axis(gl_reshape, idx[None, ...], axis=0)[0]
         t, r = idx // nr, ops.mod(idx, nr)

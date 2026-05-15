@@ -1,3 +1,5 @@
+from __future__ import annotations  # req: Python < 3.14 (PEP 563)
+
 from dataclasses import dataclass
 from logging import getLogger
 from typing import Self

@@ -27,8 +27,8 @@ class PeakList(Data):
 
 class PeakMap(Data):
     radius: Radius
-    rimap: Array
     tmap: Array
+    rimap: Array
     gmap: Array
 
     @property

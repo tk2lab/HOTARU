@@ -21,11 +21,11 @@ class Model(Serializable, KerasModel):
 
     def statefull_train_step(self, data):
         if hasattr(self, 'custom_train_step'):
-            logs = super().train_step(data)
-        else:
             logs = self.custom_train_step(data)
+        else:
+            logs = super().train_step(data)
         if hasattr(self, 'post_train_step'):
-            logs = self.post_train_step(logs)
+            self.post_train_step(logs)
         return logs
 
     def stateless_train_step(self, state, data):

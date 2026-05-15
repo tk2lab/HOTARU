@@ -32,4 +32,5 @@ class MovieDataset(PyDataset):
         diff = self.batch_size - ts.size
         ts = np.pad(ts, ((0, diff),), constant_values=-1)
         imgs = np.pad(imgs, ((0, diff), (0, 0), (0, 0)))
+
         return ts, imgs

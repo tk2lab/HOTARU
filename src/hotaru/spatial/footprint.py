@@ -44,6 +44,8 @@ class Footprints(Data):
                 vs_clip = vs[i, vs_t:vs_b, vs_l:vs_r]
                 layout[i, t_clip:b_clip, l_clip:r_clip] = vs_clip
             db.create_virtual_dataset('data', layout)
+            db.create_dataset('y', data=self.y)
+            db.create_dataset('x', data=self.x)
 
 
 def get_bounds(x):

@@ -33,9 +33,8 @@ def load_imgs(path: PathLike, **kwargs) -> Array | zarr.Array:
             imgs = zarr.open(tif, mode='r')
             if not isinstance(imgs, zarr.Array):
                 raise ValueError()
-        case ('raw', {'dtype': dtype, 'endian': endian, 'height': height, 'width': width}):
-            dtype = np.dtype(dtype).newbyteorder(endian)
-            data = np.memmap(path, dtype, 'r')
+        case ('raw', {'dtype': dtype, 'height': height, 'width': width}):
+            data = np.memmap(path, np.dtype(dtype), 'r')
             imgs = data.reshape(-1, height, width)
         case _:
             raise ValueError(f'unkown file type: {kind}')
@@ -77,13 +76,22 @@ def apply_mask(imgs, **kwargs):
 
 
 def to_movie(outfile, imgs, shape, fps, fmt='yuv420p', bit_rate=8_000_000, **kwargs):
+    n, h, w = shape
+    ypad, xpad = 0, 0
+    if h % 2 == 1:
+        h += 1
+        ypad = 1
+    if w % 2 == 1:
+        w += 1
+        xpad = 1
     with av.open(outfile, 'w') as output:
         stream = output.add_stream(kwargs.get('codec', 'h264'), int(fps))
         stream.pix_fmt = fmt
         stream.bit_rate = bit_rate
-        stream.height = shape[1]
-        stream.width = shape[2]
-        for img in tqdm(imgs, total=shape[0]):
+        stream.height = h
+        stream.width = w
+        for img in tqdm(imgs, total=n):
+            img = np.pad(img, ((0, ypad), (0, xpad), (0, 0)))
             frame = av.VideoFrame.from_ndarray(img, format='rgba')
             packet = stream.encode(frame)
             output.mux(packet)

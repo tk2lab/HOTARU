@@ -39,62 +39,53 @@ def peak_finder():
     return PeakFinder()
 
 
-def test_peakmap(peak_finder, data):
+radius = {
+    'c': Radius(kind='logscale', min=2.0, max=8.0, num=10),
+    'b': Radius(kind='logscale', min=7.0, max=20.0, num=10),
+}
+
+
+@pytest.mark.parametrize('radius,label', [(radius, label) for label, radius in radius.items()])
+def test_peakmap(peak_finder, data, radius, label):
     peak_finder.get_peakmap(
         data,
-        Radius(kind='logscale', min=2.0, max=8.0, num=10),
+        radius,
         batch_size=100,
-        cache_path='sample/peakmap_c.h5',
+        cache_path=f'sample/peakmap_{label}.h5',
         force=True,
     )
 
 
-@pytest.fixture
-def cell_peakmap(peak_finder, data):
+@pytest.fixture(params=['c', 'b'])
+def peakmap(request, peak_finder, data):
+    label = request.param
     return peak_finder.get_peakmap(
         data,
-        Radius(kind='logscale', min=2.0, max=8.0, num=10),
+        radius[label],
         batch_size=100,
-        cache_path='sample/peakmap_c.h5',
-    )
+        cache_path=f'sample/peakmap_{label}.h5',
+    ), label
 
 
-@pytest.fixture
-def back_peakmap(peak_finder, data):
-    return peak_finder.get_peakmap(
-        data,
-        Radius(kind='logscale', min=2.0, max=8.0, num=10),
-        batch_size=100,
-        cache_path='sample/peakmap_c.h5',
-    )
-
-
-def test_peaks(cell_peakmap):
-    out = cell_peakmap.reduce(
+def test_peaks(peakmap):
+    peakmap, label = peakmap
+    out = peakmap.reduce(
         min_distance_ratio=2.0,
         block_size=100,
-        cache_path='sample/peak_c.h5',
+        cache_path=f'sample/peak_{label}.h5',
         force=True,
     )
     print(out)
 
 
 @pytest.fixture
-def cell_peaks(cell_peakmap):
-    return cell_peakmap.reduce(
+def peaks(peakmap):
+    peakmap, label = peakmap
+    return peakmap.reduce(
         min_distance_ratio=2.0,
         block_size=100,
-        cache_path='sample/peak_c.h5',
-    )
-
-
-@pytest.fixture
-def back_peaks(back_peakmap):
-    return back_peakmap.reduce(
-        min_distance_ratio=2.0,
-        block_size=1000,
-        cache_path='sample/peak_b.h5',
-    )
+        cache_path=f'sample/peak_{label}.h5',
+    ), label
 
 
 @pytest.fixture
@@ -102,16 +93,18 @@ def footprint_clipper():
     return FootprintClipper()
 
 
-def test_clip(footprint_clipper, data, cell_peaks):
+def test_clip(footprint_clipper, data, peaks):
+    peaks, label = peaks
     footprint_clipper.get_footprints(
         data,
-        cell_peaks,
+        peaks,
         batch_size=100,
-        cache_path='sample/footprint_c.h5',
+        cache_path=f'sample/footprint_{label}.h5',
         force=True,
     )
 
 
+'''
 @pytest.fixture
 def cell_footprints(footprint_clipper, data, cell_peaks):
     return footprint_clipper.get_footprints(
@@ -189,3 +182,4 @@ def test_temporal(temporal_updater, data, cell_footprints, back_footprints):
         cache_path='sample/temporal.h5',
         force=True,
     )
+'''

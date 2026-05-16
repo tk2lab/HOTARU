@@ -1,3 +1,4 @@
+import numpy as np
 from keras import ops
 from keras.callbacks import EarlyStopping
 from keras.callbacks import TerminateOnNaN
@@ -40,8 +41,8 @@ class TemporalUpdater(ProxModel):
         self.scale = float(nt) * float(nx)
 
         for k, nk in enumerate(nks):
-            ak = footprints[k].obs.reshape(nk, nx)
-            ak /= ak.max()
+            ak = footprints[k].data.reshape(nk, nx)
+            ak /= np.sqrt(np.square(ak).mean(axis=1, keepdims=True))
             fac = self.props.component_properties[k].temporal_factor(ak)
             self.spatial_comp[k].assign(ak)
             self.activity[k].regularizer.fac.assign(fac)

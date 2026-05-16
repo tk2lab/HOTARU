@@ -56,36 +56,39 @@ def test_peakmap(peak_finder, data, radius, label):
     )
 
 
-@pytest.fixture(params=['c', 'b'])
-def peakmap(request, peak_finder, data):
-    label = request.param
-    return peak_finder.get_peakmap(
-        data,
-        radius[label],
-        batch_size=100,
-        cache_path=f'sample/peakmap_{label}.h5',
-    ), label
+@pytest.fixture
+def peakmap_factory(peak_finder, data):
+    def _create(label):
+        return peak_finder.get_peakmap(
+            data,
+            radius[label],
+            batch_size=100,
+            cache_path=f'sample/peakmap_{label}.h5',
+        )
+    return _create
 
 
-def test_peaks(peakmap):
-    peakmap, label = peakmap
-    out = peakmap.reduce(
+@pytest.mark.parametrize('label', list(radius.keys()))
+def test_peaks(peakmap_factory, label):
+    peakmap = peakmap_factory(label)
+    peakmap.reduce(
         min_distance_ratio=2.0,
         block_size=100,
         cache_path=f'sample/peak_{label}.h5',
         force=True,
     )
-    print(out)
 
 
 @pytest.fixture
-def peaks(peakmap):
-    peakmap, label = peakmap
-    return peakmap.reduce(
-        min_distance_ratio=2.0,
-        block_size=100,
-        cache_path=f'sample/peak_{label}.h5',
-    ), label
+def peaks_factory(peakmap_factory):
+    def _create(label):
+        peakmap = peakmap_factory(label)
+        return peakmap.reduce(
+            min_distance_ratio=2.0,
+            block_size=100,
+            cache_path=f'sample/peak_{label}.h5',
+        )
+    return _create
 
 
 @pytest.fixture
@@ -93,8 +96,9 @@ def footprint_clipper():
     return FootprintClipper()
 
 
-def test_clip(footprint_clipper, data, peaks):
-    peaks, label = peaks
+@pytest.mark.parametrize('label', list(radius.keys()))
+def test_clip(footprint_clipper, data, peaks_factory, label):
+    peaks = peaks_factory(label)
     footprint_clipper.get_footprints(
         data,
         peaks,
@@ -104,25 +108,17 @@ def test_clip(footprint_clipper, data, peaks):
     )
 
 
-'''
 @pytest.fixture
-def cell_footprints(footprint_clipper, data, cell_peaks):
-    return footprint_clipper.get_footprints(
-        data,
-        cell_peaks,
-        batch_size=100,
-        cache_path='sample/footprint_c.h5',
-    )
-
-
-@pytest.fixture
-def back_footprints(footprint_clipper, data, back_peaks):
-    return footprint_clipper.get_footprints(
-        data,
-        back_peaks,
-        batch_size=100,
-        cache_path='sample/footprint_b.h5',
-    )
+def footprints_factory(footprint_clipper, data, peaks_factory):
+    def _create(label):
+        peaks = peaks_factory(label)
+        return footprint_clipper.get_footprints(
+            data,
+            peaks,
+            batch_size=100,
+            cache_path=f'sample/footprint_{label}.h5',
+        )
+    return _create
 
 
 @pytest.fixture
@@ -163,13 +159,13 @@ def temporal_updater(props):
     return TemporalUpdater(props)
 
 
-def test_temporal(temporal_updater, data, cell_footprints, back_footprints):
+def test_temporal(temporal_updater, data, footprints_factory):
+    labels = 'c', 'b'
     temporal_updater.prepare(
         data,
-        cell_footprints,
-        back_footprints,
+        *(footprints_factory(label) for label in labels),
         batch_size=100,
-        names=['c', 'b'],
+        names=labels,
         cache_path='sample/scorr.h5',
         force=True,
     )
@@ -178,8 +174,7 @@ def test_temporal(temporal_updater, data, cell_footprints, back_footprints):
         steps_per_epoch=100,
         epochs=100,
         early_stopping={'min_delta': 1e-6, 'patience': 3},
-        names=['c', 'b'],
+        names=labels,
         cache_path='sample/temporal.h5',
         force=True,
     )
-'''

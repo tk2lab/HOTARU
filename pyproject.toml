@@ -20,6 +20,8 @@ requires-python = ">=3.14"
 dependencies = [
     # core
     "keras",
+    "jax[cuda12]; sys_platform == 'linux'",
+    "jax; sys_platform != 'linux'",
     # input
     "tifffile",
     "zarr",
@@ -34,22 +36,13 @@ dependencies = [
     "tqdm",
 ]
 
-[project.optional-dependencies]
-torch = [
-    "torch",
-]
-jax = [
-    "jax; sys_platform != 'linux'",
-    "jax[cuda12]; sys_platform == 'linux'",
-]
-
 [project.scripts]
-version = "versioningit:get_version"
 hotaru = "hotaru.__main__:main"
+version = "versioningit:get_version"
 
 [dependency-groups]
 dev = [
-    "hotaru[jax,torch]",
+    "torch",
     "versioningit",
     "ruff>=0.15.12",
     "ty>=0.0.34",
@@ -72,12 +65,6 @@ next-version = "smallest-release"
 distance = "{next_version}.dev{distance}+{vcs}{rev}"
 dirty = "{next_version}+d{build_date:%Y%m%d%H%M}"
 distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}-d{build_date:%Y%m%d%H%M}"
-
-[tool.uv]
-environments = [
-#    "sys_platform == 'linux'",
-#    "sys_platform == 'darwin'",
-]
 
 [tool.uv.pip]
 only-binary = [":all:"]

@@ -63,6 +63,7 @@ class PeakMap(Data):
         glist = gmap[ylist, xlist]
 
         idx = np.flip(np.argsort(glist))
+        idx = idx[: np.count_nonzero(glist > 0)]
         return PeakList(tlist[idx], rlist[idx], ylist[idx], xlist[idx], glist[idx])
 
 

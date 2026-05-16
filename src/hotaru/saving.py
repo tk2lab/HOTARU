@@ -1,5 +1,3 @@
-from __future__ import annotations  # req: Python < 3.14 (PEP 563)
-
 from dataclasses import dataclass
 from dataclasses import fields
 from functools import wraps

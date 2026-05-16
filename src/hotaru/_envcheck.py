@@ -10,7 +10,7 @@ logger = getLogger(pkg)
 backend = environ.get('KERAS_BACKEND')
 
 if backend is None:
-    for module in ('torch', 'jax'):
+    for module in ('jax', 'torch'):
         if find_spec(module) is not None:
             backend = module
             break
@@ -18,7 +18,7 @@ if backend is None:
 if backend is None:
     raise ImportError(
         'No backend detected. Please install one of the supported backends: '
-        f"pip install '{pkg}[torch]' or '{pkg}[jax]'"
+        f"pip install '{pkg}[jax]' or '{pkg}[torch]' (experimental)"
     )
 
 environ['KERAS_BACKEND'] = backend

@@ -68,17 +68,18 @@ class PeakFinder(Model):
         imgs = ops.where(ts[:, None, None] >= 0, imgs, nan)
         i, r, g = self(imgs)
         t = ops.take(ts, i)
-        cond = g < self.gmap.value
-        self.tmap.assign(ops.where(cond, self.tmap.value, t))
-        self.rmap.assign(ops.where(cond, self.rmap.value, r))
-        self.gmap.assign(ops.where(cond, self.gmap.value, g))
+        cond = g > self.gmap.value
+        self.tmap.assign(ops.where(cond, t, self.tmap.value))
+        self.rmap.assign(ops.where(cond, r, self.rmap.value))
+        self.gmap.assign(ops.where(cond, g, self.gmap.value))
         return {'loss': 0}
 
     def call(self, imgs: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         imgs = ops.nan_to_num(imgs, nan=0)
         mask = ops.isfinite(self.avgx)
-        shape = ops.shape(imgs)
         radius = self.radius
+
+        *shape, h, w = ops.shape(imgs)
         nr = radius.size
 
         gl = gaussian_laplace_2d_multi(imgs, radius, axis=1)
@@ -86,7 +87,7 @@ class PeakFinder(Model):
         gl_peak = gl == gl_max
         gl_peak &= mask
         gl = ops.where(gl_peak, gl, -inf)
-        gl_reshape = ops.reshape(gl, (-1, *shape[-2:]))
+        gl_reshape = ops.reshape(gl, (-1, h, w))
         idx = ops.argmax(gl_reshape, axis=0)
         gl_max = ops.take_along_axis(gl_reshape, idx[None, ...], axis=0)[0]
         t, r = idx // nr, ops.mod(idx, nr)

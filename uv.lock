@@ -481,6 +481,8 @@ dependencies = [
     { name = "h5py" },
     { name = "hvplot" },
     { name = "hydra-core" },
+    { name = "jax" },
+    { name = "jax", extra = ["cuda12"], marker = "sys_platform == 'linux'" },
     { name = "keras" },
     { name = "polars" },
     { name = "seaborn" },
@@ -489,23 +491,14 @@ dependencies = [
     { name = "zarr" },
 ]
 
-[package.optional-dependencies]
-jax = [
-    { name = "jax" },
-    { name = "jax", extra = ["cuda12"], marker = "sys_platform == 'linux'" },
-]
-torch = [
-    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
-    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
-]
-
 [package.dev-dependencies]
 dev = [
-    { name = "hotaru", extra = ["jax", "torch"] },
     { name = "ipython" },
     { name = "marimo" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
+    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
     { name = "ty" },
     { name = "versioningit" },
 ]
@@ -516,27 +509,25 @@ requires-dist = [
     { name = "h5py", specifier = ">=3.16" },
     { name = "hvplot" },
     { name = "hydra-core" },
-    { name = "jax", marker = "sys_platform != 'linux' and extra == 'jax'" },
-    { name = "jax", extras = ["cuda12"], marker = "sys_platform == 'linux' and extra == 'jax'" },
+    { name = "jax", marker = "sys_platform != 'linux'" },
+    { name = "jax", extras = ["cuda12"], marker = "sys_platform == 'linux'" },
     { name = "keras" },
     { name = "polars" },
     { name = "seaborn" },
     { name = "tifffile" },
-    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'torch'", index = "https://pypi.org/simple" },
-    { name = "torch", marker = "sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'torch'" },
-    { name = "torch", marker = "sys_platform == 'linux' and extra == 'torch'", index = "https://download.pytorch.org/whl/cu128" },
     { name = "tqdm" },
     { name = "zarr" },
 ]
-provides-extras = ["jax", "torch"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "hotaru", extras = ["jax", "torch"] },
     { name = "ipython" },
     { name = "marimo" },
     { name = "pytest" },
     { name = "ruff", specifier = ">=0.15.12" },
+    { name = "torch", marker = "sys_platform != 'darwin' and sys_platform != 'linux'" },
+    { name = "torch", marker = "sys_platform == 'darwin'", index = "https://pypi.org/simple" },
+    { name = "torch", marker = "sys_platform == 'linux'", index = "https://download.pytorch.org/whl/cu128" },
     { name = "ty", specifier = ">=0.0.34" },
     { name = "versioningit" },
 ]
@@ -1413,7 +1404,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [

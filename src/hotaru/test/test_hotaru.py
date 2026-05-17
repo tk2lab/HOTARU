@@ -4,6 +4,7 @@ import pytest
 from hotaru.config import ComponentProperty
 from hotaru.config import TotalProperty
 from hotaru.data import MovieWithStats
+from hotaru.regularizers import L1Regularizer
 from hotaru.regularizers import L2Regularizer
 from hotaru.regularizers import SparseShapeRegularizer
 from hotaru.spatial import FootprintClipper
@@ -125,11 +126,11 @@ def footprints_factory(footprint_clipper, data, peaks_factory):
 def cell_props(data):
     return ComponentProperty(
         np.ones((3, 3), 'float32') / 9,
-        SparseShapeRegularizer(nonneg=True),
+        L1Regularizer(nonneg=True),
         lambda _v: 0.0,
         double_exp_kernel(0.08, 0.16, hz=data.hz),
-        SparseShapeRegularizer(nonneg=True),
-        lambda _a: 0.0,
+        L1Regularizer(nonneg=True),
+        lambda _a: 100.0 / 1.0,
     )
 
 
@@ -149,8 +150,8 @@ def back_props(data):
 def props(cell_props, back_props):
     return TotalProperty(
         [cell_props, back_props],
-        L2Regularizer(10.0),
-        L2Regularizer(10.0),
+        L2Regularizer(0.1),
+        L2Regularizer(0.1),
     )
 
 
@@ -159,7 +160,7 @@ def temporal_updater(props):
     return TemporalUpdater(props)
 
 
-def test_temporal(temporal_updater, data, footprints_factory):
+def test_temporal_prepare(temporal_updater, data, footprints_factory):
     labels = 'c', 'b'
     temporal_updater.prepare(
         data,
@@ -169,12 +170,30 @@ def test_temporal(temporal_updater, data, footprints_factory):
         cache_path='sample/scorr.h5',
         force=True,
     )
+
+
+@pytest.fixture
+def temporal_updater_prepared(temporal_updater, data, footprints_factory):
+    labels = 'c', 'b'
+    temporal_updater.prepare(
+        data,
+        *(footprints_factory(label) for label in labels),
+        batch_size=100,
+        names=labels,
+        cache_path='sample/scorr.h5',
+    )
+    return temporal_updater, labels
+
+
+def test_temporal_update(temporal_updater_prepared):
+    temporal_updater, labels = temporal_updater_prepared
     temporal_updater.compile(learning_rate=1e-6, nesterov=30.0)
     temporal_updater.update(
         steps_per_epoch=100,
         epochs=100,
         early_stopping={'min_delta': 1e-6, 'patience': 3},
         names=labels,
+        csv_path='sample/temporal.csv',
         cache_path='sample/temporal.h5',
         force=True,
     )

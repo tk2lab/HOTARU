@@ -13,7 +13,7 @@ class ProxRegularizer(Regularizer):
 
 class ProxRegularizerWithFactor(ProxRegularizer):
     def __init__(self, fac: float = 0.0, *, nonneg: bool = False):
-        self.fac = Variable(fac, dtype='float32')
+        self.fac = Variable(fac, dtype='float32', trainable=False)
         self.nonneg = nonneg
 
     def get_config(self) -> Config:

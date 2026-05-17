@@ -3,19 +3,20 @@ from math import pi
 import numpy as np
 import scipy.stats as st
 
+from ..typing import Array
 from .footprint import Footprints
 
 
 def sim_single_footprint(
-    ylist,
-    xlist,
-    radius_mean,
-    radius_shape,
-    ratio_mean,
-    ratio_shape,
-    pos,
-    rng,
-):
+    ylist: Array,
+    xlist: Array,
+    radius_mean: float,
+    radius_shape: float,
+    ratio_mean: float,
+    ratio_shape: float,
+    pos: Array,
+    rng: np.random.Generator,
+) -> tuple[Array, int, int]:
     i = rng.integers(ylist.size)
     y, x = ylist[i], xlist[i]
     radius = st.lognorm(radius_shape, scale=radius_mean).rvs(random_state=rng)
@@ -26,7 +27,7 @@ def sim_single_footprint(
     sigma = rotate @ lmd @ rotate.T
     fp = st.multivariate_normal((y, x), sigma).pdf(pos).astype('float32')
     fp /= fp.max()
-    return fp, y, x
+    return fp, int(y), int(x)
 
 
 def sim_footprints(
@@ -42,7 +43,7 @@ def sim_footprints(
     thr_overwrap: float,
     margin: int = 10,
     rng_or_seed: np.random.Generator | int | None = None,
-):
+) -> Footprints:
     match rng_or_seed:
         case np.random.Generator() as rng:
             pass

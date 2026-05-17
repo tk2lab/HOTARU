@@ -1,14 +1,15 @@
+from contextlib import nullcontext
 from dataclasses import dataclass
 from dataclasses import fields
 from functools import wraps
 from importlib import import_module
 from os import PathLike as OriginalPathLike
-from pathlib import Path
 from typing import Self
 from typing import cast
 from typing import dataclass_transform
 
 from h5py import File
+from h5py import Group
 from keras.saving import deserialize_keras_object
 from keras.saving import register_keras_serializable
 from keras.saving import serialize_keras_object
@@ -29,8 +30,9 @@ class Data:
     def __post_init__(self):
         self.attrs = {}
 
-    def save(self, path: PathLike) -> None:
-        with File(path, 'w') as db:
+    def save(self, path: PathLike | Group) -> None:
+        cm = nullcontext(path) if isinstance(path, Group) else File(path, 'w')
+        with cm as db:
             for f in fields(self):
                 ds = db.create_dataset(f.name, data=getattr(self, f.name))
             for k, v in self.attrs.items():
@@ -39,8 +41,10 @@ class Data:
             ds.attrs['class'] = self.__class__.__name__
 
     @classmethod
-    def load(cls, path: PathLike) -> Self:
+    def load(cls, path: PathLike, group: str | None = None) -> Self:
         with File(path, 'r') as db:
+            if group is not None:
+                db = db[group]
             attrs = dict(db.attrs)
             module = attrs.pop('module', None)
             clsname = attrs.pop('class', None)
@@ -51,47 +55,35 @@ class Data:
             return obj
 
 
-class DataDict(dict):
-    def save(self, path: PathLike) -> None:
-        path = Path(path)
-        for k, v in self.items():
-            v.save(path.with_stem(f'{path.stem}_{k}'))
-
-    @classmethod
-    def load(cls, path: PathLike, names: list[str]) -> Self:
-        path = Path(path)
-        return cls({k: Data.load(path.with_stem(f'{path.stem}_{k}')) for k in names})
-
-
-def cached_getter(cls: type[Data] | type[DataDict]):
+def cached_getter(cls: type[Data]):
     def decolator(func):
         @wraps(func)
         def wrap(
             *args,
             cache_path: PathLike | None = None,
-            names: list[str] | None = None,
+            names: tuple[str] | None = None,
             force: bool = False,
             **kwargs,
         ):
             try:
                 if force or (cache_path is None):
                     raise Exception()
-                if issubclass(cls, DataDict) and names is not None:
-                    out = cls.load(cache_path, names)
-                elif issubclass(cls, Data):
+                if names is None:
                     out = cls.load(cache_path)
                 else:
-                    raise ValueError()
+                    out = [cls.load(cache_path, name) for name in names]
             except Exception:
                 out = None
 
             if out is None:
                 out = func(*args, **kwargs)
                 if cache_path is not None:
-                    if issubclass(cls, DataDict) and names is not None:
-                        out = cls(zip(names, out, strict=True))
-                    out.save(cache_path)
-
+                    if names is None:
+                        out.save(cache_path)
+                    else:
+                        with File(cache_path, 'w') as db:
+                            for name, outi in zip(names, out, strict=True):
+                                outi.save(db.create_group(name))
             return out
 
         return wrap

@@ -17,7 +17,7 @@ def double_exp_kernel(tau1, tau2, hz, size=None):
     tau1 *= hz
     tau2 *= hz
     if size is None:
-        size = int(np.ceil(5 * tau1))
+        size = int(np.ceil(5 * tau2))
     t = np.arange(1, size + 1)
     e1 = np.exp(-t / tau1)
     e2 = np.exp(-t / tau2)

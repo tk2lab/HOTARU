@@ -1,21 +1,22 @@
 from logging import getLogger
 
-import numpy as np
+from keras import ops
 from keras.utils import PyDataset
 
 from ..typing import Array
-from .data import MovieData
+from ..typing import Tensor
 
 logger = getLogger(__name__)
 
 
-class MovieDataset(PyDataset):
-    def __init__(self, data: MovieData, batch_size: int = -1, **kwargs):
+class CalciumImagingDataset(PyDataset):
+    def __init__(self, imgs: Array, batch_size: int = -1, **kwargs):
         super().__init__(**kwargs)
+        nt = imgs.shape[0]
         if batch_size == -1:
-            batch_size = data.num_frames
-        self.ts = np.arange(data.num_frames, dtype='int32')
-        self.imgs = data.imgs
+            batch_size = nt
+        self.ts = ops.arange(nt, dtype='int32')
+        self.imgs = imgs
         self.batch_size = batch_size
 
     def on_epoch_end(self):
@@ -24,13 +25,13 @@ class MovieDataset(PyDataset):
     def __len__(self) -> int:
         return (self.ts.size + self.batch_size - 1) // self.batch_size
 
-    def __getitem__(self, index: int) -> tuple[Array, Array]:
+    def __getitem__(self, index: int) -> tuple[Tensor, Tensor]:
         s = self.batch_size * index
         e = s + self.batch_size
         ts, imgs = self.ts[s:e], self.imgs[s:e]
 
         diff = self.batch_size - ts.size
-        ts = np.pad(ts, ((0, diff),), constant_values=-1)
-        imgs = np.pad(imgs, ((0, diff), (0, 0), (0, 0)))
+        ts = ops.pad(ts, ((0, diff),), constant_values=-1)
+        imgs = ops.pad(imgs, ((0, diff), (0, 0), (0, 0)))
 
         return ts, imgs

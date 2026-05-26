@@ -1,4 +1,3 @@
-from .data import MovieData
-from .dataset import MovieDataset
-from .normalized import MovieWithStats
-from .stats import Stats
+from .data import CalciumImagingData
+from .dataset import CalciumImagingDataset
+from .stats import CalciumImagingDataWithStats

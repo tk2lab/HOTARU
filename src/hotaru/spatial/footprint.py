@@ -1,51 +1,87 @@
 from logging import getLogger
+from math import nan
 
 import h5py
 import numpy as np
+from keras import ops
+from scipy.ndimage import grey_closing
 
-from ..saving import Data
-from ..saving import PathLike
+from ..data import CalciumImagingDataWithStats as ImagingData
+from ..models import Layer
 from ..typing import Array
 from ..typing import DType
 from ..typing import Shape
+from .clip import FootprintClipper
+from .peaklist import PeakList
 
 logger = getLogger(__name__)
 
 
-class Footprints(Data):
-    data: Array
-    y: Array
-    x: Array
+class Footprints(Layer):
+    def build(self, input_shape) -> None:
+        num, h, w = input_shape
+        self.segs = self.add_weight((num + 1, h, w), name='segs')
+        super().build(input_shape)
+
+    def from_peaklist(self, data: ImagingData, peaklist: PeakList, **kwargs):
+        _, h, w = data.shape
+        num = peaklist.size
+        self.build((num, h, w))
+        clipper = FootprintClipper(data, peaklist, self.segs)
+        clipper.compile(**kwargs.pop('compile_kwargs', {}))
+        clipper.fit_multi(**kwargs)
+        #footprints = grey_closing(self.segs.numpy()[:-1], (1, 10, 10))
+        #glist = np.sum(footprints, axis=(1, 2))
+        #idx = np.flip(np.argsort(glist))
+        #self.segs.assign(ops.pad(footprints[idx], ((0, 1), (0, 0), (0, 0)), constant_values=nan))
+        #self._ys = peaklist.ylist
+        #self._xs = peaklist.xlist
+        #self._rs = peaklist.rlist
+        #self._gs = peaklist.glist
+
+    def save_own_weights(self, store) -> None:
+        layout = h5py.VirtualLayout(self.shape, self.dtype)
+        core, clip, pad = clip_core(self.imgs.numpy(), self.ys, self.xs)
+        num, core_h, core_w = core.shape
+        core_ds = store.create_dataset('core', data=core)
+        vs = h5py.VirtualSource(core_ds)
+        for i in range(num):
+            t_clip, b_clip, l_clip, r_clip = clip[i]
+            pad_t, pad_b, pad_l, pad_r = pad[i]
+            vs_t, vs_b = pad_t, core_h - pad_b
+            vs_l, vs_r = pad_l, core_w - pad_r
+            vs_clip = vs[i, vs_t:vs_b, vs_l:vs_r]
+            layout[i, t_clip:b_clip, l_clip:r_clip] = vs_clip
+        store.create_virtual_dataset('segs', layout)
+
+    def load_own_weights(self, store) -> None:
+        segs = store['segs'][...]
+        self.segs.assign(ops.pad(segs, ((0, 1), (0, 0), (0, 0)), constant_values=nan))
 
     @property
     def shape(self) -> Shape:
-        return self.data.shape
+        num, h, w = self.segs.shape
+        return num - 1, h, w
 
     @property
     def dtype(self) -> DType:
-        return self.data.dtype
+        return self.segs.dtype
+
+    @property
+    def rs(self) -> Array:
+        return self._rs
+
+    @property
+    def ys(self) -> Array:
+        return self._ys
+
+    @property
+    def xs(self) -> Array:
+        return self._xs
 
     @property
     def core(self):
-        return clip_core(self.data, self.y, self.x)[0]
-
-    def save(self, path: PathLike) -> None:
-        layout = h5py.VirtualLayout(self.shape, self.dtype)
-        core, clip, pad = clip_core(self.data, self.y, self.x)
-        num, core_h, core_w = core.shape
-        with h5py.File(path, 'w') as db:
-            core_ds = db.create_dataset('core', data=core)
-            vs = h5py.VirtualSource(core_ds)
-            for i in range(num):
-                t_clip, b_clip, l_clip, r_clip = clip[i]
-                pad_t, pad_b, pad_l, pad_r = pad[i]
-                vs_t, vs_b = pad_t, core_h - pad_b
-                vs_l, vs_r = pad_l, core_w - pad_r
-                vs_clip = vs[i, vs_t:vs_b, vs_l:vs_r]
-                layout[i, t_clip:b_clip, l_clip:r_clip] = vs_clip
-            db.create_virtual_dataset('data', layout)
-            db.create_dataset('y', data=self.y)
-            db.create_dataset('x', data=self.x)
+        return clip_core(self.imgs.numpy(), self.ys, self.xs)[0]
 
 
 def get_bounds(x):

@@ -12,10 +12,14 @@ class Model(Serializable, KerasModel):
     def fit(self, *args, **kwargs) -> History:
         callbacks = kwargs.pop('callbacks', [])
         if not any(isinstance(c, ProgbarLogger) for c in callbacks):
-            scale = kwargs.pop('scale', {})
-            desc = kwargs.pop('desc', self.name)
-            leave = kwargs.pop('leave', True)
-            callbacks = [*callbacks, TqdmProgbar(desc=desc, leave=leave, scale=scale)]
+            tqdm_kwargs = {
+                'desc': kwargs.pop('desc', self.name),
+                'scale': kwargs.pop('scale', {}),
+                'cumsum': kwargs.pop('cumsum', {}),
+                'leave': kwargs.pop('leave', True),
+                **kwargs.pop('tqdm_kwargs', {}),
+            }
+            callbacks = [*callbacks, TqdmProgbar(**tqdm_kwargs)]
         kwargs['callbacks'] = callbacks
         return super().fit(*args, **kwargs)
 

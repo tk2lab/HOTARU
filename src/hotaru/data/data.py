@@ -1,24 +1,52 @@
-from dataclasses import dataclass
 from logging import getLogger
-from typing import Self
 
-import numpy as np
-
+from ..models import Layer
 from ..saving import Config
-from ..saving import PathLike
-from ..typing import Array
 from ..typing import Shape
-from .imgs import apply_mask
-from .imgs import load_imgs
+from .dataset import CalciumImagingDataset
+from .io import apply_mask
+from .io import load_imgs
 
 logger = getLogger(__name__)
 
 
-@dataclass
-class MovieData:
-    imgs: Array
-    mask: Array[np.bool]
-    hz: float
+class CalciumImagingData(Layer):
+    def __init__(self, **kwargs):
+        imgs_kwargs = kwargs.pop('imgs', {})
+        mask_kwargs = kwargs.pop('mask', {'kind': 'nomask'})
+
+        if 'path' in imgs_kwargs:
+            if 'path' in kwargs:
+                raise ValueError()
+        else:
+            if 'path' not in kwargs:
+                raise ValueError()
+            imgs_kwargs['path'] = kwargs.pop('path')
+        if 'hz' in imgs_kwargs:
+            if 'hz' in kwargs:
+                raise ValueError()
+        else:
+            if 'hz' not in kwargs:
+                raise ValueError()
+            imgs_kwargs['hz'] = kwargs.pop('hz')
+
+        super().__init__(**kwargs)
+        self.imgs_kwargs = imgs_kwargs
+        self.mask_kwargs = mask_kwargs
+
+        imgs = load_imgs(**imgs_kwargs)
+        imgs, mask = apply_mask(imgs, **mask_kwargs)
+        self.imgs = imgs
+        self.mask = mask
+        self.hz = imgs_kwargs['hz']
+        self.imgs_path = imgs_kwargs['path']
+
+    def get_config(self) -> Config:
+        return {
+            'imgs': self.imgs_kwargs,
+            'mask': self.mask_kwargs,
+            **super().get_config(),
+        }
 
     @property
     def shape(self) -> Shape:
@@ -36,18 +64,5 @@ class MovieData:
     def height(self) -> int:
         return self.imgs.shape[1]
 
-    @classmethod
-    def get(cls, x: MovieData | Config, /) -> Self:
-        match x:
-            case cls() as obj:
-                return obj
-            case Config() as config:
-                return cls.load(**config)
-            case _:
-                raise ValueError()
-
-    @classmethod
-    def load(cls, path: PathLike, hz: float, **kwargs) -> Self:
-        imgs = load_imgs(path, **kwargs.pop('imgs', {}))
-        imgs, mask = apply_mask(imgs, **kwargs.pop('mask', {'kind': 'nomask'}))
-        return cls(imgs, mask, hz, **kwargs)
+    def dataset(self, *args, **kwargs) -> CalciumImagingDataset:
+        return CalciumImagingDataset(self.imgs, *args, **kwargs)

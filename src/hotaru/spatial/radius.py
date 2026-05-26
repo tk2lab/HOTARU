@@ -2,7 +2,8 @@ from typing import Self
 
 import numpy as np
 
-from ..saving import Config
+Config = dict
+#from ..saving import Config
 
 
 class Radius(np.ndarray):

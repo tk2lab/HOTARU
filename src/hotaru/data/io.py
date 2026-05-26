@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from ..saving import PathLike
 from ..typing import Array
+from ..typing import Shape
 
 logger = getLogger(__name__)
 
@@ -75,7 +76,15 @@ def apply_mask(imgs, **kwargs):
     return imgs, mask
 
 
-def to_movie(outfile, imgs, shape, fps, fmt='yuv420p', bit_rate=8_000_000, **kwargs):
+def to_movie(
+    outfile: PathLike,
+    imgs: Array,
+    shape: Shape,
+    fps: float,
+    fmt: str = 'yuv420p',
+    bit_rate: int = 8_000_000,
+    **kwargs,
+) -> None:
     n, h, w = shape
     ypad, xpad = 0, 0
     if h % 2 == 1:

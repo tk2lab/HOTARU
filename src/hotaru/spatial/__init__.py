@@ -1,10 +1,9 @@
-from .clip import FootprintClipper
-from .clip import Footprints
-from .find import PeakFinder
-from .find import PeakMap
+#from .clip import FootprintClipper
+from .footprint import Footprints
+from .peaklist import PeakList
+from .peakmap import PeakMap
 from .radius import Radius
-from .reduce import PeakList
+#from .simulation import sim_footprints
+#from .update import SpatialUpdater
 
-#from .clean import clean
-#from .clean import clean_footprints
-#from .make import make_footprints
+#from .find import PeakFinder

@@ -15,7 +15,7 @@ from ..spatial import Footprints
 from ..typing import Array
 from ..typing import Tensor
 from .corr import CorrCalculator
-from .trace import TemporalComponents
+from .trace import Traces
 
 
 class CorrData(Data):
@@ -63,12 +63,12 @@ class TemporalUpdater(ProxModel):
         kwargs.setdefault('loss', Minimize())
         super().compile(**kwargs)
 
-    @cached_getter(TemporalComponents)
-    def update(self, *, reset: bool = True, **kwargs) -> list[TemporalComponents]:
+    @cached_getter(Traces)
+    def update(self, *, reset: bool = True, **kwargs) -> list[Traces]:
         _history = self.fit(reset=reset, **kwargs)
         us = self.activity
         vs = self.observations()
-        return [TemporalComponents(u, v) for u, v in zip(us, vs, strict=True)]
+        return [Traces(u, v) for u, v in zip(us, vs, strict=True)]
 
     def fit(self, *_args, **kwargs) -> History:
         if kwargs.pop('reset', True):
@@ -107,18 +107,16 @@ class TemporalUpdater(ProxModel):
             self.spatial_corr.append(self.add_weight((ni, nt), **param_args, name=f'corr{i}'))
             self.spatial_sqrd.append([])
             for j, nj in enumerate(nks[: i + 1]):
-                self.spatial_sqrd[-1].append(
-                    self.add_weight((ni, nj), **param_args, name=f'sq{i}{j}')
-                )
+                w = self.add_weight((ni, nj), **param_args, name=f'sq{i}{j}')
+                self.spatial_sqrd[-1].append(w)
 
         self.regularizer = []
         self.activity = []
         for k, (pk, nk) in enumerate(zip(self.props.component_properties, nks, strict=True)):
             ntau = nt + pk.temporal_kernel.size - 1
-            self.regularizer.append(regularizer := pk.temporal_regularizer)
-            self.activity.append(
-                self.add_weight((nk, ntau), regularizer=regularizer, name=f'act{k}')
-            )
+            self.regularizer.append(r := pk.temporal_regularizer)
+            w = self.add_weight((nk, ntau), regularizer=r, name=f'act{k}')
+            self.activity.append(w)
 
         self.regularizer.append(r := self.props.temporal_baseline_regularizer)
         self.temporal_baseline = self.add_weight((nt,), regularizer=r)

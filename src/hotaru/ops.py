@@ -1,22 +1,26 @@
+from math import ceil
 from math import pi
+from math import sqrt
 
-import numpy as np
 from keras import ops
 
 
 def gaussian_kernel(r, *, nd: int = -1):
     if nd == -1:
-        nd = int(4 * np.ceil(r))
-    sqrt_2pi = ops.sqrt(2 * pi)
+        nd = int(4 * ceil(r))
     r = ops.convert_to_tensor(r, 'float32')
-    d2 = ops.square(ops.arange(-nd, nd + 1, 1, dtype='float32'))
-    r2 = ops.square(r)
-    o0 = ops.exp(-d2 / r2 / 2) / r / sqrt_2pi
-    return o0, d2 / r2
+    z2 = ops.square(ops.arange(-nd, nd + 1, 1, dtype='float32') / r)
+    kernel = ops.exp(-z2 / 2) / (sqrt(2 * pi) * r)
+    return kernel, z2
 
 
-def gaussian_2d(imgs, r, *, nd: int = -1):
-    kernel, _ = gaussian_kernel(r, nd=nd)
+def laplacian_of_gaussian_kernel(r, *, nd: int = -1):
+    kernel0, z2 = gaussian_kernel(r, nd=nd)
+    kernel2 = (1 - z2) * kernel0
+    return kernel0, kernel2
+
+
+def conv_2d(imgs, kernel):
     shape = ops.shape(imgs)
     g0 = ops.reshape(imgs, (-1, *shape[-2:], 1))
     g1 = ops.conv(g0, kernel[:, None, None, None], (1, 1), 'valid', 'channels_last')
@@ -25,17 +29,25 @@ def gaussian_2d(imgs, r, *, nd: int = -1):
     return ops.reshape(ops.pad(g2, ((0, 0), (k, k), (k, k), (0, 0))), shape)
 
 
-def gaussian_laplace_2d(imgs, r, *, nd: int = -1):
-    kernel1, scale2 = gaussian_kernel(r, nd=nd)
-    kernel2 = (1 - scale2) * kernel1
+def laplace_2d(imgs, kernel0, kernel2):
     shape = ops.shape(imgs)
     g00 = ops.reshape(imgs, (-1, *shape[-2:], 1))
-    g11 = ops.conv(g00, kernel1[:, None, None, None], (1, 1), 'valid', 'channels_last')
+    g11 = ops.conv(g00, kernel0[:, None, None, None], (1, 1), 'valid', 'channels_last')
     g12 = ops.conv(g11, kernel2[None, :, None, None], (1, 1), 'valid', 'channels_last')
-    g21 = ops.conv(g00, kernel1[None, :, None, None], (1, 1), 'valid', 'channels_last')
+    g21 = ops.conv(g00, kernel0[None, :, None, None], (1, 1), 'valid', 'channels_last')
     g22 = ops.conv(g21, kernel2[:, None, None, None], (1, 1), 'valid', 'channels_last')
-    k = (ops.size(kernel1) - 1) // 2
+    k = (ops.size(kernel0) - 1) // 2
     return ops.reshape(ops.pad(g12 + g22, ((0, 0), (k, k), (k, k), (0, 0))), shape)
+
+
+def gaussian_2d(imgs, r, *, nd: int = -1):
+    kernel, _ = gaussian_kernel(r, nd=nd)
+    return conv_2d(imgs, kernel)
+
+
+def gaussian_laplace_2d(imgs, r, *, nd: int = -1):
+    kernel1, kernel2 = laplacian_of_gaussian_kernel(r, nd=nd)
+    return laplace_2d(imgs, kernel1, kernel2)
 
 
 def gaussian_laplace_2d_multi(imgs, rs, *, axis=-1):

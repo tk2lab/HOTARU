@@ -1,146 +1,71 @@
 from logging import getLogger
-from math import inf
 from math import nan
 
-import numpy as np
 from keras import ops
+from matplotlib.pyplot import get_cmap
 
-from ..models import Model
-from ..ops import neighbor
-from ..saving import Config
-from ..saving import Data
-from ..saving import cached_getter
-from ..typing import Array
+from ..saving import PathLike
 from ..typing import Tensor
-from .data import MovieData
-from .dataset import MovieDataset
+from .calc_stats import StatsCalculator
+from .data import CalciumImagingData
+from .io import to_movie
 
 logger = getLogger(__name__)
 
 
-class Stats(Data):
-    avgt: Array
-    avgx: Array
-    std0: Array
-    min0: Array
-    max0: Array
-    imin: Array
-    imax: Array
-    istd: Array
-    icor: Array
+class CalciumImagingDataWithStats(CalciumImagingData):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
+        nt, h, w = self.shape
+        self.avgt = self.add_weight((nt,), name='avgt')
+        for key in ('avgx', 'imin', 'imax', 'istd', 'icor'):
+            setattr(self, key, self.add_weight((h, w), name=key))
+        for key in ('std0', 'min0', 'max0'):
+            setattr(self, key, self.add_weight((), name=key))
+        super()._build_at_init()
 
-class StatsCalculator(Model):
-    @cached_getter(Stats)
-    def get_stats(
-        self,
-        data: MovieData | Config,
-        batch_size: int = -1,
-        capacity: int = -1,
-        compile_kwargs: dict | None = None,
-        dataset_kwargs: dict | None = None,
-        fit_kwargs: dict | None = None,
-    ) -> Stats:
-        compile_kwargs = compile_kwargs or {}
-        dataset_kwargs = dataset_kwargs or {}
-        fit_kwargs = fit_kwargs or {}
+    def calc(self, **kwargs) -> None:
+        kwargs.setdefault('desc', f'Stats ({self.imgs_path})')
+        calc = StatsCalculator(self.imgs, self.mask)
+        calc.compile(**kwargs.pop('compile_kwargs', {}))
+        calc.fit(**kwargs)
+        keys = str.split('avgt, avgx, std0, min0, max0, imin, imax, istd, icor', ', ')
+        vals = calc.post_fit()
+        for key, val in zip(keys, vals, strict=True):
+            getattr(self, key).assign(val)
 
-        self.compile(**compile_kwargs)
+    def normalize(self, ts: Tensor, imgs: Tensor) -> Tensor:
+        imgs = (ops.cast(imgs, 'float32') - self.avgt[ts, None, None] - self.avgx) / self.std0
+        imgs = ops.where(ts[:, None, None] >= 0, imgs, nan)
+        return imgs
 
-        data = MovieData.get(data)
-        if not self.built:
-            nt, h, w = data.shape
-            if capacity == -1:
-                capacity = nt
-            self.build((capacity, h, w))
-        self.reset(data.mask)
+    def to_movie(self, path: PathLike, cmap='Greens', *, normalize: bool = True, **kwargs) -> None:
+        imgs = self.imgs
+        nt = self.shape[0]
+        cmap = get_cmap(cmap)
 
-        dataset = MovieDataset(data, batch_size, **dataset_kwargs)
-        fit_kwargs.setdefault('shuffle', False)
-        super().fit(dataset, **fit_kwargs)
+        if normalize:
+            avgt = self.avgt.numpy()
+            avgx = self.avgx.numpy()
+            std0 = self.std0.numpy()
+            min0 = self.imin.numpy().min()
+            scale = self.imax.numpy().max() - min0
 
-        mask = self.mask.numpy()
+            def frame(t):
+                val = (imgs[t] - avgt[t] - avgx) / std0
+                val = (val - min0) / scale
+                return val
+        else:
+            vmin = self.min0.numpy()
+            scale = self.max0.numpy() - self.min0.numpy()
 
-        min0 = np.min(self.min0.numpy())
-        max0 = np.max(self.max0.numpy())
+            def frame(t):
+                val = (imgs[t] - vmin) / scale
+                return val
 
-        avgt = self.avgt.value[:-1]
-        nt = avgt.size
+        def gen():
+            for t in range(nt):
+                yield (255 * cmap(frame(t))).astype('uint8')
 
-        avgx = np.where(mask, self.sumi.numpy() / nt, nan)
-        varx = self.sqi.numpy() / nt - np.square(avgx)
-        std0 = np.sqrt(np.nanmean(varx))
-
-        stdx = np.sqrt(varx)
-        avgn = np.where(mask, self.sumn.numpy() / nt, nan)
-        stdn = np.sqrt(self.sqn.numpy() / nt - np.square(avgn))
-
-        imin = (self.imin.numpy() - avgx) / std0
-        imax = (self.imax.numpy() - avgx) / std0
-
-        istd = np.where(mask, stdx / std0, nan)
-        icor = np.where(mask, (self.cor.numpy() / nt - avgx * avgn) / (stdx * stdn), nan)
-
-        return Stats(avgt, avgx, std0, min0, max0, imin, imax, istd, icor)
-
-    def build(self, input_shape) -> None:
-        nt, h, w = input_shape
-
-        self.mask = self.add_weight(shape=(h, w), dtype='uint8', initializer='ones')
-        self.avgt = self.add_weight(shape=(nt + 1,), dtype='float32', initializer='zeros')
-        for key in ('sumi', 'sumn', 'sqi', 'sqn', 'cor'):
-            setattr(self, key, self.add_weight(shape=(h, w), dtype='float32', initializer='zeros'))
-        for key in ('min0', 'imin'):
-            setattr(self, key, self.add_weight(shape=(h, w), dtype='float32', initializer='zeros'))
-        for key in ('max0', 'imax'):
-            setattr(self, key, self.add_weight(shape=(h, w), dtype='float32', initializer='zeros'))
-
-        super().build(input_shape)
-
-    def reset(self, mask: Array) -> None:
-        self.mask.assign(mask)
-        for key in ('sumi', 'sumn', 'sqi', 'sqn', 'cor'):
-            v = getattr(self, key)
-            v.assign(ops.zeros_like(v, 'float32'))
-        for key in ('min0', 'imin'):
-            v = getattr(self, key)
-            v.assign(ops.full_like(v, +inf, 'float32'))
-        for key in ('max0', 'imax'):
-            v = getattr(self, key)
-            v.assign(ops.full_like(v, -inf, 'float32'))
-
-    def custom_train_step(self, data) -> dict:
-        ts, imgs = data
-        imgs = ops.cast(imgs, 'float32')
-        unpad = ops.where(ts[:, None, None] >= 0, imgs, nan)
-        masked = ops.where(self.mask.value, unpad, nan)
-        avgt, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax = self(masked)
-        self.sumi.assign_add(sumi)
-        self.sumn.assign_add(sumn)
-        self.sqi.assign_add(sqi)
-        self.sqn.assign_add(sqn)
-        self.cor.assign_add(cor)
-        self.min0.assign(ops.minimum(self.min0, min0))
-        self.max0.assign(ops.maximum(self.min0, max0))
-        self.imin.assign(ops.minimum(self.imin, imin))
-        self.imax.assign(ops.maximum(self.imin, imax))
-        self.avgt.assign(ops.scatter_update(self.avgt, ts[:, None], avgt))
-        return {}
-
-    def call(self, masked: Tensor) -> tuple[Tensor, ...]:
-        avgti = ops.nanmean(masked, axis=(1, 2))
-        diff = masked - avgti[:, None, None]
-        neig = ops.where(ops.isfinite(diff), neighbor(ops.nan_to_num(diff, nan=0)), nan)
-
-        sumi = ops.nansum(diff, axis=0)
-        sumn = ops.nansum(neig, axis=0)
-        sqi = ops.nansum(ops.square(diff), axis=0)
-        sqn = ops.nansum(ops.square(neig), axis=0)
-        cor = ops.nansum(diff * neig, axis=0)
-
-        min0 = ops.nanmin(masked, axis=0)
-        max0 = ops.nanmax(masked, axis=0)
-        imin = ops.nanmin(diff, axis=0)
-        imax = ops.nanmax(diff, axis=0)
-
-        return avgti, sumi, sqi, sumn, sqn, cor, min0, max0, imin, imax
+        to_movie(path, gen(), imgs.shape, self.hz, **kwargs)

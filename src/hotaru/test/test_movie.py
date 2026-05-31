@@ -1,11 +1,10 @@
-from hotaru.data import MovieWithStats
+from hotaru.data import CalciumImagingDataWithStats
 
 
 def test_movie():
-    data = MovieWithStats.load(
-        'sample/imgs.tif',
-        20.0,
-        batch_size=100,
-        cache_path='sample/stats.h5',
+    data = CalciumImagingDataWithStats(
+        path='sample/imgs.tif',
+        hz=20.0,
     )
-    data.normalized_movie('sample/normalized.mp4')
+    data.calc(batch_size=100)
+    data.to_movie('sample/reg.mp4')

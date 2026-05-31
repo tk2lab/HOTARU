@@ -4,10 +4,11 @@ from math import nan
 import h5py
 import numpy as np
 from keras import ops
-from scipy.ndimage import grey_closing
+from scipy.ndimage import maximum_position
 
 from ..data import CalciumImagingDataWithStats as ImagingData
 from ..models import Layer
+from ..saving import Config
 from ..typing import Array
 from ..typing import DType
 from ..typing import Shape
@@ -18,26 +19,27 @@ logger = getLogger(__name__)
 
 
 class Footprints(Layer):
-    def build(self, input_shape) -> None:
-        num, h, w = input_shape
-        self.segs = self.add_weight((num + 1, h, w), name='segs')
-        super().build(input_shape)
+    def __init__(self, segs_or_shape, **kwargs):
+        super().__init__(**kwargs)
+        match segs_or_shape:
+            case np.ndarray() as segs:
+                self.segs = self.add_weight(segs.shape, initializer=segs, name='segs')
+            case shape:
+                self.segs = self.add_weight(shape, name='segs')
+        self._build_at_init()
 
-    def from_peaklist(self, data: ImagingData, peaklist: PeakList, **kwargs):
+    def get_config(self) -> Config:
+        return {'segs_or_shape': self.segs.shape, **super().get_config()}
+
+    @classmethod
+    def from_peaklist(cls, data: ImagingData, peaklist: PeakList, **kwargs):
         _, h, w = data.shape
         num = peaklist.size
-        self.build((num, h, w))
-        clipper = FootprintClipper(data, peaklist, self.segs)
+        obj = Footprints((num, h, w))
+        clipper = FootprintClipper(data, peaklist, obj.segs)
         clipper.compile(**kwargs.pop('compile_kwargs', {}))
         clipper.fit_multi(**kwargs)
-        #footprints = grey_closing(self.segs.numpy()[:-1], (1, 10, 10))
-        #glist = np.sum(footprints, axis=(1, 2))
-        #idx = np.flip(np.argsort(glist))
-        #self.segs.assign(ops.pad(footprints[idx], ((0, 1), (0, 0), (0, 0)), constant_values=nan))
-        #self._ys = peaklist.ylist
-        #self._xs = peaklist.xlist
-        #self._rs = peaklist.rlist
-        #self._gs = peaklist.glist
+        return obj
 
     def save_own_weights(self, store) -> None:
         layout = h5py.VirtualLayout(self.shape, self.dtype)
@@ -60,28 +62,21 @@ class Footprints(Layer):
 
     @property
     def shape(self) -> Shape:
-        num, h, w = self.segs.shape
-        return num - 1, h, w
+        return self.segs.shape
 
     @property
     def dtype(self) -> DType:
         return self.segs.dtype
 
     @property
-    def rs(self) -> Array:
-        return self._rs
+    def peaks(self) -> Array:
+        fn = np.vectorize(lambda x: np.stack(maximum_position(x)), signature='(x,y)->(k)')
+        return fn(self.segs.numpy())
 
     @property
-    def ys(self) -> Array:
-        return self._ys
-
-    @property
-    def xs(self) -> Array:
-        return self._xs
-
-    @property
-    def core(self):
-        return clip_core(self.imgs.numpy(), self.ys, self.xs)[0]
+    def core(self) -> Array:
+        ys, xs = self.peaks.T
+        return clip_core(self.imgs.numpy(), ys, xs)[0]
 
 
 def get_bounds(x):

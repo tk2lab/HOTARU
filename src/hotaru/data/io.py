@@ -99,7 +99,7 @@ def to_movie(
         stream.bit_rate = bit_rate
         stream.height = h
         stream.width = w
-        for img in tqdm(imgs, total=n):
+        for img in tqdm(imgs, total=n, ncols=150, desc=f'make {outfile}'):
             img = np.pad(img, ((0, ypad), (0, xpad), (0, 0)))
             frame = av.VideoFrame.from_ndarray(img, format='rgba')
             packet = stream.encode(frame)

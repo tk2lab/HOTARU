@@ -81,7 +81,7 @@ class FrameWithPeakDataset(PyDataset):
         s = self.batch_size * index
         e = s + self.batch_size
         diff = max(e - self.ts.size, 0)
-        peak_id = np.pad(self.peak_id[s:e], ((0, diff)), constant_values=-1)
+        peak_id = np.pad(self.peak_id[s:e], ((0, diff)), constant_values=self.peak_id.size)
         ts = np.pad(self.ts[s:e], ((0, diff)))
         ys = np.pad(self.ys[s:e], ((0, diff)))
         xs = np.pad(self.xs[s:e], ((0, diff)))

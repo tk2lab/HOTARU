@@ -4,6 +4,24 @@ from math import sqrt
 
 from keras import ops
 
+from .typing import Tensor
+
+
+def fft_convolve(core: Tensor, kernel: Tensor) -> Tensor:
+    ndim = len(core.shape) - 1
+    n_core = core.shape[-1]
+    n_kernel = kernel.shape[-1]
+
+    pad_core = ops.pad(core, ((0, 0),) * ndim + ((0, n_kernel - 1),))
+    pad_kernel = ops.pad(kernel, ((0, n_core - 1),))
+
+    fft_core = ops.rfft(pad_core, axis=-1)
+    fft_kernel = ops.rfft(pad_kernel, axis=-1)
+    conv_full = ops.irfft(fft_core * fft_kernel, axis=-1)
+    start_idx = n_kernel - 1
+    end_idx = n_core
+    return conv_full[..., start_idx:end_idx]
+
 
 def gaussian_kernel(r, *, nd: int = -1):
     if nd == -1:
@@ -18,6 +36,14 @@ def laplacian_of_gaussian_kernel(r, *, nd: int = -1):
     kernel0, z2 = gaussian_kernel(r, nd=nd)
     kernel2 = (1 - z2) * kernel0
     return kernel0, kernel2
+
+
+def conv_1d(traces, kernel):
+    shape = ops.shape(traces)
+    print(shape)
+    g0 = ops.reshape(traces, (-1, shape[-1], 1))
+    g1 = ops.conv(g0, kernel[:, None, None], 1, 'valid', 'channels_last')[:, :, 0]
+    return ops.reshape(g1, (*shape[:-1], -1))
 
 
 def conv_2d(imgs, kernel):
@@ -38,6 +64,11 @@ def laplace_2d(imgs, kernel0, kernel2):
     g22 = ops.conv(g21, kernel2[:, None, None, None], (1, 1), 'valid', 'channels_last')
     k = (ops.size(kernel0) - 1) // 2
     return ops.reshape(ops.pad(g12 + g22, ((0, 0), (k, k), (k, k), (0, 0))), shape)
+
+
+def gaussian_1d(traces, r, *, nd: int = -1):
+    kernel, _ = gaussian_kernel(r, nd=nd)
+    return conv_1d(traces, kernel)
 
 
 def gaussian_2d(imgs, r, *, nd: int = -1):

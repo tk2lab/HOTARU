@@ -1,79 +1,94 @@
+from collections.abc import Sequence
 from math import pi
 
 import numpy as np
-import scipy.stats as st
+from scipy.ndimage import binary_closing
+from tqdm import trange
 
+from ..random import Generator
 from ..typing import Array
 from .footprint import Footprints
 
 
-def sim_single_footprint(
-    ylist: Array,
-    xlist: Array,
-    radius_mean: float,
-    radius_shape: float,
-    ratio_mean: float,
-    ratio_shape: float,
-    pos: Array,
-    rng: np.random.Generator,
-) -> tuple[Array, int, int]:
-    i = rng.integers(ylist.size)
-    y, x = ylist[i], xlist[i]
-    radius = st.lognorm(radius_shape, scale=radius_mean).rvs(random_state=rng)
-    ratio = st.lognorm(ratio_shape, scale=ratio_mean).rvs(random_state=rng)
-    angle = st.uniform(pi).rvs(random_state=rng)
-    rotate = np.array(((np.cos(angle), -np.sin(angle)), (np.sin(angle), np.cos(angle))))
-    lmd = np.square(radius) * np.array([[1.0, 0.0], [0.0, ratio]])
-    sigma = rotate @ lmd @ rotate.T
-    fp = st.multivariate_normal((y, x), sigma).pdf(pos).astype('float32')
-    fp /= fp.max()
-    return fp, int(y), int(x)
-
-
 def sim_footprints(
-    num: int,
     height: int,
     width: int,
-    radius_mean: float,
-    radius_shape: float,
-    ratio_mean: float,
-    ratio_shape: float,
-    intensity_mean: float,
-    intensity_min: float,
+    mean0: Sequence[float],
+    mean1: Sequence[float],
+    cv2: Sequence[float],
+    noise: float,
     thr_overwrap: float,
-    margin: int = 10,
-    rng_or_seed: np.random.Generator | int | None = None,
+    rng: Generator,
 ) -> Footprints:
-    match rng_or_seed:
-        case np.random.Generator() as rng:
-            pass
-        case seed:
-            rng = np.random.default_rng(seed)
-    params = radius_mean, radius_shape, ratio_mean, ratio_shape
-
-    y, x = np.mgrid[:height, :width]
-    pos = np.stack((y, x), -1)
-
-    ylist, xlist = y.flatten(), x.flatten()
-    ok = (xlist > margin) & (xlist < width - margin) & (ylist > margin) & (ylist < height - margin)
-    ylist, xlist = ylist[ok], xlist[ok]
-
-    fps = np.empty((num, height, width), 'float32')
-    ys, xs, gs = [], [], []
-    for i in range(num):
-        if ylist.size == 0:
+    num = len(mean0)
+    fps = np.zeros((num, height, width), 'float32')
+    pos_mask = np.ones((height, width), 'bool')
+    accept_mask = np.zeros((height, width), 'bool')
+    for i in trange(num, ncols=150, desc='make footprints'):
+        if np.count_nonzero(pos_mask) == 0:
             raise ValueError()
+        while True:
+            fpi = sim_single_footprint(mean0[i], mean1[i], cv2[i], noise, rng)
+            fpi_mask = binary_closing(fpi <= thr_overwrap)
+            hi, wi = fpi.shape
+            yl, xl = np.nonzero(pos_mask)
 
-        fpi, yi, xi = sim_single_footprint(ylist, xlist, *params, pos, rng)
-        if len(ys) > 0:
-            while np.any(fpi[ys, xs] > thr_overwrap):
-                fpi, yi, xi = sim_single_footprint(ylist, xlist, *params, pos, rng)
-        gi = st.expon(loc=intensity_min, scale=intensity_mean - intensity_min).rvs(random_state=rng)
-        ys.append(yi)
-        xs.append(xi)
-        gs.append(gi)
-        fps[i] = gi * fpi
+            valid_indices = np.nonzero((yl + hi < height) & (xl + wi < width))[0]
+            if len(valid_indices) == 0:
+                continue
+            j_idx = int(rng.randint(minval=0, maxval=len(valid_indices)))
+            j = valid_indices[j_idx]
+            yi, xi = yl[j], xl[j]
 
-        ok = fpi[ylist, xlist] < thr_overwrap
-        ylist, xlist = ylist[ok], xlist[ok]
-    return Footprints(fps, np.array(ys, 'int32'), np.array(xs, 'int32'))
+            slices = slice(yi, yi + hi), slice(xi, xi + wi)
+            if not np.any(fpi_mask & accept_mask[slices]):
+                break
+        fps[i, *slices] = fpi
+        pos_mask &= fps[i] <= thr_overwrap
+    return Footprints(fps)
+
+
+def sim_single_footprint(
+    mean0: float,
+    mean1: float,
+    cv2: float,
+    noise: float,
+    rng: Generator,
+) -> Array:
+    a = float(rng.invgauss(mean0, cv2))
+    b = float(rng.invgauss(mean1, cv2))
+    c = float(rng.uniform(0, pi))
+    sin, cos = np.sin(c), np.cos(c)
+
+    rotate = np.array(((cos, -sin), (sin, cos)))
+    xsize = np.floor(np.hypot(a * cos, b * sin))
+    ysize = np.floor(np.hypot(a * sin, b * cos))
+    xr = np.arange(-xsize, xsize + 0.1)
+    yr = np.arange(-ysize, ysize + 0.1)
+    x, y = np.einsum('ij,jkl->ikl', rotate, np.stack(np.meshgrid(xr, yr)))
+    fpi = np.maximum(0, 1 - np.square(x / a) - np.square(y / b))
+    fpi += noise * np.where(fpi > 0, rng.normal(shape=fpi.shape), 0)
+    return np.clip(fpi, 0, 1)
+
+
+def sim_neuropil_basis(
+    height: int,
+    width: int,
+    scale: float,
+    nk: int,
+) -> Footprints:
+    kx = np.ones((width, nk), dtype='float32')
+    xs = np.arange(width, dtype='float32') + 0.5
+    for k in range((nk - 1) // 2):
+        kx[:, 2 * k + 1] = np.sin(2 * pi * xs * (1 + k) / scale)
+        kx[:, 2 * k + 2] = np.cos(2 * pi * xs * (1 + k) / scale)
+
+    ky = np.ones((height, nk), dtype=np.float32)
+    ys = np.arange(height, dtype=np.float32) + 0.5
+    for k in range((nk - 1) // 2):
+        ky[:, 2 * k + 1] = np.sin(2 * pi * ys * (1 + k) / scale)
+        ky[:, 2 * k + 2] = np.cos(2 * pi * ys * (1 + k) / scale)
+
+    s_basis = np.einsum('yk,xl->klyx', ky, kx).reshape(nk * nk, height, width)[1:]
+    s_basis /= np.sqrt(np.square(s_basis).sum(axis=(-1, -2), keepdims=True))
+    return Footprints(s_basis)

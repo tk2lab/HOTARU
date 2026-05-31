@@ -49,6 +49,10 @@ dev = [
     "ipython",
     "pytest",
     "marimo",
+    "jupyterlab>=4.5.7",
+]
+benchmark = [
+    "suite2p[all]>=1.0.0.1",
 ]
 
 [build-system]

@@ -34,7 +34,6 @@ def with_rng(*static_argnames):
 
 def sim_traces(
     num_samples: int,
-    upsample_factor: int,
     kernel: Kernel,
     isi_mm: Sequence[float],
     isi_ms: Sequence[float],
@@ -43,16 +42,14 @@ def sim_traces(
     intensity_s: Sequence[float],
     rng: Generator,
 ) -> Traces:
-    hz_high = upsample_factor * kernel.hz
-    num_samples_high = upsample_factor * num_samples + kernel.pad_size(upsample_factor)
     max_num_spikes = ceil(2 * num_samples)
 
     num = len(isi_mm)
-    spikes = ops.zeros((num, num_samples_high), 'float32')
+    spikes = ops.zeros((num, num_samples), 'float32')
     for i in trange(num, ncols=150, desc='make traces'):
         spki = sim_spike_train(
-            hz_high,
-            num_samples_high,
+            kernel.hz,
+            num_samples,
             max_num_spikes,
             rng.invgauss(isi_mm[i], isi_ms[i]),
             rng.invgauss(isi_sm[i], isi_ss[i]),
@@ -61,7 +58,7 @@ def sim_traces(
         )
         spikes = spikes.at[i].add(spki)
 
-    obs = kernel(spikes, upsample_factor=upsample_factor)[:, ::upsample_factor]
+    obs = kernel(spikes)
     return Traces(obs)
 
 
@@ -83,8 +80,12 @@ def sim_spike_train(
     return spike_train, rng.state
 
 
+def sim_dendrites(*args, **kwargs) -> Traces:
+    return Traces(_sim_dendrites(*args, **kwargs))
+
+
 @with_rng('num_mix')
-def sim_dendrites(
+def _sim_dendrites(
     dist_mat: Tensor,
     cell_trs: Tensor,
     kernel: Tensor,
@@ -96,7 +97,7 @@ def sim_dendrites(
     logits = ops.log_softmax(-beta * dist_mat)
     cell_ids = rng.categorical(logits, shape=(num_mix,))
     dend_trs = ops.take_along_axis(cell_trs[None, :, :], cell_ids[:, :, None], axis=1)
-    dend_trs = ops.sum(dend_trs, axis=1)[:, :, None]
+    dend_trs = ops.mean(dend_trs, axis=1)[:, :, None]
     dend_trs = ops.conv(dend_trs, kernel[::-1, None, None], 1, 'same', 'channels_last')[:, :, 0]
     return dend_trs, rng.state
 

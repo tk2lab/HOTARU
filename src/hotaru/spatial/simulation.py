@@ -90,5 +90,5 @@ def sim_neuropil_basis(
         ky[:, 2 * k + 2] = np.cos(2 * pi * ys * (1 + k) / scale)
 
     s_basis = np.einsum('yk,xl->klyx', ky, kx).reshape(nk * nk, height, width)[1:]
-    s_basis /= np.sqrt(np.square(s_basis).sum(axis=(-1, -2), keepdims=True))
+    #s_basis /= np.sqrt(np.square(s_basis).sum(axis=(-1, -2), keepdims=True))
     return Footprints(s_basis)

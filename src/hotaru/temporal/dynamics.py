@@ -41,7 +41,7 @@ class Kernel(Layer, ABC):
         if num is None:
             num = ceil(hz * length)
         t = ops.arange(num) / hz
-        return self.kernel_fn(t)
+        return self.kernel_fn(t) / self.hz
 
     def call(self, core: Tensor, upsample_factor: int = 1) -> Tensor:
         kernel = ops.flip(self.kernel(upsample_factor=upsample_factor))[:, None, None]
@@ -65,7 +65,7 @@ class ExpKernel(Kernel):
         self.tau = tau
 
     def kernel_fn(self, t: Tensor) -> Tensor:
-        return ops.exp(-t / self.tau)
+        return ops.exp(-t / self.tau) / self.tau
 
 
 class DoubleExpKernel(Kernel):
@@ -79,6 +79,6 @@ class DoubleExpKernel(Kernel):
 
     def kernel_fn(self, t: Tensor) -> Tensor:
         tau1, tau2 = self.tau1, self.tau2
-        xmax = (tau1 * tau2) / (tau1 - tau2) * ops.log(tau1 / tau2)
-        ymax = ops.exp(-xmax / tau1) - ops.exp(-xmax / tau2)
-        return (ops.exp(-t / tau1) - ops.exp(-t / tau2)) / ymax
+        #xmax = (tau1 * tau2) / (tau1 - tau2) * ops.log(tau1 / tau2)
+        #ymax = ops.exp(-xmax / tau1) - ops.exp(-xmax / tau2)
+        return (ops.exp(-t / tau1) - ops.exp(-t / tau2)) / (tau1 - tau2)

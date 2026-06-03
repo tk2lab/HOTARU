@@ -1,4 +1,5 @@
 from logging import getLogger
+from math import ceil
 from math import nan
 
 import numpy as np
@@ -20,12 +21,13 @@ def calc_peaklist(
     min_distance_ratio: float,
     block_size: int,
 ):
-    active = (rimap >= 1) & (rimap < radius.size - 2)
-    rmap = np.where(active, radius[rimap], nan)
-    gmap = np.where(active, gmap, nan)
+    #active = (rimap >= 1) & (rimap <= radius.size - 2)
+    #rmap = np.where(active, radius[rimap], nan)
+    #gmap = np.where(active, gmap, nan)
+    rmap = radius[rimap]
 
     h, w = rmap.shape
-    margin = int(np.ceil(min_distance_ratio * np.nanmax(rmap)))
+    margin = ceil(min_distance_ratio * np.nanmax(rmap))
 
     args_list = []
     for x0 in range(0, w - margin, block_size):

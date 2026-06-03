@@ -17,7 +17,7 @@ logger = getLogger(__name__)
 
 
 class PeakMap(Layer):
-    def __init__(self, radius: Radius, **kwargs):
+    def __init__(self, radius: Radius | Config, **kwargs):
         super().__init__(**kwargs)
         self.radius = Radius.get(radius)
 

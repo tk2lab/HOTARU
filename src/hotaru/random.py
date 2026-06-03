@@ -12,8 +12,10 @@ class Generator:
         match seed:
             case SeedGenerator() as seed_gen:
                 self.seed_gen = seed_gen
-            case int() | None as seed:
+            case int(seed):
                 self.seed_gen = SeedGenerator(seed)
+            case None:
+                self.seed_gen = SeedGenerator()
             case state:
                 self.seed_gen = SeedGenerator()
                 self.seed_gen.state.assign(state)
@@ -25,6 +27,9 @@ class Generator:
     @state.setter
     def state(self, val):
         self.seed_gen.state.assign(val)
+
+    def gen_seed(self) -> int:
+        return int(keras.random.randint((), 1, 2*30, seed=self.seed_gen))
 
     def normal(self, m=0, s=1, shape=(), dtype='float32'):
         return keras.random.normal(shape, m, s, dtype, seed=self.seed_gen)

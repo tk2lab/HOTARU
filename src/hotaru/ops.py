@@ -40,7 +40,6 @@ def laplacian_of_gaussian_kernel(r, *, nd: int = -1):
 
 def conv_1d(traces, kernel):
     shape = ops.shape(traces)
-    print(shape)
     g0 = ops.reshape(traces, (-1, shape[-1], 1))
     g1 = ops.conv(g0, kernel[:, None, None], 1, 'valid', 'channels_last')[:, :, 0]
     return ops.reshape(g1, (*shape[:-1], -1))

@@ -22,7 +22,7 @@ from hotaru.temporal import Traces  # noqa
 settings = default_settings()
 
 base_path = Path('benchmark')
-run_path = base_path / 'run'
+run_path = base_path / 'suite2p'
 thr = 2.0
 
 path = run_path / 'stats.keras'

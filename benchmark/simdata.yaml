@@ -1,0 +1,63 @@
+path: benchmark
+seed: ???
+
+shape:
+  num_frames: 1200
+  height: 300
+  width: 400
+  hz: 20.0
+
+cell:
+  num: 1000
+  intensity_s: 1.0
+  radius_m: 6.0
+  radius_s: 0.06
+  overwrap: 0.2
+  isi_mm: 1.0
+  isi_ms: 0.1
+  isi_sm: 2.0
+  isi_ss: 0.1
+  tau1: 0.08
+  tau2: 0.16
+  upsample_factor: 10
+  noise: 0.05
+
+dendrite:
+  num: 2000
+  radius_m1: 2.0
+  radius_m2: 8.0
+  radius_s: 0.2
+  tau: 1.0
+  noise: 0.25
+  beta: 1.0
+  num_mix: 5
+
+neuropil:
+  scale: 400
+  n_basis: 7
+  tau: 1.0
+
+output:
+  w_dendrite: 1.0
+  w_neuropil: 0.1
+  base: 1.0
+  noise: 0.2
+
+hydra:
+  run:
+    dir: ${path}/${hydra.job.override_dirname}
+  sweep:
+    dir: ${path}
+    subdir: ${hydra.job.override_dirname}
+  output_subdir: .${now:%Y%m%dT%H%M%S}
+  job:
+    chdir: true
+  job_logging:
+    capture_warnings: true
+    handlers:
+      file:
+        filename: ${hydra.runtime.output_dir}/${hydra.output_subdir}.log
+    loggers:
+      jax:
+        level: WARN
+        propagate: false

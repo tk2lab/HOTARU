@@ -1,16 +1,13 @@
-from logging import captureWarnings
 from pathlib import Path
 
 import hydra
 from hydra.utils import get_original_cwd
 
-from hotaru.random import Generator
-from hotaru.simulation import make_cell
-from hotaru.simulation import make_dendrite
-from hotaru.simulation import make_neuropil
-from hotaru.simulation import make_sim
-
-captureWarnings(capture=True)
+from ..random import Generator
+from ..simulation import make_cell
+from ..simulation import make_dendrite
+from ..simulation import make_neuropil
+from ..simulation import make_sim
 
 
 @hydra.main(version_base=None, config_path='.', config_name='simdata')

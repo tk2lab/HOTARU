@@ -6,6 +6,7 @@ from hydra.utils import get_original_cwd
 from ..random import Generator
 from ..simulation import make_cell
 from ..simulation import make_dendrite
+from ..simulation import make_link
 from ..simulation import make_neuropil
 from ..simulation import make_sim
 
@@ -50,13 +51,6 @@ def main(cfg):
     make_link(cwd, 'dend', dend_path)
     make_link(cwd, 'npil', npil_path)
     make_link(cwd, 'imgs', imgs_path)
-
-
-def make_link(dst_path, dst, target):
-    target = target.absolute().relative_to(dst_path.absolute(), walk_up=True)
-    dst_path = dst_path / dst
-    dst_path.unlink(missing_ok=True)
-    dst_path.symlink_to(target, target_is_directory=True)
 
 
 if __name__ == '__main__':

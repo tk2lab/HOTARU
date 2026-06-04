@@ -53,7 +53,6 @@ hydra:
   job:
     chdir: true
   job_logging:
-    capture_warnings: true
     handlers:
       file:
         filename: ${hydra.runtime.output_dir}/${hydra.output_subdir}.log

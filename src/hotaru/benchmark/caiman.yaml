@@ -1,0 +1,63 @@
+path: benchmark
+simdata: ???
+radius: 6.0
+tau: 0.16
+order: 2
+min_corr: ???
+min_pnr: ???
+num_refit: 5
+
+use_cluster: false
+
+params:
+  method_init: 'corr_pnr'  # 'greedy_roi'
+  gnb: 0                   # 1 - 2
+  center_psf: true         # false
+  min_corr: ${min_corr}
+  min_pnr: ${min_pnr}
+  gSig:
+    - ${radius}
+    - ${radius}
+  decay_time: ${tau}
+  p: ${order}
+  #ring_size_factor: 1.5
+  #merge_thresh: 0.8
+  rf: 25
+  stride: 10
+  k: 50
+  only_init_patch: true
+  params_dict:
+    quality:
+      SNF_lowerst: 0.0
+      min_SNR: 0.0
+      rval_lower: -1.0
+      rval_thr: -1.0
+      use_cnn: false
+
+detrend:
+  quantileMin: 8
+  frames_window: 250
+  flag_auto: false
+  use_residuals: false
+
+hydra:
+  run:
+    dir: ${path}/${simdata}/caiman/${hydra.job.override_dirname}
+  sweep:
+    dir: ${path}/imgs/${simdata}
+    subdir: ${hydra.job.override_dirname}
+  output_subdir: .${now:%Y%m%dT%H%M%S}
+  job:
+    chdir: true
+  job_logging:
+    handlers:
+      file:
+        filename: ${hydra.runtime.output_dir}/${hydra.output_subdir}.log
+        level: DEBUG
+      console:
+        level: WARN
+    loggers:
+      scipy:
+        handlers:
+          - file
+        propagate: false

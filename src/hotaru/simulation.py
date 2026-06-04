@@ -22,6 +22,16 @@ from .temporal.simulation import sim_neuropil_traces
 from .temporal.simulation import sim_traces
 
 
+def to_str(x):
+    match x:
+        case dict():
+            return {k: to_str(v) for k, v in x.items()}
+        case list() | tuple():
+            return [to_str(v) for v in x.items()]
+        case _:
+            return str(x)
+
+
 def auto_save_config(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -31,7 +41,7 @@ def auto_save_config(func):
         config = dict(bound_args.arguments)
         path = config.pop('path')
         force = config.pop('force', False)
-        config_str = json.dumps({k: str(v) for k, v in config.items()}, sort_keys=True)
+        config_str = json.dumps(to_str(config), sort_keys=True)
         short_bytes = hashlib.sha256(config_str.encode('utf-8')).digest()[:6]
         config_hash = base64.urlsafe_b64encode(short_bytes).decode('utf-8').rstrip('=')
         path = path / config_hash
@@ -44,6 +54,13 @@ def auto_save_config(func):
         return path
 
     return wrapper
+
+
+def make_link(dst_path, dst, target):
+    target = target.absolute().relative_to(dst_path.absolute(), walk_up=True)
+    dst_path = dst_path / dst
+    dst_path.unlink(missing_ok=True)
+    dst_path.symlink_to(target, target_is_directory=True)
 
 
 def make_imgs(fps, trs, path):

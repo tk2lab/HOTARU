@@ -41,7 +41,7 @@ class Kernel(Layer, ABC):
         if num is None:
             num = ceil(hz * length)
         t = ops.arange(num) / hz
-        return self.kernel_fn(t) / self.hz
+        return self.kernel_fn(t)
 
     def call(self, core: Tensor, upsample_factor: int = 1) -> Tensor:
         kernel = ops.flip(self.kernel(upsample_factor=upsample_factor))[:, None, None]
@@ -59,26 +59,39 @@ class Kernel(Layer, ABC):
 
 
 class ExpKernel(Kernel):
-    def __init__(self, tau: float, **kwargs):
+    def __init__(self, tau: float, scale: str = 'sum', **kwargs):
         kwargs.setdefault('length', 5 * tau)
         super().__init__(**kwargs)
         self.tau = tau
+        match scale:
+            case 'sum':
+                self.scale = tau * kwargs['hz']
+            case 'max':
+                self.scale = 1.0
+            case _:
+                raise ValueError()
 
     def kernel_fn(self, t: Tensor) -> Tensor:
-        return ops.exp(-t / self.tau) / self.tau
+        return ops.exp(-t / self.tau) / self.scale
 
 
 class DoubleExpKernel(Kernel):
-    def __init__(self, tau1: float, tau2: float, **kwargs):
+    def __init__(self, tau1: float, tau2: float, scale: str = 'sum', **kwargs):
         if tau1 < tau2:
             tau1, tau2 = tau2, tau1
+
         kwargs.setdefault('length', 5 * tau1)
         super().__init__(**kwargs)
         self.tau1 = tau1
         self.tau2 = tau2
+        match scale:
+            case 'sum':
+                self.scale = (tau1 - tau2) * kwargs['hz']
+            case 'max':
+                xmax = (tau1 * tau2) / (tau1 - tau2) * ops.log(tau1 / tau2)
+                self.scale = ops.exp(-xmax / tau1) - ops.exp(-xmax / tau2)
+            case _:
+                raise ValueError()
 
     def kernel_fn(self, t: Tensor) -> Tensor:
-        tau1, tau2 = self.tau1, self.tau2
-        #xmax = (tau1 * tau2) / (tau1 - tau2) * ops.log(tau1 / tau2)
-        #ymax = ops.exp(-xmax / tau1) - ops.exp(-xmax / tau2)
-        return (ops.exp(-t / tau1) - ops.exp(-t / tau2)) / (tau1 - tau2)
+        return (ops.exp(-t / self.tau1) - ops.exp(-t / self.tau2)) / self.scale

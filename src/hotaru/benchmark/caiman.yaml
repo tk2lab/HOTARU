@@ -1,38 +1,59 @@
 path: benchmark
 simdata: ???
-radius: 6.0
-tau: 0.16
-order: 2
 min_corr: ???
 min_pnr: ???
 num_refit: 5
 
-use_cluster: false
+diameter: 12.0
+tau: 0.16
+order: 2
+merge_thresh: 0.7
+
+cluster:
+  backend: multiprocessing
+  n_processes: null
 
 params:
-  method_init: 'corr_pnr'  # 'greedy_roi'
-  gnb: 0                   # 1 - 2
-  center_psf: true         # false
-  min_corr: ${min_corr}
-  min_pnr: ${min_pnr}
-  gSig:
-    - ${radius}
-    - ${radius}
-  decay_time: ${tau}
-  p: ${order}
-  #ring_size_factor: 1.5
-  #merge_thresh: 0.8
-  rf: 25
-  stride: 10
-  k: 50
-  only_init_patch: true
-  params_dict:
-    quality:
-      SNF_lowerst: 0.0
-      min_SNR: 0.0
-      rval_lower: -1.0
-      rval_thr: -1.0
-      use_cnn: false
+  init:
+    method_init: 'corr_pnr'
+    normalize_init: false
+    center_psf: true
+    nb: 0
+    gSig:
+      - ${diameter}
+      - ${diameter}
+    gSiz: null
+    min_corr: ${min_corr}
+    min_pnr: ${min_pnr}
+    K: null
+    ring_size_factor: 1.4
+    tsub: 1
+    ssub: 1
+    ssub_B: 2
+  data:
+    decay_time: ${tau}
+  preprocess:
+    p: ${order}
+  temporal:
+    method_deconvolution: oasis
+    p: ${order}
+  spatial:
+    update_background_components: true
+  merging:
+    merge_thr: ${merge_thresh}
+  patch:
+    low_rank_background: null
+    only_init: true
+    del_duplicates: true
+    nb_patch: 0
+    rf: 50
+    stride: 25
+  quality:
+    use_cnn: false
+    SNR_lowest: 0.0
+    min_SNR: 0.0
+    rval_lowest: -1.0
+    rval_thr: -1.0
 
 detrend:
   quantileMin: 8
@@ -49,6 +70,12 @@ hydra:
   output_subdir: .${now:%Y%m%dT%H%M%S}
   job:
     chdir: true
+    config:
+      override_dirname:
+        exclude_keys:
+          - simdata
+          - cluster.backend
+          - cluster.n_processes
   job_logging:
     handlers:
       file:
@@ -57,7 +84,7 @@ hydra:
       console:
         level: WARN
     loggers:
-      scipy:
+      py.warnings:
         handlers:
           - file
         propagate: false

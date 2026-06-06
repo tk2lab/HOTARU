@@ -7,7 +7,6 @@ from tqdm import trange
 
 from ..random import Generator
 from ..typing import Array
-from .footprint import Footprints
 
 
 def sim_footprints(
@@ -19,7 +18,7 @@ def sim_footprints(
     noise: float,
     thr_overwrap: float,
     rng: Generator,
-) -> Footprints:
+) -> Array:
     num = len(mean0)
     fps = np.zeros((num, height, width), 'float32')
     pos_mask = np.ones((height, width), 'bool')
@@ -45,7 +44,7 @@ def sim_footprints(
                 break
         fps[i, *slices] = fpi
         pos_mask &= fps[i] <= thr_overwrap
-    return Footprints(fps)
+    return fps
 
 
 def sim_single_footprint(
@@ -76,7 +75,7 @@ def sim_neuropil_basis(
     width: int,
     scale: float,
     nk: int,
-) -> Footprints:
+) -> Array:
     kx = np.ones((width, nk), dtype='float32')
     xs = np.arange(width, dtype='float32') + 0.5
     for k in range((nk - 1) // 2):
@@ -90,5 +89,4 @@ def sim_neuropil_basis(
         ky[:, 2 * k + 2] = np.cos(2 * pi * ys * (1 + k) / scale)
 
     s_basis = np.einsum('yk,xl->klyx', ky, kx).reshape(nk * nk, height, width)[1:]
-    #s_basis /= np.sqrt(np.square(s_basis).sum(axis=(-1, -2), keepdims=True))
-    return Footprints(s_basis)
+    return s_basis

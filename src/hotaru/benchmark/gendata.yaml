@@ -9,10 +9,12 @@ shape:
 
 cell:
   num: 1000
-  intensity_s: 1.0
   radius_m: 6.0
   radius_s: 0.06
   overwrap: 0.2
+  intensity_m: 1.0
+  intensity_b: 0.5
+  intensity_s: 0.1
   isi_mm: 1.0
   isi_ms: 0.1
   isi_sm: 2.0
@@ -24,13 +26,13 @@ cell:
 
 dendrite:
   num: 2000
-  radius_m1: 2.0
-  radius_m2: 8.0
+  radius_m1: 5.0
+  radius_m2: 16.0
   radius_s: 0.2
-  tau: 1.0
+  tau: 0.6
   noise: 0.25
-  beta: 1.0
-  num_mix: 5
+  beta: 0.1
+  num_mix: 10
 
 neuropil:
   scale: 400
@@ -38,10 +40,11 @@ neuropil:
   tau: 1.0
 
 output:
-  w_dendrite: 1.0
-  w_neuropil: 0.1
-  base: 1.0
-  noise: 0.2
+  w_dendrite: 0.5
+  w_neuropil: 0.5
+  poisson_base: 1.0
+  poisson_intensity: 0.1
+  gauss_intensity: 1.0 
 
 hydra:
   run:

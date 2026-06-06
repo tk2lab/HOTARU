@@ -4,18 +4,17 @@ import hydra
 from hydra.utils import get_original_cwd
 
 from ..random import Generator
-from ..simulation import make_cell
-from ..simulation import make_dendrite
-from ..simulation import make_link
-from ..simulation import make_neuropil
-from ..simulation import make_sim
+from ..saving import make_link
+from .simulation import make_cell
+from .simulation import make_dendrite
+from .simulation import make_neuropil
+from .simulation import make_sim
 
 
-@hydra.main(version_base=None, config_path='.', config_name='simdata')
+@hydra.main(version_base=None, config_path='.', config_name='gendata')
 def main(cfg):
     cwd = Path().absolute()
     path = (Path(get_original_cwd()) / cfg.path).relative_to(cwd, walk_up=True)
-    print(cwd, path)
     rng = Generator(cfg.seed)
 
     cell_path = make_cell(

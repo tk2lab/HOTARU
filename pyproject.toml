@@ -28,6 +28,7 @@ dependencies = [
     "h5py>=3.16",
     # output
     "polars",
+    "holoviews[recommended]",
     "hvplot",
     "seaborn",
     "av",

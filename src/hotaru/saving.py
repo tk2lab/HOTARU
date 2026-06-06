@@ -1,15 +1,11 @@
-from contextlib import nullcontext
-from dataclasses import dataclass
-from dataclasses import fields
+import base64
+import hashlib
+import inspect
+import json
 from functools import wraps
-from importlib import import_module
 from os import PathLike as OriginalPathLike
 from typing import Self
-from typing import cast
-from typing import dataclass_transform
 
-from h5py import File
-from h5py import Group
 from keras import saving
 
 Config = dict
@@ -44,26 +40,51 @@ class Serializable:
         return saving.serialize_keras_object(self)
 
 
-def cacheable(func):
-    @wraps(func)
-    def wrap(
-        *args,
-        cache_path: PathLike | None = None,
-        force: bool = False,
-        **kwargs,
-    ):
-        try:
-            if force or (cache_path is None):
-                raise Exception()
-            cache = saving.load_weights(cache_path)
-            out = func(*args, cache=cache, **kwargs)
-        except Exception:
-            out = None
+def auto_save_config(version=0.1, exclude=()):
+    def decolator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            sig = inspect.signature(func)
+            bound_args = sig.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+            config = dict(bound_args.arguments)
+            kwargs = config.pop('kwargs')
+            config = {**config, **kwargs}
 
-        if out is None:
-            out = func(*args, **kwargs)
-            if cache_path is not None:
-                saving.save_weights(out, cache_path)
-        return out
+            path = config.pop('path')
+            force = config.pop('force', False)
+            extra = {key: config.pop(key) for key in exclude}
 
-    return wrap
+            config_str = json.dumps(to_str({**config, 'version': version}), sort_keys=True)
+            config_bytes = hashlib.sha256(config_str.encode('utf-8')).digest()
+            config_hash = base64.urlsafe_b64encode(config_bytes[:6]).decode('utf-8').rstrip('=')
+            path = path / config_hash
+
+            config_path = path / 'config.json'
+            if force or not config_path.exists():
+                path.mkdir(exist_ok=True, parents=True)
+                func(path, **config, **extra)
+                config_path.write_text(config_str)
+
+            return path
+
+        return wrapper
+
+    return decolator
+
+
+def to_str(x):
+    match x:
+        case dict():
+            return {k: to_str(v) for k, v in x.items()}
+        case list() | tuple():
+            return [to_str(v) for v in x]
+        case _:
+            return str(x)
+
+
+def make_link(dst_path, dst, target):
+    target = target.absolute().relative_to(dst_path.absolute(), walk_up=True)
+    dst_path = dst_path / dst
+    dst_path.unlink(missing_ok=True)
+    dst_path.symlink_to(target, target_is_directory=True)

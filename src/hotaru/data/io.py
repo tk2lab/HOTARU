@@ -5,6 +5,7 @@ import av
 import numpy as np
 import tifffile
 import zarr
+from matplotlib.pyplot import get_cmap
 from tqdm import tqdm
 
 from ..saving import PathLike
@@ -104,3 +105,18 @@ def to_movie(
             frame = av.VideoFrame.from_ndarray(img, format='rgba')
             packet = stream.encode(frame)
             output.mux(packet)
+
+
+def make_movie(imgs, hz, path, vmin=None, vmax=None, cmap='Greens'):
+    if vmin is None:
+        vmin = imgs.min()
+    if vmax is None:
+        vmax = imgs.max()
+    cmap = get_cmap(cmap)
+
+    def img_iter():
+        for o in imgs:
+            v = (o - vmin) / (vmax - vmin)
+            yield (255 * cmap(v)).astype('uint8')
+
+    to_movie(path / 'imgs.mp4', img_iter(), imgs.shape, hz)

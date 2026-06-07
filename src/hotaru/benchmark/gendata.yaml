@@ -2,32 +2,32 @@ path: benchmark
 seed: ???
 
 shape:
-  num_frames: 1200
+  num_frames: 6000
   height: 300
   width: 400
   hz: 20.0
 
 cell:
-  num: 1000
-  radius_m: 6.0
-  radius_s: 0.06
-  overwrap: 0.2
-  intensity_m: 1.0
-  intensity_b: 0.5
+  num: 500
+  radius_m: 10.0
+  radius_s: 0.05
+  overwrap: 0.4
+  intensity_mm: 1.0
+  intensity_mb: 0.5
   intensity_s: 0.1
-  isi_mm: 1.0
-  isi_ms: 0.1
-  isi_sm: 2.0
+  isi_mm: 2.0
+  isi_ms: 0.2
+  isi_sm: 1.0
   isi_ss: 0.1
   tau1: 0.08
   tau2: 0.16
   upsample_factor: 10
-  noise: 0.05
+  noise: 0.1
 
 dendrite:
   num: 2000
-  radius_m1: 5.0
-  radius_m2: 16.0
+  radius_m1: 10.0
+  radius_m2: 40.0
   radius_s: 0.2
   tau: 0.6
   noise: 0.25

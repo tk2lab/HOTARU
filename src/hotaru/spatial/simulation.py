@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from math import pi
 
 import numpy as np
-from scipy.ndimage import binary_closing
+from scipy.signal import convolve2d
 from tqdm import trange
 
 from ..random import Generator
@@ -21,29 +21,38 @@ def sim_footprints(
 ) -> Array:
     num = len(mean0)
     fps = np.zeros((num, height, width), 'float32')
-    pos_mask = np.ones((height, width), 'bool')
-    accept_mask = np.zeros((height, width), 'bool')
-    for i in trange(num, ncols=150, desc='make footprints'):
-        if np.count_nonzero(pos_mask) == 0:
-            raise ValueError()
+    check_overwrap = thr_overwrap < 1.0
+    if check_overwrap:
+        accept = np.zeros((height, width), 'float32')
+    else:
+        mask = np.ones((height, width), 'bool')
+    for i in (pbar := trange(num, ncols=150, desc='make footprints')):
+        count_ng = 0
         while True:
             fpi = sim_single_footprint(mean0[i], mean1[i], cv2[i], noise, rng)
-            fpi_mask = binary_closing(fpi <= thr_overwrap)
             hi, wi = fpi.shape
-            yl, xl = np.nonzero(pos_mask)
-
-            valid_indices = np.nonzero((yl + hi < height) & (xl + wi < width))[0]
-            if len(valid_indices) == 0:
-                continue
-            j_idx = int(rng.randint(minval=0, maxval=len(valid_indices)))
-            j = valid_indices[j_idx]
-            yi, xi = yl[j], xl[j]
-
-            slices = slice(yi, yi + hi), slice(xi, xi + wi)
-            if not np.any(fpi_mask & accept_mask[slices]):
+            if check_overwrap:
+                normalized_fpi = fpi / np.linalg.norm(fpi)
+                candidate = convolve2d(accept, normalized_fpi, 'valid') < thr_overwrap
+                n_cand = np.count_nonzero(candidate)
+                pbar.set_postfix(cand=n_cand)
+                if n_cand > 0:
+                    break
+                count_ng += 1
+                if count_ng == 10:
+                    raise ValueError()
+            else:
+                candidate = mask[:-hi, :-wi]
                 break
+
+        yl, xl = np.nonzero(candidate)
+        j = int(rng.randint(minval=0, maxval=yl.size))
+        yi, xi = int(yl[j]), int(xl[j])
+        slices = slice(yi, yi + hi), slice(xi, xi + wi)
         fps[i, *slices] = fpi
-        pos_mask &= fps[i] <= thr_overwrap
+        if check_overwrap:
+            accept[*slices] += normalized_fpi
+
     return fps
 
 
@@ -54,8 +63,8 @@ def sim_single_footprint(
     noise: float,
     rng: Generator,
 ) -> Array:
-    a = float(rng.invgauss(mean0, cv2))
-    b = float(rng.invgauss(mean1, cv2))
+    a = float(rng.gamma(mean0, cv2))
+    b = float(rng.gamma(mean1, cv2))
     c = float(rng.uniform(0, pi))
     sin, cos = np.sin(c), np.cos(c)
 

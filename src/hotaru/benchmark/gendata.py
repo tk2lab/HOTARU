@@ -23,6 +23,8 @@ def main(cfg):
         **cfg.cell,
         seed=rng.gen_seed(),
     )
+    make_link(cwd, 'cell', cell_path)
+
     dend_path = make_dendrite(
         path / 'dend',
         cell_path,
@@ -30,12 +32,16 @@ def main(cfg):
         **cfg.dendrite,
         seed=rng.gen_seed(),
     )
+    make_link(cwd, 'dend', dend_path)
+
     npil_path = make_neuropil(
         path / 'npil',
         **cfg.shape,
         **cfg.neuropil,
         seed=rng.gen_seed(),
     )
+    make_link(cwd, 'npil', npil_path)
+
     imgs_path = make_sim(
         path / 'imgs',
         cell_path,
@@ -45,10 +51,6 @@ def main(cfg):
         **cfg.output,
         seed=rng.gen_seed(),
     )
-
-    make_link(cwd, 'cell', cell_path)
-    make_link(cwd, 'dend', dend_path)
-    make_link(cwd, 'npil', npil_path)
     make_link(cwd, 'imgs', imgs_path)
 
 

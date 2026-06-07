@@ -48,7 +48,7 @@ def auto_save_config(version=0.1, exclude=()):
             bound_args = sig.bind(*args, **kwargs)
             bound_args.apply_defaults()
             config = dict(bound_args.arguments)
-            kwargs = config.pop('kwargs')
+            kwargs = config.pop('kwargs', {})
             config = {**config, **kwargs}
 
             path = config.pop('path')

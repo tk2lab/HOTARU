@@ -1,6 +1,8 @@
-from math import ceil
+from logging import getLogger
+from math import nan
 
 import numpy as np
+import polars as pl
 from keras import ops
 from keras.saving import load_model
 from keras.saving import save_model
@@ -17,10 +19,12 @@ from ..temporal import ExpKernel
 from ..temporal import Traces
 from ..temporal.simulation import sim_dendrites
 from ..temporal.simulation import sim_neuropil_traces
-from ..temporal.simulation import sim_traces
+from ..temporal.simulation import sim_spikes
+
+logger = getLogger(__name__)
 
 
-@auto_save_config(0.6)
+@auto_save_config(0.7)
 def make_cell(
     path,
     num_frames,
@@ -32,8 +36,8 @@ def make_cell(
     radius_s,
     overwrap,
     noise,
-    intensity_m,
-    intensity_b,
+    intensity_mm,
+    intensity_mb,
     intensity_s,
     isi_mm,
     isi_ms,
@@ -46,27 +50,33 @@ def make_cell(
 ):
     rng = Generator(seed)
 
-    trs = sim_traces(
-        ceil(num_frames * upsample_factor),
-        DoubleExpKernel(tau1, tau2, hz=hz, scale='max'),
-        upsample_factor,
-        [intensity_m] * num,
-        [intensity_b] * num,
-        [intensity_s] * num,
-        [isi_mm] * num,
-        [isi_ms] * num,
-        [isi_sm] * num,
-        [isi_ss] * num,
-        rng,
+    kernel = DoubleExpKernel(tau1, tau2, hz=hz, scale='max')
+    spks = sim_spikes(
+        num_frames * upsample_factor + kernel.pad_size(upsample_factor),
+        num,
+        num_frames,
+        intensity_mm,
+        intensity_mb,
+        intensity_s,
+        isi_mm * hz * upsample_factor,
+        isi_ms,
+        isi_sm,
+        isi_ss,
+        rng=rng,
     )
-    save_model(trs := Traces(trs), path / 'trs.keras')
+    trs = kernel(spks, upsample_factor=upsample_factor)[:, ::upsample_factor]
+    save_model(trs_model := Traces(trs), path / 'trs.keras')
 
     r_cell = [radius_m] * num
     s_cell = [radius_s] * num
     fps = sim_footprints(height, width, r_cell, r_cell, s_cell, noise, overwrap, rng)
-    save_model(fps := Footprints(fps), path / 'fps.keras')
+    save_model(fps_model := Footprints(fps), path / 'fps.keras')
 
-    imgs = make_imgs(fps, trs, path)
+    stats = make_stats(spks, trs, fps)
+    stats.write_csv(path / 'stats.csv')
+    logger.info('ground truth stats: %s', stats.describe())
+
+    imgs = make_imgs(fps_model, trs_model, path)
     make_movie(imgs, hz, path)
 
     return path
@@ -91,6 +101,7 @@ def make_dendrite(
     seed,
 ):
     _ = num_frames
+    _ = hz
     rng = Generator(seed)
 
     cell_fps = load_model(cell_path / 'fps.keras')
@@ -116,8 +127,8 @@ def make_dendrite(
     )
     save_model(trs := Traces(trs), path / 'trs.keras')
 
-    imgs = make_imgs(fps, trs, path)
-    make_movie(imgs, hz, path)
+    _imgs = make_imgs(fps, trs, path)
+    # make_movie(imgs, hz, path)
 
 
 @auto_save_config(0.3)
@@ -130,10 +141,9 @@ def make_neuropil(path, num_frames, height, width, hz, scale, n_basis, tau, seed
     trs = sim_neuropil_traces(fps.shape[0], num_frames, tau, rng, hz=hz)
     save_model(trs := Traces(trs), path / 'neuropil_t.keras')
 
-    imgs = make_imgs(fps, trs, path)
-
-    vmax = np.max(np.abs(imgs))
-    make_movie(imgs, hz, path, -vmax, vmax, 'bwr')
+    _imgs = make_imgs(fps, trs, path)
+    # vmax = np.max(np.abs(imgs))
+    # make_movie(imgs, hz, path, -vmax, vmax, 'bwr')
 
 
 @auto_save_config(0.3)
@@ -172,12 +182,50 @@ def make_sim(
     make_movie(imgs, hz, path)
 
 
-def make_imgs(fps, trs, path, scale=1.0):
+def make_imgs(fps, trs, path, scale=1.0, batch_size=200):
     fps_val = fps.segs.numpy()
     trs_val = trs.obs.numpy()
-    _nk, h, w = fps_val.shape
+    nk, h, w = fps_val.shape
     _nk, nt = trs_val.shape
+
+    fps_flat = fps_val.reshape(nk, h * w)
     out = np.lib.format.open_memmap(path / 'imgs.npy', 'w+', 'float32', (nt, h, w))
-    for t in trange(nt, ncols=150, desc='mix fps and trs'):
-        out[t] = np.einsum('kyx,k->yx', fps_val, scale * trs_val[:, t])
+    for s in trange(0, nt, batch_size, ncols=150, desc='mix fps and trs'):
+        e = min(s + batch_size, nt)
+        out[s:e] = scale * np.reshape(trs_val[:, s:e].T @ fps_flat, (e - s, h, w))
     return out
+
+
+def make_stats(spks, trs, fps):
+    spks = ops.convert_to_numpy(spks)
+    trs = ops.convert_to_numpy(trs)
+    nk, nt = spks.shape
+    fps = np.reshape(fps, (nk, -1))
+
+    events = spks > 0
+    idx_matrix = np.arange(nt, dtype='int32')
+    masked_indices = np.where(events, idx_matrix, nt)
+    sorted_indices = np.sort(masked_indices, axis=1)
+    valid_isi_mask = (sorted_indices[:, 1:] < nt) & (sorted_indices[:, :-1] < nt)
+    isi_darty = np.diff(sorted_indices, axis=1)
+    isi = np.where(valid_isi_mask, isi_darty, nan)
+
+    num_spk = np.sum(events, axis=1)
+    intensity = np.sum(spks, axis=1) / num_spk
+    cv_isi = np.nanstd(isi, axis=1) / np.nanmean(isi)
+
+    px = np.sum(np.square(fps), axis=1)
+    py = np.sum(np.square(trs), axis=1)
+    power = px * py
+    sx = fps / np.sqrt(px[:, None])
+    overwrap = np.sum((sx @ sx.T) * power, axis=1) / power - 1
+
+    stats = {
+        'power': power,
+        'area': fps.sum(axis=1),
+        'intensity': intensity,
+        'num_spk': num_spk,
+        'cv_isi': cv_isi,
+        'overwrap': overwrap,
+    }
+    return pl.DataFrame(stats)

@@ -17,6 +17,9 @@ def evaluate(fps, trs, fps_true, trs_true, stats_true=None):
 
     fps_cor = fps_z @ fpt_z.T / nx
     trs_cor = trs_z @ trt_z.T / nt
+    c = (fps_cor < 0) & (trs_cor < 0)
+    fps_cor[c] *= -1
+    trs_cor[c] *= -1
     cor = fps_cor * trs_cor
     i, j = greedy_matching(cor)
 

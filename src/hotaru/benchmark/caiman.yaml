@@ -2,9 +2,9 @@ path: benchmark
 simdata: ???
 min_corr: ???
 min_pnr: ???
-num_refit: 5
+num_refit: 1
 
-diameter: 12.0
+radius: 5.0
 tau: 0.16
 order: 2
 merge_thresh: 0.7
@@ -20,8 +20,8 @@ params:
     center_psf: true
     nb: 0
     gSig:
-      - ${diameter}
-      - ${diameter}
+      - ${radius}
+      - ${radius}
     gSiz: null
     min_corr: ${min_corr}
     min_pnr: ${min_pnr}
@@ -65,7 +65,7 @@ hydra:
   run:
     dir: ${path}/${simdata}/caiman/${hydra.job.override_dirname}
   sweep:
-    dir: ${path}/imgs/${simdata}
+    dir: ${path}/${simdata}/caiman
     subdir: ${hydra.job.override_dirname}
   output_subdir: .${now:%Y%m%dT%H%M%S}
   job:

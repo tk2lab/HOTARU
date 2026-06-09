@@ -10,7 +10,7 @@ logger = getLogger(__name__)
 
 
 class CalciumImagingDataset(PyDataset):
-    def __init__(self, imgs: Array, batch_size: int = -1, **kwargs):
+    def __init__(self, imgs: Array, batch_size: int = -1, margin: int = 0, **kwargs):
         super().__init__(**kwargs)
         nt = imgs.shape[0]
         if batch_size == -1:
@@ -18,6 +18,8 @@ class CalciumImagingDataset(PyDataset):
         self.ts = ops.arange(nt, dtype='int32')
         self.imgs = imgs
         self.batch_size = batch_size
+        self.margin = margin
+        self.batch_with_margin = batch_size + 2 * margin
 
     def on_epoch_end(self):
         pass
@@ -26,11 +28,11 @@ class CalciumImagingDataset(PyDataset):
         return (self.ts.size + self.batch_size - 1) // self.batch_size
 
     def __getitem__(self, index: int) -> tuple[Tensor, Tensor]:
-        s = self.batch_size * index
-        e = s + self.batch_size
+        s = max(0, self.batch_size * index - self.margin)
+        e = s + self.batch_with_margin
         ts, imgs = self.ts[s:e], self.imgs[s:e]
 
-        diff = self.batch_size - ts.size
+        diff = self.batch_with_margin - ts.size
         ts = ops.pad(ts, ((0, diff),), constant_values=-1)
         imgs = ops.pad(imgs, ((0, diff), (0, 0), (0, 0)))
 

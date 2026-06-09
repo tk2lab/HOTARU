@@ -14,30 +14,35 @@ from ..models import Model
 from ..ops import laplace_2d
 from ..ops import laplacian_of_gaussian_kernel
 from ..typing import Array
-from .peaklist import PeakList
 from .segment import get_segment_mask
 
 logger = getLogger(__name__)
 
 
 class FootprintClipper(Model):
-    def __init__(self, data: ImagingData, peaks: PeakList, out_segs: Variable, **kwargs):
+    def __init__(self, data: ImagingData, out_segs: Variable, **kwargs):
         super().__init__(**kwargs)
         self.data = data
-        self.peaks = peaks
         self.segs = out_segs
         self._build_at_init()
 
-    def fit_multi(self, batch_size: int, **kwargs) -> list[History]:
+    def fit_multi(
+        self,
+        tlist: Array,
+        rlist: Array,
+        ylist: Array,
+        xlist: Array,
+        batch_size: int,
+        kind: str = 'segs',
+        **kwargs,
+    ) -> list[History]:
+        dataset_args = self.data.imgs, tlist, rlist, ylist, xlist, batch_size
         dataset_kwargs = kwargs.pop('dataset_kwargs', {})
-        dataset_kwargs['imgs'] = self.data.imgs
-        dataset_kwargs['peaks'] = self.peaks
-        dataset_kwargs['batch_size'] = batch_size
         history = []
-        for radius in np.unique(self.peaks.rlist):
-            desc = f'clip segs (r={radius:.3f})'
+        for radius in np.unique(rlist):
+            desc = f'clip ({kind}; r={radius:.3f})'
             cumsum = {'active': 0}
-            dataset = FrameWithPeakDataset(radius=radius, **dataset_kwargs)
+            dataset = FrameWithPeakDataset(*dataset_args, radius=radius, **dataset_kwargs)
             history.append(super().fit(dataset, **kwargs, desc=desc, cumsum=cumsum))
         return history
 
@@ -59,16 +64,26 @@ class FootprintClipper(Model):
 
 
 class FrameWithPeakDataset(PyDataset):
-    def __init__(self, imgs: Array, peaks: PeakList, radius: float, batch_size: int, **kwargs):
+    def __init__(
+        self,
+        imgs: Array,
+        tlist: Array,
+        rlist: Array,
+        ylist: Array,
+        xlist: Array,
+        batch_size: int,
+        radius: float,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         nd = max(32, 2 ** ceil(log2(4 * radius)))
-        (peak_id,) = np.nonzero(peaks.rlist == radius)
+        (peak_id,) = np.nonzero(rlist == radius)
         self.kernel0, self.kernel2 = laplacian_of_gaussian_kernel(radius, nd=nd)
         self.imgs = imgs
         self.peak_id = peak_id
-        self.ts = peaks.tlist[peak_id]
-        self.ys = peaks.ylist[peak_id]
-        self.xs = peaks.xlist[peak_id]
+        self.ts = tlist[peak_id]
+        self.ys = ylist[peak_id]
+        self.xs = xlist[peak_id]
         self.batch_size = batch_size
 
     def on_epoch_end(self):

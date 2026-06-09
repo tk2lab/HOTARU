@@ -1,0 +1,108 @@
+path: benchmark
+simdata: ???
+num_trial: 1
+
+dist: ???
+
+stats:
+  batch_size: 100
+
+peakmap:
+  cell:
+    radius:
+      kind: logscale
+      min: 2.0
+      max: 16.0
+      num: 16
+    pool_hsize: 2
+    fit:
+      batch_size: 100
+  #localbg:
+  #  radius:
+  #    kind: logscale
+  #    min: 4.0
+  #    max: 32.0
+  #    num: 7 
+  #  calc_args:
+  #    batch_size: 100
+
+peaklist:
+  cell:
+    min_distance_ratio: ${dist}
+    fit:
+      block_size: 100
+  #localbg:
+  #  min_distance_ratio: ${dist}
+  #  calc_args:
+  #    block_size: 100
+
+clip:
+  cell:
+    rmin: 3.0
+    rmax: 9.0
+    batch_size: 100
+  #localbg: 
+  #  batch_size: 100
+
+temporal:
+  cell:
+    kernel:
+      _target_: hotaru.temporal.DoubleExpKernel
+      tau1: 0.16
+      tau2: 0.08
+    regularizer:
+      _target_: hotaru.regularizers.SparseShapeRegularizer
+      fac: 0.1
+      nonneg: true
+  #localbg:
+  #  kernel:
+  #    _target_: hotaru.temporal.ExpKernel
+  #    tau: 0.6
+  #  regularizer:
+  #    _target_: hotaru.regularizers.L2Regularizer
+  #    fac: 0.1
+  #    nonneg: false
+  background:
+    kernel: null
+    regularizer:
+      _target_: hotaru.regularizers.L2Regularizer
+      fac: 0.1
+      nonneg: false
+
+spatial:
+  cell:
+    kernel:
+      _target_: hotaru.temporal.DoubleExpKernel
+      tau1: 0.16
+      tau2: 0.08
+  localbg:
+    kernel:
+      _target_: hotaru.temporal.ExpKernel
+      tau: 0.6
+
+
+hydra:
+  sweep:
+    dir: ${path}/${simdata}/hotaru
+    subdir: ${hydra.job.override_dirname}
+  run:
+    dir: ${hydra.sweep.dir}/${hydra.sweep.subdir}
+  output_subdir: .${now:%Y%m%dT%H%M%S}
+  job:
+    chdir: true
+    config:
+      override_dirname:
+        exclude_keys:
+          - simdata
+  job_logging:
+    handlers:
+      file:
+        filename: ${hydra.runtime.output_dir}/${hydra.output_subdir}.log
+        level: DEBUG
+      console:
+        level: INFO
+    loggers:
+      jax:
+        handlers:
+          - file
+        propagate: false

@@ -1,33 +1,28 @@
 from logging import getLogger
 from math import ceil
-from math import nan
 
 import numpy as np
 from tqdm import tqdm
 
-# from ..typing import Array
+from ..typing import Array
 from .radius import Radius
-
-Array = np.typing.NDArray
 
 logger = getLogger(__name__)
 
 
 def calc_peaklist(
     radius: Radius,
-    rimap: Array,
     tmap: Array,
+    rimap: Array,
     gmap: Array,
     min_distance_ratio: float,
     block_size: int,
+    desc: str = 'reduce',
 ):
-    #active = (rimap >= 1) & (rimap <= radius.size - 2)
-    #rmap = np.where(active, radius[rimap], nan)
-    #gmap = np.where(active, gmap, nan)
     rmap = radius[rimap]
 
-    h, w = rmap.shape
-    margin = ceil(min_distance_ratio * np.nanmax(rmap))
+    h, w = gmap.shape
+    margin = ceil(min_distance_ratio * radius[-1])
 
     args_list = []
     for x0 in range(0, w - margin, block_size):
@@ -36,7 +31,7 @@ def calc_peaklist(
             args_list.append((r, g, block_args, min_distance_ratio))
 
     out = []
-    for args in tqdm(args_list, total=len(args_list), desc='reduce', ncols=150):
+    for args in tqdm(args_list, total=len(args_list), desc=desc, ncols=150):
         out.append(reduce_peaks_mesh(*args))
     ylist, xlist = [np.concatenate(v, axis=0) for v in zip(*out, strict=False)]
     tlist = tmap[ylist, xlist]
@@ -49,17 +44,22 @@ def calc_peaklist(
 
 
 def make_block(y0, x0, rsmap, gsmap, block_size, margin):
-    h, w = rsmap.shape
+    h, w = gsmap.shape
     y1, x1 = y0 + block_size, x0 + block_size
     ym, xm = max(y0 - margin, 0), max(x0 - margin, 0)
     yp, xp = min(y1 + margin, h), min(x1 + margin, w)
     block_args = ym, xm, y0, x0, y1, x1
-    rmap = rsmap[ym:yp, xm:xp]
     gmap = gsmap[ym:yp, xm:xp]
+    rmap = rsmap[ym:yp, xm:xp]
     return rmap, gmap, block_args
 
 
-def reduce_peaks_mesh(rmap, gmap, block_args, min_distance_ratio) -> tuple[Array, Array]:
+def reduce_peaks_mesh(
+    rmap: Array,
+    gmap: Array,
+    block_args,
+    min_distance_ratio: float,
+) -> tuple[Array, Array]:
     ylist, xlist = reduce_peaks(rmap, gmap, min_distance_ratio)
     ym, xm, y0, x0, y1, x1 = block_args
     ylist += ym
@@ -68,18 +68,24 @@ def reduce_peaks_mesh(rmap, gmap, block_args, min_distance_ratio) -> tuple[Array
     return ylist[is_in_block], xlist[is_in_block]
 
 
-def reduce_peaks(rmap: Array, gmap: Array, min_distance_ratio: float) -> tuple[Array, Array]:
-    h, w = rmap.shape
+def reduce_peaks(
+    rmap: Array,
+    gmap: Array,
+    min_distance_ratio: float,
+) -> tuple[Array, Array]:
+    h, w = gmap.shape
     ymap, xmap = np.mgrid[:h, :w]
 
     ys, xs, rs, gs = (np.ravel(a) for a in (ymap, xmap, rmap, gmap))
-    n = np.count_nonzero(np.isfinite(gmap))
-    ids = np.flip(np.argsort(np.nan_to_num(gs, nan=0)))[:n]
+    gs = np.nan_to_num(gs)
+    n = np.count_nonzero(gs > 0)
+    ids = np.flip(np.argsort(gs))[:n]
 
     active_list = []
     while ids.size > 0:
         i, ids = ids[0], ids[1:]
-        y0, x0, r0 = ys[i], xs[i], rs[i]
+        r0 = rs[i]
+        y0, x0 = ys[i], xs[i]
         yc, xc = ys[active_list], xs[active_list]
         dist1 = np.hypot(xc - x0, yc - y0) / r0
         if np.all(dist1 >= min_distance_ratio):

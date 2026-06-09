@@ -1,9 +1,9 @@
 from typing import Self
 
 import numpy as np
+from omegaconf import DictConfig
 
-Config = dict
-#from ..saving import Config
+from ..saving import Config
 
 
 class Radius(np.ndarray):
@@ -12,7 +12,9 @@ class Radius(np.ndarray):
         match x:
             case cls() as radius:
                 return radius
-            case Config() as config:
+            case list() as array:
+                return cls(val=array)
+            case dict() | DictConfig() as config:
                 return cls(**config)
             case _:
                 raise ValueError()
@@ -22,6 +24,8 @@ class Radius(np.ndarray):
 
     def __new__(cls, **kwargs):
         match kwargs:
+            case {'val': array}:
+                pass
             case {'kind': 'logscale', 'min': min, 'max': max, 'num': num}:
                 array = np.geomspace(min, max, num, dtype='float32')
             case {'kind': 'linear', 'min': min, 'max': max, 'num': num}:

@@ -19,26 +19,48 @@ logger = getLogger(__name__)
 
 
 class Footprints(Layer):
-    def __init__(self, segs_or_shape, **kwargs):
+    def __init__(self, shape, **kwargs):
         super().__init__(**kwargs)
-        match segs_or_shape:
-            case np.ndarray() as segs:
-                self.segs = self.add_weight(segs.shape, initializer=segs, name='segs')
-            case shape:
-                self.segs = self.add_weight(shape, name='segs')
+        self.segs = self.add_weight(shape, name='segs')
         self._build_at_init()
 
     def get_config(self) -> Config:
-        return {'segs_or_shape': self.segs.shape, **super().get_config()}
+        return {'shape': self.segs.shape, **super().get_config()}
 
     @classmethod
-    def from_peaklist(cls, data: ImagingData, peaklist: PeakList, **kwargs):
+    def from_array(cls, segs, **kwargs):
+        obj = Footprints(segs.shape, **kwargs)
+        obj.segs.assign(segs)
+        return obj
+
+    @classmethod
+    def from_peaklist(
+        cls,
+        data: ImagingData,
+        peaklist: PeakList,
+        rmin: float | None = None,
+        rmax: float | None = None,
+        **kwargs,
+    ):
+        rlist = peaklist.rlist.numpy()
+        select = np.ones(peaklist.size, 'bool')
+        if rmin is not None:
+            select &= (rlist > rmin)
+        if rmax is not None:
+            select &= (rlist < rmax)
+        rlist = rlist[select]
+        tlist = peaklist.tlist.numpy()[select]
+        ylist = peaklist.ylist.numpy()[select]
+        xlist = peaklist.xlist.numpy()[select]
+
+        num = rlist.size
         _, h, w = data.shape
-        num = peaklist.size
-        obj = Footprints((num, h, w))
-        clipper = FootprintClipper(data, peaklist, obj.segs)
+        logger.info('num: %s', num)
+
+        obj = Footprints((num, h, w), **kwargs.pop('layer_kwargs', {}))
+        clipper = FootprintClipper(data, obj.segs)
         clipper.compile(**kwargs.pop('compile_kwargs', {}))
-        clipper.fit_multi(**kwargs)
+        clipper.fit_multi(tlist, rlist, ylist, xlist, **kwargs)
         return obj
 
     def save_own_weights(self, store) -> None:

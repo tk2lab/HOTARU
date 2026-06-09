@@ -24,7 +24,7 @@ from ..temporal.simulation import sim_spikes
 logger = getLogger(__name__)
 
 
-@auto_save_config(0.7)
+@auto_save_config(0.8)
 def make_cell(
     path,
     num_frames,
@@ -70,7 +70,7 @@ def make_cell(
     r_cell = [radius_m] * num
     s_cell = [radius_s] * num
     fps = sim_footprints(height, width, r_cell, r_cell, s_cell, noise, overwrap, rng)
-    save_model(fps_model := Footprints(fps), path / 'fps.keras')
+    save_model(fps_model := Footprints.from_array(fps), path / 'fps.keras')
 
     stats = make_stats(spks, trs, fps)
     stats.write_csv(path / 'stats.csv')
@@ -112,7 +112,7 @@ def make_dendrite(
     r2_dend_n = [radius_m2] * num
     s_dend_n = [radius_s] * num
     fps = sim_footprints(height, width, r1_dend_n, r2_dend_n, s_dend_n, noise, 2.0, rng)
-    save_model(fps := Footprints(fps), path / 'fps.keras')
+    save_model(fps := Footprints.from_array(fps), path / 'fps.keras')
 
     yc, xc = cell_fps.peaks.T
     yd, xd = fps.peaks.T[:, :, None]
@@ -136,7 +136,7 @@ def make_neuropil(path, num_frames, height, width, hz, scale, n_basis, tau, seed
     rng = Generator(seed)
 
     fps = sim_neuropil_basis(height, width, scale, n_basis)
-    save_model(fps := Footprints(fps), path / 'neuropil_x.keras')
+    save_model(fps := Footprints.from_array(fps), path / 'neuropil_x.keras')
 
     trs = sim_neuropil_traces(fps.shape[0], num_frames, tau, rng, hz=hz)
     save_model(trs := Traces(trs), path / 'neuropil_t.keras')

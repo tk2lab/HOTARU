@@ -18,31 +18,35 @@ class CalciumImagingData(Layer):
         if 'path' in imgs_kwargs:
             if 'path' in kwargs:
                 raise ValueError()
+            path = imgs_kwargs.pop('path')
         else:
             if 'path' not in kwargs:
                 raise ValueError()
-            imgs_kwargs['path'] = kwargs.pop('path')
+            path = kwargs.pop('path')
         if 'hz' in imgs_kwargs:
             if 'hz' in kwargs:
                 raise ValueError()
+            hz = imgs_kwargs.pop('hz')
         else:
             if 'hz' not in kwargs:
                 raise ValueError()
-            imgs_kwargs['hz'] = kwargs.pop('hz')
+            hz = kwargs.pop('hz')
 
         super().__init__(**kwargs)
         self.imgs_kwargs = imgs_kwargs
         self.mask_kwargs = mask_kwargs
 
-        imgs = load_imgs(**imgs_kwargs)
+        imgs = load_imgs(path=path, hz=hz, **imgs_kwargs)
         imgs, mask = apply_mask(imgs, **mask_kwargs)
         self.imgs = imgs
         self.mask = mask
-        self.hz = imgs_kwargs['hz']
-        self.imgs_path = imgs_kwargs['path']
+        self.hz = hz
+        self.imgs_path = path
 
     def get_config(self) -> Config:
         return {
+            'path': str(self.imgs_path),
+            'hz': self.hz,
             'imgs': self.imgs_kwargs,
             'mask': self.mask_kwargs,
             **super().get_config(),

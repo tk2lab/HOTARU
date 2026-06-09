@@ -1,4 +1,5 @@
 from math import ceil
+from math import inf
 from math import pi
 from math import sqrt
 
@@ -87,18 +88,13 @@ def gaussian_laplace_2d_multi(imgs, rs, *, axis=-1):
     return ops.stack(out, axis=axis)
 
 
-def max_pool_2d(imgs, pool_size, strides = 1):
-    shape = ops.shape(imgs)
-    g0 = ops.reshape(imgs, (-1, *shape[-2:], 1))
-    g1 = ops.max_pool(g0, pool_size, strides, 'same', 'channels_last')
-    return ops.reshape(g1, shape)
-
-
-def max_pool_3d(imgs, pool_size, strides = 1):
-    shape = ops.shape(imgs)
-    g0 = ops.reshape(imgs, (-1, *shape[-3:], 1))
-    g1 = ops.max_pool(g0, pool_size, strides, 'same', 'channels_last')
-    return ops.reshape(g1, shape)
+def local_peaks(data, dim, hsize):
+    shape = ops.shape(data)
+    pool_size = 2 * hsize + 1
+    g0 = ops.reshape(data, (-1, *shape[-dim:], 1))
+    g1 = ops.max_pool(g0, pool_size, 1, 'valid', 'channels_last')[..., 0]
+    g2 = ops.pad(g1, [(0, 0)] + [(hsize, hsize)] * dim, constant_values=inf)
+    return data == ops.reshape(g2, shape)
 
 
 def neighbor(imgs):
@@ -107,10 +103,3 @@ def neighbor(imgs):
     g0 = ops.reshape(imgs, (-1, *shape[-2:], 1))
     g1 = ops.conv(g0, kernel[:, :, None, None], (1, 1), 'same', 'channels_last')
     return ops.reshape(g1, shape)
-
-
-def simple_peaks(img, gauss_size, pool_size):
-    g = gaussian_2d(img, gauss_size)
-    m = max_pool_2d(g, pool_size)
-    y, x = ops.nonzero(g == m)
-    return y, x

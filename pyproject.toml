@@ -30,6 +30,7 @@ dependencies = [
     "polars",
     "hvplot",
     "seaborn",
+    "PyArrow>=14.0.0",
     "av",
     # UI
     "hydra-core",
